@@ -31,7 +31,7 @@ portable_date_offset() {
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKSPACE="$HOME/IWE"
-GOVERNANCE_DIR="${GOVERNANCE_DIR:-$WORKSPACE/DS-my-strategy}"
+GOVERNANCE_DIR="${GOVERNANCE_DIR:-$WORKSPACE/DS-strategy}"
 LOG_DIR="$HOME/logs/synchronizer"
 DATE=$(date +%Y-%m-%d)
 LOG_FILE="$LOG_DIR/dt-collect-$DATE.log"
@@ -142,7 +142,7 @@ print(json.dumps(result))
 }
 
 # ============================================================
-# 2. Git Stats (все репо в ~/IWE/)
+# 2. Git Stats (все репо в /home/natty/IWE/)
 # ============================================================
 
 collect_git() {
@@ -150,7 +150,7 @@ collect_git() {
 import subprocess, json, os
 from datetime import datetime, timedelta
 
-workspace = os.path.expanduser('~/IWE')
+workspace = os.path.expanduser('/home/natty/IWE')
 repos = []
 for name in sorted(os.listdir(workspace)):
     path = os.path.join(workspace, name)
@@ -261,7 +261,7 @@ if os.path.exists(log_path):
 
 # Also count from git log (more reliable — sessions leave commits)
 import subprocess
-workspace = os.path.expanduser('~/IWE')
+workspace = os.path.expanduser('/home/natty/IWE')
 git_sessions_7d = 0
 for name in os.listdir(workspace):
     path = os.path.join(workspace, name)
@@ -540,7 +540,7 @@ collect_pack() {
     python3 -c "
 import json, os, re
 
-workspace = os.path.expanduser('~/IWE')
+workspace = os.path.expanduser('/home/natty/IWE')
 pack_stats = {}
 total_md = 0
 total_entities = 0

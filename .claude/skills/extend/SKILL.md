@@ -21,8 +21,8 @@ version: 1.0.0
 ### 2. Показать текущее состояние кастомизаций
 
 ```bash
-ls {{WORKSPACE_DIR}}/extensions/*.md 2>/dev/null || echo "(нет расширений)"
-cat {{WORKSPACE_DIR}}/params.yaml 2>/dev/null
+ls /home/natty/IWE/extensions/*.md 2>/dev/null || echo "(нет расширений)"
+cat /home/natty/IWE/params.yaml 2>/dev/null
 ```
 
 Сообщить:

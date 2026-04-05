@@ -46,7 +46,7 @@
 2. **Статусы** (механические, пока файлы «горячие»):
    - **MEMORY.md** — обновить статус РП (одна строка: `in_progress` / `done`)
    - **DayPlan** — обновить строку **своего РП** в `DS-strategy/current/DayPlan YYYY-MM-DD.md`. **Scope:** Quick Close обновляет только РП текущей сессии. Полная актуализация всех строк — на Day Close (шаг 2b). **Правило зачёркивания:** зачеркнуть строку даже если РП остаётся in_progress (в WeekPlan он не зачёркивается, пока не done). DayPlan отражает «что сделано сегодня», WeekPlan — «что закрыто на неделе».
-   - **WP-REGISTRY** (при done) — `DS-strategy/docs/WP-REGISTRY.md`: зачеркнуть строку, статус → `✅ | ~~done~~`. Эмодзи без `~~`. Пропуск = рассинхрон MEMORY vs REGISTRY.
+   - **WP-REGISTRY** (при done) — `DS-strategy/docs/WP-REGISTRY.md`: зачеркнуть строку, статус → `~~✅~~ | ~~done~~`. Пропуск = рассинхрон MEMORY vs REGISTRY.
 3. **KE (Knowledge Extraction)** → прочитай и выполни `DS-IT-systems/DS-ai-systems/extractor/prompts/session-close.md`:
    - Собрать отложенные captures + проверить пропущенные
    - Классифицировать → маршрутизировать → формализовать → валидировать
@@ -135,9 +135,9 @@
 #### 1. Сбор данных
 
 ```bash
-for repo in $(ls {{WORKSPACE_DIR}}/); do
-  if [ -d {{WORKSPACE_DIR}}/$repo/.git ]; then
-    commits=$(git -C {{WORKSPACE_DIR}}/$repo log --since="today 00:00" --oneline --no-merges 2>/dev/null)
+for repo in $(ls /home/natty/IWE/); do
+  if [ -d /home/natty/IWE/$repo/.git ]; then
+    commits=$(git -C /home/natty/IWE/$repo log --since="today 00:00" --oneline --no-merges 2>/dev/null)
     [ -n "$commits" ] && echo "=== $repo ===" && echo "$commits"
   fi
 done
@@ -181,7 +181,7 @@ done
 
 ```bash
 # Запуск одной командой:
-{{WORKSPACE_DIR}}/DS-IT-systems/DS-ai-systems/synchronizer/scripts/day-close.sh
+/home/natty/IWE/DS-IT-systems/DS-ai-systems/synchronizer/scripts/day-close.sh
 ```
 
 Скрипт выполняет:
@@ -397,6 +397,15 @@ done
 - ≤11 файлов? Лишние → объединить или удалить
 - Лимиты: справочники ≤100, протоколы ≤150, реестры ≤200 строк
 - Устаревшие записи → обновить или удалить
+
+#### 4b. Аудит MEMORY.md (quarterly, раз в 4 недели)
+
+> **Условный шаг:** если `params.yaml → memory_audit_frequency: monthly` → проверять раз в 4 недели. `weekly` → каждую неделю. По умолчанию: `monthly`.
+
+- Есть ли файлы памяти, которые можно объединить или удалить?
+- Есть ли `superseded_by` без удаления исходного файла?
+- Лимит раздела «Файлы памяти» в MEMORY.md: ≤10 строк
+- Записи с `valid_from` старше 3 месяцев без подтверждения актуальности → пометить или удалить
 
 <!-- EXTENSION POINT: загрузить extensions/week-close.after.md если существует -->
 

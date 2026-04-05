@@ -8,10 +8,10 @@
 #
 set -e
 
-VERSION="0.5.0"
+VERSION="0.6.0"
 DRY_RUN=false
 CORE_ONLY=false
-INSTALL_LEVEL=""  # T1/T2/T3/T4 — set by --level or interactive prompt
+VALIDATE_ONLY=false
 
 # === Cross-platform sed -i ===
 # macOS sed requires '' after -i, GNU sed does not
@@ -29,28 +29,89 @@ for arg in "$@"; do
         --core)     CORE_ONLY=true ;;
         --dry-run)  DRY_RUN=true ;;
         --version)  echo "exocortex-setup v$VERSION"; exit 0 ;;
-        --level=T1) INSTALL_LEVEL="T1" ;;
-        --level=T2) INSTALL_LEVEL="T2" ;;
-        --level=T3) INSTALL_LEVEL="T3" ;;
-        --level=T4) INSTALL_LEVEL="T4" ;;
+        --validate)     VALIDATE_ONLY=true ;;
         --help|-h)
             echo "Usage: setup.sh [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --level=T1  Минимум: Claude Code + экзокортекс (≤15 мин)"
-            echo "  --level=T2  Стандарт: + ритуалы ОРЗ + extensions/"
-            echo "  --level=T3  Рост: + Pack + бот"
-            echo "  --level=T4  Полный: + роли + автоматизация (launchd)"
+            echo "  --validate  Проверить текущую установку (env, файлы, extensions, MCP)"
             echo "  --core      Офлайн-установка: только git, без сети"
             echo "  --dry-run   Показать что будет сделано, без изменений"
             echo "  --version   Версия скрипта"
             echo "  --help      Эта справка"
-            echo ""
-            echo "Без --level: интерактивный вопрос при запуске."
             exit 0
             ;;
     esac
 done
+
+# === Validate mode ===
+if $VALIDATE_ONLY; then
+    echo "=========================================="
+    echo "  Exocortex Validate v$VERSION"
+    echo "=========================================="
+    echo ""
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    ENV_FILE="$SCRIPT_DIR/.exocortex.env"
+    ERRORS=0
+
+    # Load .exocortex.env
+    if [ -f "$ENV_FILE" ]; then
+        echo "[1/4] Env-конфиг... ✓ .exocortex.env найден"
+        # Safe read: grep KEY=VALUE, no eval/source (values may contain spaces)
+        _env_get() { grep "^$1=" "$ENV_FILE" 2>/dev/null | head -1 | cut -d'=' -f2-; }
+        # Check required keys
+        for key in GITHUB_USER WORKSPACE_DIR; do
+            val=$(_env_get "$key")
+            if [ -z "$val" ]; then
+                echo "  ✗ $key не задан"
+                ERRORS=$((ERRORS + 1))
+            fi
+        done
+    else
+        echo "[1/4] Env-конфиг... ✗ .exocortex.env не найден"
+        echo "  Запустите setup.sh для первичной настройки"
+        ERRORS=$((ERRORS + 1))
+    fi
+
+    # Check required files
+    echo "[2/4] Файлы..."
+    CHECK_FILES="CLAUDE.md memory/MEMORY.md memory/protocol-open.md memory/protocol-close.md memory/protocol-work.md memory/navigation.md memory/roles.md"
+    for f in $CHECK_FILES; do
+        if [ -f "$SCRIPT_DIR/$f" ]; then
+            echo "  ✓ $f"
+        else
+            echo "  ✗ $f отсутствует"
+            ERRORS=$((ERRORS + 1))
+        fi
+    done
+
+    # Check extensions
+    echo "[3/4] Extensions..."
+    if [ -d "$SCRIPT_DIR/extensions" ]; then
+        EXT_COUNT=$(find "$SCRIPT_DIR/extensions" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+        echo "  ✓ extensions/ ($EXT_COUNT файлов)"
+    else
+        echo "  ⚠ extensions/ не найдена (опционально)"
+    fi
+    if [ -f "$SCRIPT_DIR/params.yaml" ]; then
+        echo "  ✓ params.yaml"
+    else
+        echo "  ⚠ params.yaml не найден (опционально)"
+    fi
+
+    # Check MCP accessibility
+    echo "[4/4] MCP-доступность..."
+    echo "  MCP подключается через claude.ai/settings/connectors"
+    echo "  Проверьте командой /mcp в Claude Code"
+
+    echo ""
+    if [ "$ERRORS" -eq 0 ]; then
+        echo "✓ Валидация пройдена"
+    else
+        echo "✗ Найдено ошибок: $ERRORS"
+    fi
+    exit "$ERRORS"
+fi
 
 if $CORE_ONLY; then
     echo "=========================================="
@@ -137,37 +198,9 @@ if [ "$PREREQ_FAIL" -eq 1 ]; then
     exit 1
 fi
 
-# === Select install level ===
-if [ -z "$INSTALL_LEVEL" ] && ! $CORE_ONLY; then
-    echo "Выбери уровень установки (можно добавить следующий уровень позже):"
-    echo ""
-    echo "  T1  Минимум      Claude Code + экзокортекс. Требует ≤15 мин."
-    echo "  T2  Стандарт     + ритуалы ОРЗ (Day Open/Close, WeekPlan) + extensions/"
-    echo "  T3  Рост         + Pack + бот (Telegram)"
-    echo "  T4  Полный       + роли + launchd-автоматизация (Стратег, Синхронизатор)"
-    echo ""
-    while true; do
-        read -p "Уровень [T2]: " INSTALL_LEVEL
-        INSTALL_LEVEL="${INSTALL_LEVEL:-T2}"
-        case "$INSTALL_LEVEL" in
-            T1|T2|T3|T4) break ;;
-            *) echo "  Введи T1, T2, T3 или T4." ;;
-        esac
-    done
-    echo ""
-elif $CORE_ONLY; then
-    INSTALL_LEVEL="T1"
-fi
-
-echo "  Уровень: $INSTALL_LEVEL"
-echo ""
-
 # === Collect configuration ===
 read -p "GitHub username (или Enter для пропуска): " GITHUB_USER
 GITHUB_USER="${GITHUB_USER:-your-username}"
-
-read -p "Имя вашего экзокортекс-репо [DS-exocortex]: " EXOCORTEX_REPO
-EXOCORTEX_REPO="${EXOCORTEX_REPO:-DS-exocortex}"
 
 read -p "Workspace directory [$(dirname "$TEMPLATE_DIR")]: " WORKSPACE_DIR
 WORKSPACE_DIR="${WORKSPACE_DIR:-$(dirname "$TEMPLATE_DIR")}"
@@ -198,7 +231,6 @@ CLAUDE_PROJECT_SLUG="$(echo "$WORKSPACE_DIR" | tr '/' '-')"
 echo ""
 echo "Configuration:"
 echo "  GitHub user:    $GITHUB_USER"
-echo "  Exocortex repo: $EXOCORTEX_REPO"
 echo "  Workspace:      $WORKSPACE_DIR"
 if $CORE_ONLY; then
     echo "  Mode:           core (offline)"
@@ -234,28 +266,6 @@ if ! $DRY_RUN; then
     [[ ! $REPLY =~ ^[Yy]$ ]] && exit 1
 fi
 
-# === Collect T3+ configuration (Knowledge Gateway) ===
-# Secrets section: not substituted into template files, only read by Gateway scripts
-ORY_TOKEN=""
-L4_BACKEND=""
-L4_DATABASE_URL=""
-if ! $CORE_ONLY && ! $DRY_RUN; then
-    case "$INSTALL_LEVEL" in T3|T4)
-        echo "Knowledge Gateway (T3+):"
-        echo "  Эти параметры используются для подключения личного Pack к платформе."
-        echo "  Можно пропустить сейчас (Enter) и заполнить позже вручную в .exocortex.env"
-        echo ""
-        read -p "  ORY_TOKEN (токен платформы Aisystant, или Enter): " ORY_TOKEN
-        if [ -n "$ORY_TOKEN" ]; then
-            read -p "  L4_BACKEND [neon]: " L4_BACKEND
-            L4_BACKEND="${L4_BACKEND:-neon}"
-            read -p "  L4_DATABASE_URL (postgres://...): " L4_DATABASE_URL
-        fi
-        echo ""
-        ;;
-    esac
-fi
-
 # === Save configuration to .exocortex.env ===
 ENV_FILE="$TEMPLATE_DIR/.exocortex.env"
 if $DRY_RUN; then
@@ -269,22 +279,24 @@ else
 
 # === Core (substituted into template files) ===
 GITHUB_USER=$GITHUB_USER
-EXOCORTEX_REPO=$EXOCORTEX_REPO
 WORKSPACE_DIR=$WORKSPACE_DIR
 CLAUDE_PATH=$CLAUDE_PATH
 CLAUDE_PROJECT_SLUG=$CLAUDE_PROJECT_SLUG
 TIMEZONE_HOUR=$TIMEZONE_HOUR
 TIMEZONE_DESC=$TIMEZONE_DESC
 HOME_DIR=$HOME_DIR
-INSTALL_LEVEL=$INSTALL_LEVEL
 
-# === Knowledge Gateway (T3+, NOT substituted into files — read by Gateway scripts only) ===
-# ORY_TOKEN: platform authentication token. Rotate manually if expired. update.sh preserves this value.
-ORY_TOKEN=$ORY_TOKEN
-# L4_BACKEND: personal knowledge backend (neon|supabase|sqlite)
-L4_BACKEND=$L4_BACKEND
-# L4_DATABASE_URL: connection string for personal Pack index (may contain '=' chars — safe to store here)
-L4_DATABASE_URL=$L4_DATABASE_URL
+# === Platform LLM Proxy (optional own API key for unlimited usage) ===
+PLATFORM_LLM_PROXY_URL=https://llm.aisystant.com/v1
+# ANTHROPIC_API_KEY=  # Optional: own key for unlimited usage (Direct MCP mode)
+
+# === MCP (substituted into .mcp.json) ===
+# Platform MCP packages — update version here, run update.sh to apply
+KNOWLEDGE_MCP_PACKAGE=@aisystant/knowledge-mcp
+KNOWLEDGE_MCP_DATABASE_URL=
+DIGITAL_TWIN_MCP_PACKAGE=@aisystant/digital-twin-mcp
+DIGITAL_TWIN_DATABASE_URL=
+
 ENVEOF
     chmod 600 "$ENV_FILE"
     echo "  Configuration saved to $ENV_FILE"
@@ -304,23 +316,23 @@ echo "[1/6] Configuring placeholders..."
 if $DRY_RUN; then
     PLACEHOLDER_FILES=$(find "$TEMPLATE_DIR" -type f \( -name "*.md" -o -name "*.json" -o -name "*.sh" -o -name "*.plist" -o -name "*.yaml" -o -name "*.yml" \) | wc -l | tr -d ' ')
     echo "  [DRY RUN] Would substitute placeholders in $PLACEHOLDER_FILES files"
-    echo "    {{GITHUB_USER}} → $GITHUB_USER"
-    echo "    {{WORKSPACE_DIR}} → $WORKSPACE_DIR"
-    echo "    {{CLAUDE_PATH}} → $CLAUDE_PATH"
-    echo "    {{CLAUDE_PROJECT_SLUG}} → $CLAUDE_PROJECT_SLUG"
-    echo "    {{TIMEZONE_HOUR}} → $TIMEZONE_HOUR"
-    echo "    {{TIMEZONE_DESC}} → $TIMEZONE_DESC"
-    echo "    {{HOME_DIR}} → $HOME_DIR"
+    echo "    VxxxlBxxxxv → $GITHUB_USER"
+    echo "    /home/natty/IWE → $WORKSPACE_DIR"
+    echo "    /mnt/c/Users/Natty/AppData/Roaming/npm/claude → $CLAUDE_PATH"
+    echo "    -home-natty-IWE → $CLAUDE_PROJECT_SLUG"
+    echo "    4 → $TIMEZONE_HOUR"
+    echo "    5:00 UTC → $TIMEZONE_DESC"
+    echo "    /home/natty → $HOME_DIR"
 else
     find "$TEMPLATE_DIR" -type f \( -name "*.md" -o -name "*.json" -o -name "*.sh" -o -name "*.plist" -o -name "*.yaml" -o -name "*.yml" \) | while IFS= read -r file; do
         sed_inplace \
-            -e "s|{{GITHUB_USER}}|$GITHUB_USER|g" \
-            -e "s|{{WORKSPACE_DIR}}|$WORKSPACE_DIR|g" \
-            -e "s|{{CLAUDE_PATH}}|$CLAUDE_PATH|g" \
-            -e "s|{{CLAUDE_PROJECT_SLUG}}|$CLAUDE_PROJECT_SLUG|g" \
-            -e "s|{{TIMEZONE_HOUR}}|$TIMEZONE_HOUR|g" \
-            -e "s|{{TIMEZONE_DESC}}|$TIMEZONE_DESC|g" \
-            -e "s|{{HOME_DIR}}|$HOME_DIR|g" \
+            -e "s|VxxxlBxxxxv|$GITHUB_USER|g" \
+            -e "s|/home/natty/IWE|$WORKSPACE_DIR|g" \
+            -e "s|/mnt/c/Users/Natty/AppData/Roaming/npm/claude|$CLAUDE_PATH|g" \
+            -e "s|-home-natty-IWE|$CLAUDE_PROJECT_SLUG|g" \
+            -e "s|4|$TIMEZONE_HOUR|g" \
+            -e "s|5:00 UTC|$TIMEZONE_DESC|g" \
+            -e "s|/home/natty|$HOME_DIR|g" \
             "$file"
     done
 
@@ -333,46 +345,7 @@ else
     fi
 fi
 
-# === 1b. Rename repo (if name differs from FMT-exocortex-template) ===
-CURRENT_DIR_NAME="$(basename "$TEMPLATE_DIR")"
-if [ "$EXOCORTEX_REPO" != "$CURRENT_DIR_NAME" ]; then
-    echo ""
-    echo "[1b] Renaming repo: $CURRENT_DIR_NAME → $EXOCORTEX_REPO..."
-    TARGET_DIR="$(dirname "$TEMPLATE_DIR")/$EXOCORTEX_REPO"
-
-    if [ -d "$TARGET_DIR" ]; then
-        echo "  WARN: $TARGET_DIR already exists. Skipping rename."
-    elif $DRY_RUN; then
-        echo "  [DRY RUN] Would rename: $TEMPLATE_DIR → $TARGET_DIR"
-        if ! $CORE_ONLY && command -v gh >/dev/null 2>&1; then
-            echo "  [DRY RUN] Would rename GitHub repo to $EXOCORTEX_REPO"
-        fi
-    else
-        # Replace references in all text files
-        find "$TEMPLATE_DIR" -type f \( -name "*.md" -o -name "*.json" -o -name "*.sh" -o -name "*.plist" -o -name "*.yaml" -o -name "*.yml" \) | while IFS= read -r file; do
-            # Skip lines marked UPSTREAM-CONST (e.g., upstream repo URL in update.sh)
-            if grep -q 'UPSTREAM-CONST' "$file" 2>/dev/null; then
-                sed_inplace "/UPSTREAM-CONST/!s|$CURRENT_DIR_NAME|$EXOCORTEX_REPO|g" "$file"
-            else
-                sed_inplace "s|$CURRENT_DIR_NAME|$EXOCORTEX_REPO|g" "$file"
-            fi
-        done
-
-        # Rename GitHub repo (if gh is available and not core mode)
-        if ! $CORE_ONLY && command -v gh >/dev/null 2>&1; then
-            gh repo rename "$EXOCORTEX_REPO" --yes 2>/dev/null && \
-                echo "  ✓ GitHub repo renamed to $EXOCORTEX_REPO" || \
-                echo "  ○ GitHub rename skipped (rename manually: gh repo rename $EXOCORTEX_REPO)"
-        fi
-
-        # Rename local directory
-        mv "$TEMPLATE_DIR" "$TARGET_DIR"
-        TEMPLATE_DIR="$TARGET_DIR"
-        echo "  ✓ Local directory renamed to $EXOCORTEX_REPO"
-    fi
-else
-    echo "  Repo name unchanged ($CURRENT_DIR_NAME)."
-fi
+# (Repo rename removed — folder stays as FMT-exocortex-template)
 
 # === 2. Copy CLAUDE.md to workspace root ===
 echo "[2/6] Installing CLAUDE.md..."
@@ -412,8 +385,8 @@ else
 fi
 
 # === 4. Copy .claude settings ===
-if $CORE_ONLY || [ "$INSTALL_LEVEL" = "T1" ]; then
-    echo "[4/6] Claude settings... пропущено (уровень $INSTALL_LEVEL)"
+if $CORE_ONLY; then
+    echo "[4/6] Claude settings... пропущено (core mode)"
 else
     echo "[4/6] Installing Claude settings..."
     if $DRY_RUN; then
@@ -463,10 +436,83 @@ else
     fi
 fi
 
+# === 4c. Generate .mcp.json in workspace ===
+echo "[4c] Configuring .mcp.json..."
+
+MCP_TEMPLATE="$TEMPLATE_DIR/.mcp.json"
+MCP_DEST="$WORKSPACE_DIR/.mcp.json"
+MCP_USER_EXT="$WORKSPACE_DIR/extensions/mcp-user.json"
+
+if $DRY_RUN; then
+    echo "  [DRY RUN] Would generate $MCP_DEST from $MCP_TEMPLATE"
+    echo "    Substituting: KNOWLEDGE_MCP_PACKAGE, KNOWLEDGE_MCP_DATABASE_URL,"
+    echo "                  DIGITAL_TWIN_MCP_PACKAGE, DIGITAL_TWIN_DATABASE_URL, GITHUB_USER"
+    if [ -f "$MCP_USER_EXT" ] && command -v jq >/dev/null 2>&1; then
+        echo "  [DRY RUN] Would merge extensions/mcp-user.json into .mcp.json"
+    fi
+elif [ ! -f "$MCP_TEMPLATE" ]; then
+    echo "  WARN: $MCP_TEMPLATE not found, skipping."
+else
+    # Read MCP variables from .exocortex.env (already saved above)
+    ENV_FILE="$TEMPLATE_DIR/.exocortex.env"
+    KNOWLEDGE_MCP_PACKAGE=""
+    KNOWLEDGE_MCP_DATABASE_URL=""
+    DIGITAL_TWIN_MCP_PACKAGE=""
+    DIGITAL_TWIN_DATABASE_URL=""
+    MCP_GITHUB_USER="$GITHUB_USER"  # already collected above; re-read from env as fallback
+    if [ -f "$ENV_FILE" ]; then
+        while IFS= read -r line; do
+            case "$line" in \#*|"") continue ;; esac
+            k="${line%%=*}"; v="${line#*=}"
+            k=$(echo "$k" | tr -d '[:space:]')
+            case "$k" in
+                GITHUB_USER)               MCP_GITHUB_USER="$v" ;;
+                KNOWLEDGE_MCP_PACKAGE)     KNOWLEDGE_MCP_PACKAGE="$v" ;;
+                KNOWLEDGE_MCP_DATABASE_URL) KNOWLEDGE_MCP_DATABASE_URL="$v" ;;
+                DIGITAL_TWIN_MCP_PACKAGE)  DIGITAL_TWIN_MCP_PACKAGE="$v" ;;
+                DIGITAL_TWIN_DATABASE_URL) DIGITAL_TWIN_DATABASE_URL="$v" ;;
+            esac
+        done < "$ENV_FILE"
+    fi
+
+    # Copy template .mcp.json to workspace
+    cp "$MCP_TEMPLATE" "$MCP_DEST"
+
+    # Substitute MCP-specific placeholders
+    sed_inplace \
+        -e "s|VxxxlBxxxxv|${MCP_GITHUB_USER:-}|g" \
+        -e "s|@aisystant/knowledge-mcp|${KNOWLEDGE_MCP_PACKAGE:-@aisystant/knowledge-mcp}|g" \
+        -e "s||${KNOWLEDGE_MCP_DATABASE_URL:-}|g" \
+        -e "s|@aisystant/digital-twin-mcp|${DIGITAL_TWIN_MCP_PACKAGE:-@aisystant/digital-twin-mcp}|g" \
+        -e "s||${DIGITAL_TWIN_DATABASE_URL:-}|g" \
+        "$MCP_DEST"
+
+    echo "  Generated: $MCP_DEST"
+
+    # Merge extensions/mcp-user.json if it exists and has content
+    if [ -f "$MCP_USER_EXT" ]; then
+        if command -v jq >/dev/null 2>&1; then
+            # Check if mcp-user.json has any servers
+            USER_COUNT=$(jq '.mcpServers | length' "$MCP_USER_EXT" 2>/dev/null || echo "0")
+            if [ "$USER_COUNT" -gt 0 ]; then
+                MCP_MERGED=$(jq -s '.[0].mcpServers * .[1].mcpServers | {mcpServers: .}' "$MCP_DEST" "$MCP_USER_EXT" 2>/dev/null)
+                if [ -n "$MCP_MERGED" ]; then
+                    echo "$MCP_MERGED" > "$MCP_DEST"
+                    echo "  Merged $USER_COUNT server(s) from extensions/mcp-user.json"
+                fi
+            else
+                echo "  extensions/mcp-user.json is empty — skipping merge"
+            fi
+        else
+            echo "  ○ jq not found — extensions/mcp-user.json merge skipped"
+            echo "    Install jq: brew install jq"
+        fi
+    fi
+fi
+
 # === 5. Install roles (autodiscovery via role.yaml) ===
-if $CORE_ONLY || [ "$INSTALL_LEVEL" = "T1" ] || [ "$INSTALL_LEVEL" = "T2" ] || [ "$INSTALL_LEVEL" = "T3" ]; then
-    echo "[5/6] Автоматизация... пропущена (уровень $INSTALL_LEVEL — нужен T4)"
-    echo "  Установить позже: bash $TEMPLATE_DIR/setup.sh --level=T4"
+if $CORE_ONLY; then
+    echo "[5/6] Автоматизация... пропущена (core mode)"
 elif ! command -v launchctl >/dev/null 2>&1; then
     echo "[5/6] Автоматизация... пропущена (launchd не найден — не macOS)"
     echo "  Роли используют launchd (macOS). На Linux используйте cron/systemd вручную."
@@ -590,27 +636,9 @@ else
 
     echo "Next steps:"
     echo "  1. cd $WORKSPACE_DIR"
-    if $CORE_ONLY || [ "$INSTALL_LEVEL" = "T1" ]; then
+    if $CORE_ONLY; then
         echo "  2. Запустите ваш AI CLI (Claude Code, Codex, Aider, Continue.dev и др.)"
         echo "  3. Скажите: «Проведём первую стратегическую сессию»"
-        echo ""
-        echo "Следующий уровень (ритуалы ОРЗ + extensions):"
-        echo "  bash $TEMPLATE_DIR/setup.sh --level=T2"
-        echo ""
-    elif [ "$INSTALL_LEVEL" = "T2" ]; then
-        echo "  2. claude"
-        echo "  3. Ask Claude: «Открывай» (Day Open)"
-        echo ""
-        echo "Следующий уровень (Pack + бот):"
-        echo "  bash $TEMPLATE_DIR/setup.sh --level=T3"
-        echo ""
-    elif [ "$INSTALL_LEVEL" = "T3" ]; then
-        echo "  2. claude"
-        echo "  3. Ask Claude: «Открывай» (Day Open)"
-        echo ""
-        echo "Следующий уровень (роли + автоматизация):"
-        echo "  bash $TEMPLATE_DIR/setup.sh --level=T4"
-        echo ""
     else
         echo "  2. claude"
         echo "  3. Ask Claude: «Проведём первую стратегическую сессию»"
@@ -618,8 +646,8 @@ else
         echo "Strategist will run automatically:"
         echo "  - Morning ($TIMEZONE_DESC): strategy (Mon) / day-plan (Tue-Sun)"
         echo "  - Sunday night: week review"
-        echo ""
     fi
+    echo ""
     echo "Update from upstream:"
     echo "  cd $TEMPLATE_DIR && bash update.sh"
     echo ""

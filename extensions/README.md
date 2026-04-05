@@ -113,6 +113,49 @@ cp my-extension-pack/extensions/* ~/IWE/extensions/
 
 Посмотреть все доступные extension points: `/extend`
 
+## Подключение своего MCP (mcp-user.json)
+
+Добавьте свои MCP-серверы в `extensions/mcp-user.json`. При каждом `update.sh` они автоматически мёржатся в `.mcp.json`.
+
+### Namespace соглашение
+
+| Префикс | Кто | Примеры |
+|---------|-----|---------|
+| без префикса | Платформенные (зарезервированы) | `knowledge-mcp`, `digital-twin-mcp` |
+| `ext-*` | Вендорские | `ext-google-calendar`, `ext-linear`, `ext-slack` |
+| `<ваш префикс>-*` | Ваши MCP | `tseren-notes`, `tseren-obsidian` |
+
+Используйте свой уникальный префикс (например username) — это предотвращает конфликты при обновлениях.
+
+### Пример: добавить свой MCP
+
+Файл `extensions/mcp-user.json`:
+
+```json
+{
+  "mcpServers": {
+    "user-my-notes": {
+      "command": "npx",
+      "args": ["-y", "my-notes-mcp"],
+      "env": {
+        "NOTES_DIR": "/path/to/my/notes"
+      }
+    },
+    "ext-linear": {
+      "command": "npx",
+      "args": ["-y", "@mseep/linear-mcp"],
+      "env": {
+        "LINEAR_API_KEY": "lin_api_..."
+      }
+    }
+  }
+}
+```
+
+После `update.sh` эти серверы появятся в `.mcp.json`. Требуется `jq` (`brew install jq`).
+
+**Важно:** `update.sh` не трогает `extensions/mcp-user.json` — ваши MCP в безопасности при обновлениях.
+
 ## Правила
 
 1. Имена файлов: `<protocol>.<hook>.md` или `<protocol>.<hook>.<suffix>.md`

@@ -327,7 +327,7 @@ if [ -f "$ENV_FILE" ]; then
             # Trim whitespace from key
             key=$(echo "$key" | tr -d '[:space:]')
             [ -z "$key" ] && continue
-            # Export for use below (secrets: ORY_TOKEN, L4_DATABASE_URL etc. are loaded but not substituted into files)
+            # Export for use below (secrets: L4_DATABASE_URL etc. are loaded but not substituted into files)
             declare "ENV_$key=$value"
         done < "$ENV_FILE"
 
@@ -339,38 +339,37 @@ if [ -f "$ENV_FILE" ]; then
             if grep -q '{{[A-Z_]*}}' "$filepath" 2>/dev/null; then
                 sed_inplace \
                     -e "s|{{GITHUB_USER}}|${ENV_GITHUB_USER:-}|g" \
-                    -e "s|{{EXOCORTEX_REPO}}|${ENV_EXOCORTEX_REPO:-}|g" \
                     -e "s|{{WORKSPACE_DIR}}|${ENV_WORKSPACE_DIR:-}|g" \
                     -e "s|{{CLAUDE_PATH}}|${ENV_CLAUDE_PATH:-}|g" \
                     -e "s|{{CLAUDE_PROJECT_SLUG}}|${ENV_CLAUDE_PROJECT_SLUG:-}|g" \
                     -e "s|{{TIMEZONE_HOUR}}|${ENV_TIMEZONE_HOUR:-}|g" \
                     -e "s|{{TIMEZONE_DESC}}|${ENV_TIMEZONE_DESC:-}|g" \
                     -e "s|{{HOME_DIR}}|${ENV_HOME_DIR:-$HOME}|g" \
+                    -e "s|{{KNOWLEDGE_MCP_PACKAGE}}|${ENV_KNOWLEDGE_MCP_PACKAGE:-@aisystant/knowledge-mcp}|g" \
+                    -e "s|{{KNOWLEDGE_MCP_DATABASE_URL}}|${ENV_KNOWLEDGE_MCP_DATABASE_URL:-}|g" \
+                    -e "s|{{DIGITAL_TWIN_MCP_PACKAGE}}|${ENV_DIGITAL_TWIN_MCP_PACKAGE:-@aisystant/digital-twin-mcp}|g" \
+                    -e "s|{{DIGITAL_TWIN_DATABASE_URL}}|${ENV_DIGITAL_TWIN_DATABASE_URL:-}|g" \
                     "$filepath"
                 PLACEHOLDER_HIT=$((PLACEHOLDER_HIT + 1))
             fi
 
-            # Replace template repo name with user's repo name (skip UPSTREAM-CONST lines)
-            if [ -n "${ENV_EXOCORTEX_REPO:-}" ] && grep -q 'FMT-exocortex-template' "$filepath" 2>/dev/null; then
-                sed_inplace "/UPSTREAM-CONST/!s|FMT-exocortex-template|${ENV_EXOCORTEX_REPO}|g" "$filepath"
-            fi
+            # (Repo rename removed — FMT-exocortex-template stays as-is)
         done
 
         if [ "$PLACEHOLDER_HIT" -gt 0 ]; then
             echo "  Подставлено переменных в $PLACEHOLDER_HIT файлах."
         fi
 
-        # === Preserve secrets: ORY_TOKEN, L4_BACKEND, L4_DATABASE_URL ===
+        # === Preserve secrets: L4_BACKEND, L4_DATABASE_URL ===
         # These are NOT substituted into template files.
         # If they exist in .exocortex.env, they must NOT be overwritten by update.sh.
-        # (Already loaded into ENV_ORY_TOKEN etc. via the parser above — no action needed here.)
 
         # === Migrate ~/.iwe-env if present (Ф8 migration scenario) ===
         IWE_ENV_GLOBAL="$HOME/.iwe-env"
         if [ -f "$IWE_ENV_GLOBAL" ]; then
             MIGRATED_KEYS=0
-            # Check which T3+ keys are missing from .exocortex.env
-            for migrate_key in ORY_TOKEN L4_BACKEND L4_DATABASE_URL; do
+            # Check which keys are missing from .exocortex.env
+            for migrate_key in L4_BACKEND L4_DATABASE_URL KNOWLEDGE_MCP_PACKAGE KNOWLEDGE_MCP_DATABASE_URL DIGITAL_TWIN_MCP_PACKAGE DIGITAL_TWIN_DATABASE_URL; do
                 eval "existing=\${ENV_${migrate_key}:-}"
                 if [ -z "$existing" ]; then
                     # Extract from ~/.iwe-env
@@ -401,7 +400,6 @@ else
 # Exocortex configuration (auto-detected by update.sh — verify and fix values)
 # SECURITY: chmod 600. Listed in .gitignore. Do NOT commit this file.
 GITHUB_USER=your-username
-EXOCORTEX_REPO=$DETECTED_REPO
 WORKSPACE_DIR=$DETECTED_WORKSPACE
 CLAUDE_PATH=$(command -v claude 2>/dev/null || echo 'claude')
 CLAUDE_PROJECT_SLUG=$(echo "$DETECTED_WORKSPACE" | tr '/' '-')
@@ -410,7 +408,6 @@ TIMEZONE_DESC=4:00 UTC
 HOME_DIR=$HOME
 
 # === Knowledge Gateway (T3+) — fill in if using personal Pack index ===
-ORY_TOKEN=
 L4_BACKEND=
 L4_DATABASE_URL=
 ENVEOF
@@ -519,46 +516,47 @@ for f in "${NEW_FILES[@]}" "${UPDATED_FILES[@]}"; do
     esac
 done
 
-# === Step 6b: Auto-fix links in user files (migration) ===
-# If WORKSPACE_DIR or EXOCORTEX_REPO changed (rename/move), update references in user files.
-if [ -f "$ENV_FILE" ] && [ -n "${ENV_WORKSPACE_DIR:-}" ] && [ -n "${ENV_EXOCORTEX_REPO:-}" ]; then
-    LINKS_FIXED=0
+# (Step 6b removed — repo rename no longer supported, no link migration needed)
 
-    # Fix extensions/ files
-    EXT_DIR="$WORKSPACE_DIR/extensions"
-    if [ -d "$EXT_DIR" ]; then
-        for ext_file in "$EXT_DIR"/*.md; do
-            [ -f "$ext_file" ] || continue
-            CHANGED=false
+# === Step 6c: Regenerate .mcp.json in workspace (if template .mcp.json updated) ===
+# .mcp.json is immune from direct overwrite — but if the template version changed,
+# we regenerate the workspace copy with fresh variable substitution + user merge.
+MCP_TEMPLATE="$SCRIPT_DIR/.mcp.json"
+MCP_WORKSPACE="$WORKSPACE_DIR/.mcp.json"
+MCP_USER="$WORKSPACE_DIR/extensions/mcp-user.json"
 
-            # Fix old WORKSPACE_DIR references (absolute paths that differ from current)
-            if grep -q '/IWE\b\|/exocortex\b' "$ext_file" 2>/dev/null; then
-                if ! grep -q "${ENV_WORKSPACE_DIR}" "$ext_file" 2>/dev/null || \
-                   grep -qE '/[A-Za-z0-9_-]+/IWE/' "$ext_file" 2>/dev/null; then
-                    sed_inplace "s|${HOME}/[A-Za-z0-9._-]*/|${ENV_WORKSPACE_DIR}/|g" "$ext_file" 2>/dev/null && CHANGED=true
-                fi
+MCP_TEMPLATE_CHANGED=false
+for f in "${NEW_FILES[@]}" "${UPDATED_FILES[@]}"; do
+    if [ "$f" = ".mcp.json" ]; then MCP_TEMPLATE_CHANGED=true; break; fi
+done
+
+if $MCP_TEMPLATE_CHANGED && [ -f "$MCP_TEMPLATE" ]; then
+    # Template .mcp.json was updated — regenerate workspace copy with fresh substitution
+    cp "$MCP_TEMPLATE" "$MCP_WORKSPACE"
+    sed_inplace \
+        -e "s|{{GITHUB_USER}}|${ENV_GITHUB_USER:-}|g" \
+        -e "s|{{KNOWLEDGE_MCP_PACKAGE}}|${ENV_KNOWLEDGE_MCP_PACKAGE:-@aisystant/knowledge-mcp}|g" \
+        -e "s|{{KNOWLEDGE_MCP_DATABASE_URL}}|${ENV_KNOWLEDGE_MCP_DATABASE_URL:-}|g" \
+        -e "s|{{DIGITAL_TWIN_MCP_PACKAGE}}|${ENV_DIGITAL_TWIN_MCP_PACKAGE:-@aisystant/digital-twin-mcp}|g" \
+        -e "s|{{DIGITAL_TWIN_DATABASE_URL}}|${ENV_DIGITAL_TWIN_DATABASE_URL:-}|g" \
+        "$MCP_WORKSPACE"
+    echo "  ✓ .mcp.json регенерирован из обновлённого шаблона"
+fi
+
+# Merge extensions/mcp-user.json into workspace .mcp.json (always, if both exist)
+if [ -f "$MCP_WORKSPACE" ] && [ -f "$MCP_USER" ]; then
+    if command -v jq >/dev/null 2>&1; then
+        USER_COUNT=$(jq '.mcpServers | length' "$MCP_USER" 2>/dev/null || echo "0")
+        if [ "$USER_COUNT" -gt 0 ]; then
+            MCP_MERGED=$(jq -s '.[0].mcpServers * .[1].mcpServers | {mcpServers: .}' "$MCP_WORKSPACE" "$MCP_USER" 2>/dev/null)
+            if [ -n "$MCP_MERGED" ]; then
+                echo "$MCP_MERGED" > "$MCP_WORKSPACE"
+                echo "  ✓ .mcp.json — $USER_COUNT пользовательских MCP из extensions/mcp-user.json добавлены"
             fi
-
-            # Fix old repo name references in links
-            if grep -q 'FMT-exocortex-template\|github\.com/[A-Za-z0-9_-]*/[A-Za-z0-9_-]*-exocortex' "$ext_file" 2>/dev/null; then
-                sed_inplace "/UPSTREAM-CONST/!s|FMT-exocortex-template|${ENV_EXOCORTEX_REPO}|g" "$ext_file" 2>/dev/null && CHANGED=true
-            fi
-
-            $CHANGED && LINKS_FIXED=$((LINKS_FIXED + 1))
-        done
-    fi
-
-    # Fix memory/ user files (MEMORY.md only — platform files are replaced above)
-    MEMORY_DIR="$HOME/.claude/projects/${CLAUDE_PROJECT_SLUG}/memory"
-    if [ -d "$MEMORY_DIR" ] && [ -f "$MEMORY_DIR/MEMORY.md" ]; then
-        if grep -q 'FMT-exocortex-template' "$MEMORY_DIR/MEMORY.md" 2>/dev/null; then
-            sed_inplace "/UPSTREAM-CONST/!s|FMT-exocortex-template|${ENV_EXOCORTEX_REPO}|g" "$MEMORY_DIR/MEMORY.md" 2>/dev/null
-            LINKS_FIXED=$((LINKS_FIXED + 1))
         fi
-    fi
-
-    if [ "$LINKS_FIXED" -gt 0 ]; then
-        echo "  ✓ Авто-фикс ссылок: $LINKS_FIXED файлов обновлено"
+    else
+        echo "  ○ .mcp.json — jq не установлен, мёрж extensions/mcp-user.json пропущен"
+        echo "    Установите jq: brew install jq"
     fi
 fi
 

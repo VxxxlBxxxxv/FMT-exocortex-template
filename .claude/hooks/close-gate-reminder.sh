@@ -4,10 +4,13 @@
 # Day Close → ПРЯМАЯ ИНСТРУКЦИЯ вызвать /run-protocol day-close (не напоминание).
 # Session Close → compact-чеклист.
 # Read-only: только JSON additionalContext.
-# Версия: 2026-03-27. АрхГейт 63/70.
+# Версия: 2026-04-03. Fix: multiline prompt ломал jq (6-й инцидент 3 апр).
 
 INPUT=$(cat)
-PROMPT=$(echo "$INPUT" | jq -r '.prompt // empty' | tr '[:upper:]' '[:lower:]')
+# Устойчивость к многострочным промптам: literal \n в JSON value
+# невалиден для jq. Заменяем все control chars на пробелы до парсинга.
+SANITIZED=$(printf '%s' "$INPUT" | LC_ALL=C tr '\n\r\t' '   ')
+PROMPT=$(printf '%s' "$SANITIZED" | jq -r '.prompt // empty' | tr '[:upper:]' '[:lower:]')
 
 # Day Close → ПРИНУДИТЕЛЬНЫЙ вызов /run-protocol
 if echo "$PROMPT" | grep -qE '(итоги дня|закрываю день|закрывай день)'; then

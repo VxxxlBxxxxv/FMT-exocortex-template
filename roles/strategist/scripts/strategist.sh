@@ -14,7 +14,7 @@ REPO_DIR="$(dirname "$SCRIPT_DIR")"
 WORKSPACE="$HOME/IWE/DS-strategy"
 PROMPTS_DIR="$REPO_DIR/prompts"
 LOG_DIR="$HOME/logs/strategist"
-CLAUDE_PATH="{{CLAUDE_PATH}}"
+CLAUDE_PATH="/mnt/c/Users/Natty/AppData/Roaming/npm/claude"
 CLAUDE_TIMEOUT=1800  # 30 мин — защита от зависания Claude CLI
 
 # macOS не имеет GNU timeout — используем perl fallback
@@ -238,20 +238,23 @@ case "$1" in
         # Canary: count bold notes before (exclude 🔄 — deferred ideas stay bold by design)
         FLEETING="$WORKSPACE/inbox/fleeting-notes.md"
         BOLD_BEFORE=$(grep -c '^\*\*' "$FLEETING" 2>/dev/null || echo 0)
-        BOLD_NEW_BEFORE=$(grep '^\*\*' "$FLEETING" 2>/dev/null | grep -v '🔄' | wc -l | tr -d ' ')
+        BOLD_NEW_BEFORE=$(grep -vc '🔄' <(grep '^\*\*' "$FLEETING" 2>/dev/null) 2>/dev/null || echo 0)
         log "Canary: $BOLD_BEFORE bold total ($BOLD_NEW_BEFORE new, $(( BOLD_BEFORE - BOLD_NEW_BEFORE )) deferred 🔄)"
 
         run_claude "note-review"
 
-        # Canary: count bold notes after — only NEW bold (without 🔄) should decrease
+        # Canary: count bold notes after (needs to be visible for alert at line ~274)
         BOLD_AFTER=$(grep -c '^\*\*' "$FLEETING" 2>/dev/null || echo 0)
-        BOLD_NEW_AFTER=$(grep '^\*\*' "$FLEETING" 2>/dev/null | grep -v '🔄' | wc -l | tr -d ' ')
-        log "Canary: $BOLD_AFTER bold total ($BOLD_NEW_AFTER new)"
-        NON_BOLD=$(grep -c '^[^*#>-]' "$FLEETING" 2>/dev/null || echo 0)
-        log "Non-bold content lines: $NON_BOLD"
-        if [ "$BOLD_NEW_AFTER" -ge "$BOLD_NEW_BEFORE" ] && [ "$BOLD_NEW_BEFORE" -gt 0 ]; then
-            log "WARN: Note-Review Step 10 may have failed — new bold notes did not decrease ($BOLD_NEW_BEFORE → $BOLD_NEW_AFTER)"
-        fi
+        BOLD_NEW_AFTER=$(grep -vc '🔄' <(grep '^\*\*' "$FLEETING" 2>/dev/null) 2>/dev/null || echo 0)
+        # Non-blocking diagnostic (isolated from set -e to protect cleanup below)
+        (
+            log "Canary: $BOLD_AFTER bold total ($BOLD_NEW_AFTER new)"
+            NON_BOLD=$(grep -c '^[^*#>-]' "$FLEETING" 2>/dev/null || echo 0)
+            log "Non-bold content lines: $NON_BOLD"
+            if [ "$BOLD_NEW_AFTER" -ge "$BOLD_NEW_BEFORE" ] && [ "$BOLD_NEW_BEFORE" -gt 0 ]; then
+                log "WARN: Note-Review Step 10 may have failed — new bold notes did not decrease ($BOLD_NEW_BEFORE → $BOLD_NEW_AFTER)"
+            fi
+        ) || true
 
         # Deterministic cleanup: archive non-bold, non-🔄 notes (safety net for LLM Step 10)
         log "Running deterministic cleanup..."
