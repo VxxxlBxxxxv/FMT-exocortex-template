@@ -74,6 +74,20 @@ def _write_psycopg2(neon_url, user_id, collected_data):
                     updated_at = NOW()
             """, (user_id, json.dumps(collected_data), json.dumps(collected_data)))
 
+            # ADR-009: dual-write snapshot в user_events (закрытие антипаттерна §4.4)
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            external_id = f"dt-collect-{user_id}-{today}"
+            cur.execute("""
+                INSERT INTO development.user_events
+                    (user_id, user_uuid, event_type, source, payload,
+                     confidence, created_at, external_id)
+                VALUES (0, %s::uuid, 'dt_collect_snapshot', 'iwe', %s::jsonb,
+                        1.0, NOW(), %s)
+                ON CONFLICT (source, external_id)
+                    WHERE external_id IS NOT NULL
+                DO NOTHING
+            """, (user_id, json.dumps(collected_data), external_id))
+
             conn.commit()
             print(f"OK: written for user {user_id}")
     finally:
@@ -107,6 +121,20 @@ def _write_asyncpg(neon_url, user_id, collected_data):
                         ),
                     updated_at = NOW()
             """, user_id, json.dumps(collected_data))
+
+            # ADR-009: dual-write snapshot в user_events (закрытие антипаттерна §4.4)
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            external_id = f"dt-collect-{user_id}-{today}"
+            await conn.execute("""
+                INSERT INTO development.user_events
+                    (user_id, user_uuid, event_type, source, payload,
+                     confidence, created_at, external_id)
+                VALUES (0, $1::uuid, 'dt_collect_snapshot', 'iwe', $2::jsonb,
+                        1.0, NOW(), $3)
+                ON CONFLICT (source, external_id)
+                    WHERE external_id IS NOT NULL
+                DO NOTHING
+            """, user_id, json.dumps(collected_data), external_id)
 
             print(f"OK: written for user {user_id}")
         finally:

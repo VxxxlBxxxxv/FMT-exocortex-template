@@ -20,6 +20,8 @@ DS_STRATEGY="$WORKSPACE_DIR/DS-strategy"
 MEMORY_SRC="$HOME/.claude/projects/-Users-$(whoami)-IWE/memory"
 EXOCORTEX_DST="$DS_STRATEGY/exocortex"
 SELECTIVE_REINDEX="$WORKSPACE_DIR/DS-MCP/knowledge-mcp/scripts/selective-reindex.sh"
+SOURCES_JSON="$WORKSPACE_DIR/DS-MCP/knowledge-mcp/scripts/sources.json"
+SOURCES_PERSONAL_JSON="$WORKSPACE_DIR/DS-MCP/knowledge-mcp/scripts/sources-personal.json"
 # TODO: укажите путь к скрипту синхронизации, если используете
 # LINEAR_SYNC="$WORKSPACE_DIR/roles/synchronizer/scripts/linear-sync.sh"
 LINEAR_SYNC=""
@@ -71,7 +73,26 @@ do_reindex() {
     return 0
   fi
 
-  local changed_sources=""
+  # Маппинг dir→source+config из L2 (sources.json) и L4 (sources-personal.json)
+  # Python резолвит path→git-root, чтобы связать dirname репо с source-именем.
+  local dir_map
+  dir_map=$(python3 - "$SOURCES_JSON" "$SOURCES_PERSONAL_JSON" << 'PYEOF'
+import sys, json, os
+for config_path in sys.argv[1:]:
+    if not os.path.exists(config_path):
+        continue
+    for s in json.load(open(config_path)):
+        resolved = os.path.expanduser(s["path"])
+        while not os.path.isdir(os.path.join(resolved, ".git")) and resolved != "/":
+            resolved = os.path.dirname(resolved)
+        if resolved == "/":
+            continue
+        print(f"{os.path.basename(resolved)}\t{s['source']}\t{config_path}")
+PYEOF
+  ) || { warn "  Mapping build failed — пропуск reindex"; return 0; }
+
+  # Определяем, какие Pack/DS были изменены сегодня
+  local l2_sources="" l4_sources=""
   for repo in "$WORKSPACE_DIR"/PACK-* "$WORKSPACE_DIR"/DS-*; do
     [ -d "$repo/.git" ] || continue
     local repo_name
@@ -79,18 +100,41 @@ do_reindex() {
     local today_commits
     today_commits=$(git -C "$repo" log --since="today 00:00" --oneline --no-merges 2>/dev/null | wc -l | tr -d ' ')
     if [ "$today_commits" -gt 0 ]; then
-      changed_sources="$changed_sources $repo_name"
+      local match
+      match=$(echo "$dir_map" | awk -F'\t' -v d="$repo_name" '$1==d {print $2"\t"$3; exit}')
+      if [ -n "$match" ]; then
+        local src cfg
+        src=$(echo "$match" | cut -f1)
+        cfg=$(echo "$match" | cut -f2)
+        if [ "$cfg" = "$SOURCES_JSON" ]; then
+          l2_sources="$l2_sources $src"
+        else
+          l4_sources="$l4_sources $src"
+        fi
+      else
+        log "  ⚠ $repo_name: не в sources — пропуск"
+      fi
     fi
   done
 
-  if [ -z "$changed_sources" ]; then
-    log "  Нет изменений в Pack/DS сегодня — пропуск reindex"
+  if [ -z "$l2_sources" ] && [ -z "$l4_sources" ]; then
+    log "  Нет изменений в индексируемых источниках — пропуск reindex"
     return 0
   fi
 
-  log "  Изменённые источники:$changed_sources"
-  # shellcheck disable=SC2086
-  "$SELECTIVE_REINDEX" $changed_sources
+  # Вызов 1: L2 источники (sources.json — дефолт selective-reindex)
+  if [ -n "$l2_sources" ]; then
+    log "  L2 источники:$l2_sources"
+    # shellcheck disable=SC2086
+    "$SELECTIVE_REINDEX" $l2_sources
+  fi
+
+  # Вызов 2: L4 источники (sources-personal.json через SOURCES_CONFIG)
+  if [ -n "$l4_sources" ]; then
+    log "  L4 источники:$l4_sources"
+    # shellcheck disable=SC2086
+    SOURCES_CONFIG="$SOURCES_PERSONAL_JSON" "$SELECTIVE_REINDEX" $l4_sources
+  fi
 }
 
 # --- Шаг 3: Linear sync ---

@@ -212,10 +212,10 @@ for _, path in repos:
     ins_7d += i
     dels_7d += d
 
+# ADR-009 (WP-109 Ф3): commits_today/7d/30d теперь агрегируются
+# из user_events через dt_sync. Здесь -- только уникальные поля
+# (repos_active, files_changed, lines), которых нет в sync-iwe.
 result = {
-    'commits_today': commits_today,
-    'commits_7d': commits_7d,
-    'commits_30d': commits_30d,
     'repos_active_7d': repos_7d[:15],
     'files_changed_7d': files_7d,
     'lines_added_7d': ins_7d,
@@ -819,8 +819,10 @@ knowledge = {**pack, **notes}
 for p in p_know:
     knowledge.update(p)
 
+# ADR-009 (WP-109 Ф3): 2_6_coding теперь агрегируется из user_events
+# через dt_sync (бот). dt-collect больше не пишет 2_6_coding в digital_twins.
+# WakaTime данные остаются в iwe для расчёта multiplier.
 result = {
-    '2_6_coding': waka,
     '2_7_iwe': iwe,
 }
 # Only include sections with data

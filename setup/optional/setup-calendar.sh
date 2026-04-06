@@ -36,19 +36,33 @@ echo ""
 # 1. Создать .secrets/ если нет
 mkdir -p "$SECRETS_DIR"
 
-# 2. Скачать OAuth credentials (IWE Shared App) с GitHub Gist
-GIST_URL="https://gist.githubusercontent.com/TserenTserenov/02cc6e4c26653495fff5354f7b274019/raw/gcp-oauth.keys.json"
-echo "  Скачиваю OAuth credentials..."
-if curl -fsSL "$GIST_URL" -o "$SECRETS_DIR/gcp-oauth.keys.json" 2>/dev/null; then
-    echo "  ✓ OAuth credentials скачаны в .secrets/"
-elif command -v gh >/dev/null 2>&1; then
-    echo "  curl не смог скачать, пробую через gh..."
-    gh gist view 02cc6e4c26653495fff5354f7b274019 -f gcp-oauth.keys.json > "$SECRETS_DIR/gcp-oauth.keys.json"
-    echo "  ✓ OAuth credentials скачаны через gh в .secrets/"
+# 2. OAuth credentials: из .exocortex.env или ручной путь
+# Формат в .exocortex.env:  GCP_OAUTH_CREDENTIALS=/path/to/gcp-oauth.keys.json
+ENV_FILE="$WORKSPACE_DIR/.exocortex.env"
+CREDS_PATH="${GCP_OAUTH_CREDENTIALS:-}"
+
+if [ -z "$CREDS_PATH" ] && [ -f "$ENV_FILE" ]; then
+    CREDS_PATH=$(grep '^GCP_OAUTH_CREDENTIALS=' "$ENV_FILE" 2>/dev/null | cut -d'=' -f2-)
+fi
+
+if [ -n "$CREDS_PATH" ] && [ -f "$CREDS_PATH" ]; then
+    cp "$CREDS_PATH" "$SECRETS_DIR/gcp-oauth.keys.json"
+    echo "  ✓ OAuth credentials скопированы из $CREDS_PATH"
+elif [ -f "$SECRETS_DIR/gcp-oauth.keys.json" ]; then
+    echo "  ✓ OAuth credentials уже на месте (.secrets/gcp-oauth.keys.json)"
 else
-    echo "  ✗ Не удалось скачать credentials."
-    echo "    Скачайте вручную: $GIST_URL"
-    echo "    Сохраните как: $SECRETS_DIR/gcp-oauth.keys.json"
+    echo "  ✗ OAuth credentials не найдены."
+    echo ""
+    echo "  Для настройки Google Calendar MCP нужен файл gcp-oauth.keys.json."
+    echo "  Получить его можно двумя способами:"
+    echo ""
+    echo "  1. Создать свой OAuth App в Google Cloud Console:"
+    echo "     https://console.cloud.google.com/apis/credentials"
+    echo "     Скачать JSON → сохранить как: $SECRETS_DIR/gcp-oauth.keys.json"
+    echo ""
+    echo "  2. Указать путь к существующему файлу в .exocortex.env:"
+    echo "     echo 'GCP_OAUTH_CREDENTIALS=/path/to/gcp-oauth.keys.json' >> $ENV_FILE"
+    echo ""
     exit 1
 fi
 

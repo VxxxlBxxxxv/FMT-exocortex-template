@@ -294,6 +294,7 @@ bash FMT-exocortex-template/setup.sh --validate
 | Проблема | Решение |
 |----------|---------|
 | `/mcp` -- серверов нет | Повтори шаги 1-4 (claude.ai connectors) |
+| Открыл URL в браузере -- "Not found" | Нормально. MCP работает по POST (JSON-RPC), не по GET. Проверяй через `/mcp` в Claude Code |
 | `knowledge-mcp` -- connection error | Проверь интернет-соединение |
 | `--validate` показывает ошибки | Следуй подсказкам. Недостающие ключи -- заполни в `.exocortex.env` |
 
