@@ -23,7 +23,8 @@ Day Open = протокол. Исполнять ТОЛЬКО пошагово ч
 
 ## Алгоритм
 
-<!-- EXTENSION POINT: загрузить extensions/day-open.before.md если существует -->
+### 0. Extensions (before)
+Проверить: `ls extensions/day-open.before.md`. Если существует → `Read extensions/day-open.before.md` → выполнить содержимое как первые шаги. Не существует → пропустить.
 
 ### 1. Вчера
 Прочитать вчерашний DayPlan (`archive/day-plans/` или `current/`). Взять:
@@ -40,7 +41,7 @@ Fallback: файла нет → пропустить, работать из ко
 **Только actionable:** пропускать read-only и upstream без push-доступа.
 
 ### 1c. Заметки
-`{{GOVERNANCE_REPO}}/inbox/fleeting-notes.md` → категоризация: → РП / → Backlog / → Контент / → Pack / → Обсудить / → Шум. НЕ удалять.
+`DS-my-strategy/inbox/fleeting-notes.md` → категоризация: → РП / → Backlog / → Контент / → Pack / → Обсудить / → Шум. НЕ удалять.
 
 ### 2. План на сегодня
 **Приоритет входов (строгий порядок):**
@@ -60,7 +61,7 @@ Fallback: файла нет → пропустить, работать из ко
 Mandatory РП отсутствуют в WeekPlan → «Требует внимания».
 
 ### 3. Саморазвитие
-Руководство, где остановился, черновики (`{{GOVERNANCE_REPO}}/drafts/`).
+Руководство, где остановился, черновики (`DS-my-strategy/drafts/`).
 
 ### 4. Стратегирование
 Если strategy_day → DayPlan НЕ создавать, план в WeekPlan. Пропустить шаг 7.
@@ -76,8 +77,24 @@ Scheduler report, update.sh, template-sync, MCP reindex, Scout. 🟢/🟡/🔴.
 
 **Проверка обновлений:** `cd /home/natty/IWE/FMT-exocortex-template && bash update.sh --check 2>&1`. Если доступно обновление → добавить в «Требует внимания»: «Доступно обновление IWE → `/iwe-update`».
 
+**Проверка Base-репо (FPF, SPF, ZP):**
+```bash
+for repo in FPF SPF ZP; do
+  dir="/home/natty/IWE/$repo"
+  [ -d "$dir/.git" ] && (cd "$dir" && git fetch --quiet 2>/dev/null && behind=$(git rev-list --count HEAD..origin/main 2>/dev/null || echo 0) && [ "$behind" -gt 0 ] && echo "$repo: $behind новых коммитов" || echo "$repo: актуален")
+done
+```
+Если есть новые коммиты → добавить в «Требует внимания»: «[repo] обновлён upstream → `cd /home/natty/IWE/[repo] && git pull --rebase`». После pull FPF/SPF → reindex: `bash /home/natty/IWE/DS-MCP/knowledge-mcp/scripts/selective-reindex.sh FPF` (или SPF). Reindex обновит данные, доступные через Gateway (iwe-knowledge).
+
+### 5a2. Видео
+Если `day-rhythm-config.yaml → video.enabled: true`:
+1. Сканировать директории из `video.directories` на файлы с расширениями из `video.extensions`
+2. Файлы старше `video.stale_days` дней и необработанные → «Требует внимания»
+3. Показать: количество необработанных, дату последнего, общий размер
+4. `video.enabled: false` → пропустить
+
 ### 5b. Бот QA
-Feedback-triage report → дельта, urgent. Фильтр 2 дня. Нет новых → «нет новых за 2 дня».
+Feedback-triage report: `DS-agent-workspace/scheduler/feedback-triage/YYYY-MM-DD.md`. Проверить дату файла. Фильтр 2 дня. Нет файла → «нет отчёта». Дельта, urgent.
 
 ### 5c. Контент
 Стратегия маркетинга + draft-list. 1-3 темы.
@@ -92,11 +109,14 @@ Scout report. Не проревьюен → «Требует внимания».
 ### 6b. Требует внимания
 Собрать из шагов 1–6. Нет → не выводить.
 
-<!-- EXTENSION POINT: загрузить extensions/day-open.after.md если существует -->
+### 6c. Extensions (after)
+Проверить: `ls extensions/day-open.after.md`. Если существует → `Read extensions/day-open.after.md` → выполнить содержимое (smoke-тесты, Scout gate, доп. проверки). Не существует → пропустить.
 
 ### 7. Запись
-**DayPlan:** `{{GOVERNANCE_REPO}}/current/DayPlan YYYY-MM-DD.md` по шаблону ниже. Предыдущий → `archive/day-plans/`. Коммит.
-**Compact:** вывести в VS Code по шаблону ниже.
+**7a.** Записать DayPlan: `DS-my-strategy/current/DayPlan YYYY-MM-DD.md` по шаблону ниже. Предыдущий → `archive/day-plans/`.
+**7b.** Проверить: `ls extensions/day-open.checks.md`. Если существует → `Read extensions/day-open.checks.md` → выполнить верификацию. БЛОКИРУЮЩЕЕ: commit запрещён до прохождения checks.
+**7c.** `git commit` + `git push`.
+**7d.** Compact dashboard → вывести в VS Code по шаблону ниже.
 
 ---
 

@@ -1,8 +1,33 @@
 {
+  "permissions": {
+    "defaultMode": "dontAsk",
+    "allow": [
+      "Edit(/.claude/skills/**)",
+      "mcp__google-drive__search_files",
+      "mcp__google-drive__list_files",
+      "Edit(/.claude/skills/day-open/**)",
+      "mcp__google-drive__create_folder",
+      "mcp__google-drive__get_drive_info",
+      "mcp__google-drive__list_shared_drives",
+      "mcp__railway__list-projects",
+      "mcp__railway__list-services",
+      "mcp__railway__list-variables",
+      "mcp__ext-linear__search_issues"
+    ],
+    "additionalDirectories": [
+      "/Users/tserentserenov",
+      "/Users/tserentserenov/.claude/projects/-Users-tserentserenov-IWE/memory",
+      "/Users/tserentserenov/IWE/FMT-exocortex-template/.claude/skills/day-open",
+      "/Users/tserentserenov/IWE/.claude/skills/archgate",
+      "/Users/tserentserenov/IWE/.claude/skills",
+      "/Users/tserentserenov/IWE/FMT-exocortex-template/.claude/skills",
+      "/Users/tserentserenov/IWE/FMT-exocortex-template/.claude",
+      "/Users/tserentserenov/IWE/FMT-exocortex-template/.claude/skills/archgate"
+    ]
+  },
   "hooks": {
     "UserPromptSubmit": [
       {
-        "description": "WP Gate: напоминание проверить РП перед началом работы",
         "hooks": [
           {
             "type": "command",
@@ -11,7 +36,6 @@
         ]
       },
       {
-        "description": "Close Gate: при триггере закрытия — compact Session Close или полный Day Close",
         "hooks": [
           {
             "type": "command",
@@ -20,9 +44,28 @@
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/extensions-gate.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/protocol-artifact-validate.sh"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
-        "description": "Напоминание о верификации после загрузки протокола",
         "matcher": "Read",
         "hooks": [
           {
@@ -34,7 +77,6 @@
     ],
     "PreCompact": [
       {
-        "description": "Checkpoint: сохранить контекст перед компрессией",
         "hooks": [
           {
             "type": "command",

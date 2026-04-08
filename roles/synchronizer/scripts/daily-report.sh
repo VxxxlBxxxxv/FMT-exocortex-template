@@ -266,7 +266,8 @@ else
     cd "$COMMIT_DIR"
     # Staging Isolation: stash → pull → pop → reset → add only own files
     # Without stash, pull --rebase fails when Claude sessions leave unstaged changes
-    local stash_count_before stash_count_after
+    stash_count_before=""
+    stash_count_after=""
     stash_count_before=$(git stash list 2>/dev/null | wc -l)
     git stash -u --quiet 2>/dev/null || true
     git pull --rebase --quiet 2>/dev/null || log "WARN: pull --rebase failed (offline?)"

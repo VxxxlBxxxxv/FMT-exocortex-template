@@ -17,14 +17,20 @@ set -euo pipefail
 # === КОНФИГУРАЦИЯ (настроить при установке) ===
 WORKSPACE_DIR="${WORKSPACE_DIR:-$HOME/IWE}"
 DS_STRATEGY="$WORKSPACE_DIR/DS-strategy"
-MEMORY_SRC="$HOME/.claude/projects/$(echo "$WORKSPACE_DIR" | sed 's|/|-|g')/memory"
+MEMORY_SRC="$HOME/.claude/projects/-Users-$(whoami)-IWE/memory"
 EXOCORTEX_DST="$DS_STRATEGY/exocortex"
 SELECTIVE_REINDEX="$WORKSPACE_DIR/DS-MCP/knowledge-mcp/scripts/selective-reindex.sh"
 SOURCES_JSON="$WORKSPACE_DIR/DS-MCP/knowledge-mcp/scripts/sources.json"
 SOURCES_PERSONAL_JSON="$WORKSPACE_DIR/DS-MCP/knowledge-mcp/scripts/sources-personal.json"
-# TODO: укажите путь к скрипту синхронизации, если используете
-# LINEAR_SYNC="$WORKSPACE_DIR/roles/synchronizer/scripts/linear-sync.sh"
+# Linear sync: путь читается из params.yaml (ключ linear_sync_path)
+PARAMS_YAML="$WORKSPACE_DIR/params.yaml"
 LINEAR_SYNC=""
+if [ -f "$PARAMS_YAML" ]; then
+  _raw=$(python3 -c "import yaml,sys; d=yaml.safe_load(open(sys.argv[1])); print(d.get('linear_sync_path',''))" "$PARAMS_YAML" 2>/dev/null || echo "")
+  if [ -n "$_raw" ]; then
+    LINEAR_SYNC="${_raw/#\~/$HOME}"
+  fi
+fi
 LOG_FILE="$WORKSPACE_DIR/DS-agent-workspace/scheduler/day-close.log"
 # === /КОНФИГУРАЦИЯ ===
 

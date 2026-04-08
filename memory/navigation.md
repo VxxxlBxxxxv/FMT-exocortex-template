@@ -1,6 +1,6 @@
 # Навигация по репозиториям (Слой 3)
 
-> Claude читает этот файл при поиске конкретного файла/репо. Для поиска знаний → `mcp__claude_ai_knowledge-mcp__search`.
+> Claude читает этот файл при поиске конкретного файла/репо. Для поиска знаний → `knowledge_search` (через Gateway iwe-knowledge).
 
 ## Ключевые файлы
 
@@ -50,6 +50,7 @@
 
 | MCP | Путь |
 |-----|------|
+| iwe-knowledge Gateway | `mcp.aisystant.com/mcp` (агрегирует knowledge + digital-twin) |
 | knowledge-mcp (исходники) | `DS-MCP/knowledge-mcp/src/index.ts` |
 | knowledge-mcp (ingest) | `DS-MCP/knowledge-mcp/scripts/ingest.ts` |
 | guides-mcp (исходники) | `DS-MCP/guides-mcp/src/index.ts` |

@@ -61,7 +61,8 @@ notify() {
 
 notify_telegram() {
     local scenario="$1"
-    "$HOME/IWE/DS-IT-systems/DS-ai-systems/synchronizer/scripts/notify.sh" strategist "$scenario" >> "$LOG_FILE" 2>&1 || true
+    local notify_script="$REPO_DIR/../synchronizer/scripts/notify.sh"
+    [ -f "$notify_script" ] && "$notify_script" strategist "$scenario" >> "$LOG_FILE" 2>&1 || true
 }
 
 run_claude() {
@@ -109,7 +110,11 @@ ${prompt}"
         log "WARN: Claude CLI exited with code $rc for scenario: $command_file"
     fi
 
-    log "Completed scenario: $command_file"
+    if [ $rc -eq 0 ]; then
+        log "SUCCESS scenario: $command_file"
+    else
+        log "FAILED scenario: $command_file (rc=$rc)"
+    fi
 
     # Push changes to GitHub (чтобы бот мог читать через API)
     if git -C "$WORKSPACE" diff --quiet origin/main..HEAD 2>/dev/null; then
@@ -128,12 +133,13 @@ ${prompt}"
     local summary
     summary=$(tail -5 "$LOG_FILE" | grep -v '^\[' | head -3)
     notify "Стратег: $command_file" "$summary"
+    return $rc
 }
 
 # Проверка: уже запускался ли сценарий сегодня
 already_ran_today() {
     local scenario="$1"
-    [ -f "$LOG_FILE" ] && grep -q "Completed scenario: $scenario" "$LOG_FILE"
+    [ -f "$LOG_FILE" ] && grep -q "SUCCESS scenario: $scenario" "$LOG_FILE"
 }
 
 # File-based lock to prevent concurrent execution (RunAtLoad + CalendarInterval race)
@@ -216,8 +222,9 @@ case "$1" in
         log "Sunday: running week review"
         run_claude "week-review"
         # Fallback push for Knowledge Index (week-review creates a post there)
+        # KI_REPO may not exist for all users — guard with [ -d ]
         KI_REPO="$HOME/IWE/DS-Knowledge-Index"
-        if git -C "$KI_REPO" log --oneline -1 --since="1 hour ago" --grep="week-review" 2>/dev/null | grep -q .; then
+        if [ -d "$KI_REPO/.git" ] && git -C "$KI_REPO" log --oneline -1 --since="1 hour ago" --grep="week-review" 2>/dev/null | grep -q .; then
             git -C "$KI_REPO" push >> "$LOG_FILE" 2>&1 && log "Pushed Knowledge Index (fallback)" || log "WARN: KI push failed"
         fi
         notify_telegram "week-review"

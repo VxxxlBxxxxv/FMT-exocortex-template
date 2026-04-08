@@ -108,7 +108,7 @@ jobs:
       # 5. MCP — серверы подключаются через claude.ai/settings/connectors (не локально)
       - name: Check MCP documentation
         run: |
-          # MCP servers (knowledge-mcp, ddt) are managed through claude.ai connectors
+          # MCP Gateway (iwe-knowledge at mcp.aisystant.com/mcp) is managed through claude.ai connectors
           # Validate that setup.sh contains instructions for users
           if grep -q "claude.ai/settings/connectors" setup.sh; then
             echo "PASS: setup.sh contains MCP connector instructions"

@@ -4,12 +4,10 @@
 > Записывает итоги недели в секцию WeekPlan + создаёт пост для клуба. Служит входом для session-prep (Пн 4:00).
 > **WeekReport как отдельный файл НЕ создаётся** (deprecated 2026-03-25). Итоги — секция в WeekPlan.
 
-Источник сценария: /home/natty/IWE/PACK-digital-platform/pack/digital-platform/02-domain-entities/DP.ROLE.012-strategist/scenarios/scheduled/03-week-review.md
 
 ## Контекст
 
 - **WeekPlan:** /home/natty/IWE/DS-strategy/current/WeekPlan W*.md
-- **Шаблон:** /home/natty/IWE/PACK-digital-platform/pack/digital-platform/02-domain-entities/DP.ROLE.012-strategist/templates/reviews/weekly-review.md
 
 ## Алгоритм
 
@@ -42,7 +40,6 @@ git -C /home/natty/IWE/<repo> log --since="last monday 00:00" --until="today 00:
 
 ### 3b. Контент-план на следующую неделю
 
-> **Источники:** Content ideas из рубежей работы (`DS-strategy/drafts/draft-list.md`), результаты прошлой недели, backlog из [Стратегии маркетинга §7](../../DS-ecosystem-development/B.Aisystant-Ecosystem/B1.Society/B1.1.Meaning/1.1.2.%20Marketing/Стратегия%20маркетинга%201.1.md).
 
 1. Собери Content ideas, накопленные за неделю (из draft-list.md, captures, Close-отчётов)
 2. Сопоставь с backlog публикаций из Стратегии маркетинга §7
@@ -73,7 +70,6 @@ git -C /home/natty/IWE/<repo> log --since="last monday 00:00" --until="today 00:
 
 1. Переключись на **роль Автора (R4)** и на основе секции «Итоги W{N}» в WeekPlan сформируй пост для клуба.
 
-   **Обязательно прочитай** `/home/natty/IWE/DS-Knowledge-Index/CLAUDE.md` — полные инструкции роли Автора:
    - § 2 — стандарт названий для итогов недели
    - § 3 — формат поста: аудитория `community`, структура для тега `итоги-недели` (4 уровня влияния, голос от первого лица, 400-700 слов)
 
@@ -89,7 +85,6 @@ git -C /home/natty/IWE/<repo> log --since="last monday 00:00" --until="today 00:
 
    Выбери лучшее название сам (в автоматическом режиме нет пользователя для выбора).
 
-2. Создай файл `/home/natty/IWE/DS-Knowledge-Index/docs/{YYYY}/{YYYY-MM-DD}-week-review-w{N}.md`
 
 3. Frontmatter:
 
@@ -107,8 +102,6 @@ content_plan: null
 ---
 ```
 
-4. Обнови `/home/natty/IWE/DS-Knowledge-Index/docs/README.md` — добавь строку в начало текущего месяца
-5. Закоммить и запушь `DS-Knowledge-Index` (git add docs/ && git commit && git push)
 
 **Шаблон секции «Итоги W{N}» в WeekPlan:**
 
@@ -156,7 +149,6 @@ content_plan: null
 3. Добавь строку:
 
 ```markdown
-**Пост итогов W{N-1}:** [название](https://github.com/VxxxlBxxxxv/DS-Knowledge-Index/blob/main/docs/{YYYY}/{YYYY-MM-DD}-week-review-w{N-1}.md) — status: ready → авто-публикация Пн 07:14
 ```
 
 4. Закоммить вместе с остальными изменениями
@@ -165,7 +157,6 @@ content_plan: null
 
 Результат:
 - Секция «Итоги W{N}» в WeekPlan — как вход для session-prep
-- Пост итогов в `DS-Knowledge-Index/docs/{YYYY}/` со `status: ready` — авто-публикация Пн 07:14
 - Ссылка на пост в WeekPlan — для отслеживания
 
 ### 8. Week Close: обслуживание MEMORY.md

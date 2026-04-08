@@ -121,7 +121,7 @@ cp my-extension-pack/extensions/* ~/IWE/extensions/
 
 | Префикс | Кто | Примеры |
 |---------|-----|---------|
-| без префикса | Платформенные (зарезервированы) | `knowledge-mcp`, `digital-twin-mcp` |
+| без префикса | Платформенные (зарезервированы) | `iwe-knowledge` (Gateway, агрегирует knowledge + digital-twin) |
 | `ext-*` | Вендорские | `ext-google-calendar`, `ext-linear`, `ext-slack` |
 | `<ваш префикс>-*` | Ваши MCP | `tseren-notes`, `tseren-obsidian` |
 
