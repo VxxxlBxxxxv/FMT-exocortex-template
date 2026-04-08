@@ -203,7 +203,7 @@ echo "  ✓ memory/MEMORY.md (личная оперативная память)"
 echo "  ✓ CLAUDE.md (3-way merge: ваши правки сохраняются)"
 echo "  ✓ extensions/ (ваши расширения протоколов)"
 echo "  ✓ params.yaml (ваши параметры)"
-echo "  ✓ .secrets/, .mcp.json (ключи и конфигурация)"
+echo "  ✓ .secrets/ (ключи)"
 echo "  ✓ .claude/settings.local.json (permissions)"
 echo "  ✓ personal/ (ваши файлы)"
 echo "  ✓ DS-strategy/ (ваше планирование)"
@@ -345,10 +345,6 @@ if [ -f "$ENV_FILE" ]; then
                     -e "s|{{TIMEZONE_HOUR}}|${ENV_TIMEZONE_HOUR:-}|g" \
                     -e "s|{{TIMEZONE_DESC}}|${ENV_TIMEZONE_DESC:-}|g" \
                     -e "s|{{HOME_DIR}}|${ENV_HOME_DIR:-$HOME}|g" \
-                    -e "s|{{KNOWLEDGE_MCP_PACKAGE}}|${ENV_KNOWLEDGE_MCP_PACKAGE:-@aisystant/knowledge-mcp}|g" \
-                    -e "s|{{KNOWLEDGE_MCP_DATABASE_URL}}|${ENV_KNOWLEDGE_MCP_DATABASE_URL:-}|g" \
-                    -e "s|{{DIGITAL_TWIN_MCP_PACKAGE}}|${ENV_DIGITAL_TWIN_MCP_PACKAGE:-@aisystant/digital-twin-mcp}|g" \
-                    -e "s|{{DIGITAL_TWIN_DATABASE_URL}}|${ENV_DIGITAL_TWIN_DATABASE_URL:-}|g" \
                     "$filepath"
                 PLACEHOLDER_HIT=$((PLACEHOLDER_HIT + 1))
             fi
@@ -369,7 +365,7 @@ if [ -f "$ENV_FILE" ]; then
         if [ -f "$IWE_ENV_GLOBAL" ]; then
             MIGRATED_KEYS=0
             # Check which keys are missing from .exocortex.env
-            for migrate_key in L4_BACKEND L4_DATABASE_URL KNOWLEDGE_MCP_PACKAGE KNOWLEDGE_MCP_DATABASE_URL DIGITAL_TWIN_MCP_PACKAGE DIGITAL_TWIN_DATABASE_URL; do
+            for migrate_key in L4_BACKEND L4_DATABASE_URL; do
                 eval "existing=\${ENV_${migrate_key}:-}"
                 if [ -z "$existing" ]; then
                     # Extract from ~/.iwe-env
@@ -530,17 +526,61 @@ for f in "${NEW_FILES[@]}" "${UPDATED_FILES[@]}"; do
     if [ "$f" = ".mcp.json" ]; then MCP_TEMPLATE_CHANGED=true; break; fi
 done
 
-if $MCP_TEMPLATE_CHANGED && [ -f "$MCP_TEMPLATE" ]; then
-    # Template .mcp.json was updated — regenerate workspace copy with fresh substitution
+# === Step 6c: Migrate workspace .mcp.json to Gateway ===
+# Strategy: migrate in-place first (preserving user servers), then fallback to template copy.
+# This preserves any user-added MCP servers that are NOT in extensions/mcp-user.json.
+
+if [ -f "$MCP_WORKSPACE" ] && command -v python3 >/dev/null 2>&1; then
+    python3 -c "
+import json, sys
+
+with open('$MCP_WORKSPACE') as f:
+    data = json.load(f)
+
+servers = data.get('mcpServers', {})
+old_keys = [k for k in servers if k in ('knowledge-mcp', 'digital-twin-mcp', 'personal-knowledge-mcp')]
+changed = False
+
+if old_keys:
+    # Remove old stdio servers
+    for k in old_keys:
+        del servers[k]
+    changed = True
+
+if 'iwe-knowledge' not in servers:
+    # Add new remote Gateway
+    servers['iwe-knowledge'] = {'type': 'http', 'url': 'https://mcp.aisystant.com/mcp'}
+    changed = True
+
+if changed:
+    # Move iwe-knowledge to the front, keep all other servers
+    ordered = {'iwe-knowledge': servers.pop('iwe-knowledge')}
+    ordered.update(servers)
+    data['mcpServers'] = ordered
+    with open('$MCP_WORKSPACE', 'w') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+        f.write('\n')
+    removed = ', '.join(old_keys) if old_keys else ''
+    msg = '  ✓ .mcp.json мигрирован'
+    if removed:
+        msg += ': ' + removed + ' → iwe-knowledge (Gateway)'
+    else:
+        msg += ': добавлен iwe-knowledge (Gateway)'
+    print(msg)
+" 2>/dev/null
+elif [ ! -f "$MCP_WORKSPACE" ] && [ -f "$MCP_TEMPLATE" ]; then
+    # No workspace .mcp.json — copy from template
     cp "$MCP_TEMPLATE" "$MCP_WORKSPACE"
-    sed_inplace \
-        -e "s|{{GITHUB_USER}}|${ENV_GITHUB_USER:-}|g" \
-        -e "s|{{KNOWLEDGE_MCP_PACKAGE}}|${ENV_KNOWLEDGE_MCP_PACKAGE:-@aisystant/knowledge-mcp}|g" \
-        -e "s|{{KNOWLEDGE_MCP_DATABASE_URL}}|${ENV_KNOWLEDGE_MCP_DATABASE_URL:-}|g" \
-        -e "s|{{DIGITAL_TWIN_MCP_PACKAGE}}|${ENV_DIGITAL_TWIN_MCP_PACKAGE:-@aisystant/digital-twin-mcp}|g" \
-        -e "s|{{DIGITAL_TWIN_DATABASE_URL}}|${ENV_DIGITAL_TWIN_DATABASE_URL:-}|g" \
-        "$MCP_WORKSPACE"
-    echo "  ✓ .mcp.json регенерирован из обновлённого шаблона"
+    echo "  ✓ .mcp.json создан из шаблона (Gateway)"
+elif [ -f "$MCP_WORKSPACE" ] && ! command -v python3 >/dev/null 2>&1; then
+    # No python3 — check if already migrated, otherwise warn
+    if grep -q 'iwe-knowledge' "$MCP_WORKSPACE" 2>/dev/null; then
+        echo "  ✓ .mcp.json уже содержит iwe-knowledge"
+    else
+        echo "  ⚠ .mcp.json: python3 не найден, автомиграция пропущена."
+        echo "    Замените knowledge-mcp/digital-twin-mcp на iwe-knowledge вручную."
+        echo "    Образец: $MCP_TEMPLATE"
+    fi
 fi
 
 # Merge extensions/mcp-user.json into workspace .mcp.json (always, if both exist)
