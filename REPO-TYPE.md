@@ -14,7 +14,7 @@
 ## Downstream outputs
 
 - Форки пользователей (персональные экзокортексы)
-- FMT-exocortex-template-setup (агент развёртывания)
+- DS-exocortex-setup (агент развёртывания)
 
 ## Non-goals
 

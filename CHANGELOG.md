@@ -5,6 +5,11 @@ All notable changes to FMT-exocortex-template will be documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/).
 
+## [0.23.1] — 2026-04-09
+
+### Fixed
+- **day-open SKILL.md** — шаблон QA-секции: видео показывает только новые за сегодня (не весь stale-архив), заметки проверяются по git log note-review (не carry-over обработанных)
+
 ## [0.23.0] — 2026-04-07
 
 ### Added
@@ -16,6 +21,9 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - **day-open/protocol-open/protocol-close** — HTML-комментарии `<!-- EXTENSION POINT -->` заменены на видимый markdown `**EXTENSION POINT:**` — агент их читает и исполняет
 - **wp-gate-reminder.sh** — при Day Open инжектирует extension loading reminder
 - **settings.json** — добавлен PreToolUse Bash matcher для protocol-artifact-validate.sh
+
+### Fixed
+- **settings.json** — убрана лишняя строка `.claude/hooks` из `additionalDirectories` (вызывала открытие файлов хуков как вкладок в Cursor/VS Code на Windows)
 
 ## [0.22.0] — 2026-04-06
 

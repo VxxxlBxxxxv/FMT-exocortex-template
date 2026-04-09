@@ -43,10 +43,12 @@
 
 0. **Pull** → `git pull --rebase` в репо с изменениями (если не делался ранее в сессии — см. CLAUDE.md §2 Pull-on-Touch)
 
+> **Pre-action gate (составная команда):** При «заливай И закрывай» / «запуши и всё» — push разрешён (§2 п.2), но ручные обновления Close-файлов (WP context, MEMORY.md, DayPlan) **запрещены** до выполнения Core-шагов ниже. Протокол сам выполнит их. Иначе: агент считает «уже сделал» и пропускает протокол целиком.
+
 #### Core (обязательные, атомарные)
 
 1. **Commit + Push** — все изменения зафиксированы
-<!-- EXTENSION POINT: загрузить extensions/protocol-close.checks.md если существует -->
+**EXTENSION POINT:** Проверить `extensions/protocol-close.checks.md`. Если существует → `Read` и выполнить.
 2. **WP Context File** — обновить секцию «Осталось» (structured формат):
    - in_progress → записать structured handoff (см. формат ниже)
    - done → пометить `status: done` в frontmatter (архивация — на Day Close)
@@ -85,7 +87,7 @@
 ### Чеклист Quick Close
 
 - [ ] Всё закоммичено и запушено
-<!-- EXTENSION POINT: загрузить extensions/protocol-close.checks.md если существует -->
+**EXTENSION POINT:** Проверить `extensions/protocol-close.checks.md`. Если существует → `Read` и выполнить.
 - [ ] WP Context: «Осталось» записано в structured формате (или done помечен)
 - [ ] MEMORY.md: статус РП обновлён
 
@@ -108,7 +110,7 @@
 **РП:** #N — [название]
 **Статус:** done / in_progress
 **Git:** закоммичено + запушено ✅
-<!-- EXTENSION POINT: загрузить extensions/protocol-close.after.md если существует -->
+**EXTENSION POINT:** Проверить `extensions/protocol-close.after.md`. Если существует → `Read` и выполнить.
 **Handoff:** → WP context «Осталось» обновлён / done
 ```
 
@@ -153,7 +155,7 @@ done
 
 **2e.** Governance-синхронизация: новые репо/сервисы за день? → REPOSITORY-REGISTRY, navigation.md, MAP.002↔PROCESSES.md.
 
-<!-- EXTENSION POINT: загрузить extensions/day-close.checks.md если существует -->
+**EXTENSION POINT:** Проверить `extensions/day-close.checks.md`. Если существует → `Read` и выполнить.
 
 
 #### 3. Архивация
@@ -225,7 +227,7 @@ done
 
 **г) Не забыто?** Стратег проверяет:
 - Незакоммиченные изменения (`git status` по всем репо)
-<!-- EXTENSION POINT: загрузить extensions/day-close.checks.md если существует -->
+**EXTENSION POINT:** Проверить `extensions/day-close.checks.md`. Если существует → `Read` и выполнить.
 - Незаписанные мысли? (спросить пользователя)
 - Обещания кому-то? (спросить пользователя)
 
@@ -337,7 +339,7 @@ done
 - [ ] **Lesson Hygiene:** уроки MEMORY.md ≤8, неактуальные → тематические файлы
 - [ ] **Draft-list:** Pack обогащён → черновик предложен?
 - [ ] **Видео:** обработанные помечены (если video.enabled)
-<!-- EXTENSION POINT: загрузить extensions/day-close.checks.md если существует -->
+**EXTENSION POINT:** Проверить `extensions/day-close.checks.md`. Если существует → `Read` и выполнить.
 - [ ] **Governance:** REPOSITORY-REGISTRY, navigation.md, MAP.002
 - [ ] **Backup:** `day-close.sh` выполнен (backup + reindex + linear)
 - [ ] **Верификация compliance:** /verify запускался сегодня?
@@ -361,7 +363,7 @@ done
 
 > **Исполнение:** через `/run-protocol week-close`. Week Review (`week-review.md`) + шаги ниже.
 
-<!-- EXTENSION POINT: загрузить extensions/week-close.before.md если существует -->
+**EXTENSION POINT:** Проверить `extensions/week-close.before.md`. Если существует → `Read` и выполнить.
 
 #### 1. Ротация уроков в MEMORY.md
 
@@ -404,7 +406,7 @@ done
 - Лимит раздела «Файлы памяти» в MEMORY.md: ≤10 строк
 - Записи с `valid_from` старше 3 месяцев без подтверждения актуальности → пометить или удалить
 
-<!-- EXTENSION POINT: загрузить extensions/week-close.after.md если существует -->
+**EXTENSION POINT:** Проверить `extensions/week-close.after.md`. Если существует → `Read` и выполнить.
 
 ---
 
