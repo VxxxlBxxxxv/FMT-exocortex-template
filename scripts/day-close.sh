@@ -17,7 +17,9 @@ set -euo pipefail
 # === КОНФИГУРАЦИЯ (настроить при установке) ===
 WORKSPACE_DIR="${WORKSPACE_DIR:-$HOME/IWE}"
 DS_STRATEGY="$WORKSPACE_DIR/DS-strategy"
-MEMORY_SRC="$HOME/.claude/projects/-Users-$(whoami)-IWE/memory"
+_ENV_FILE="$WORKSPACE_DIR/FMT-exocortex-template/.exocortex.env"
+_SLUG=$(grep '^CLAUDE_PROJECT_SLUG=' "$_ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2-)
+MEMORY_SRC="$HOME/.claude/projects/${_SLUG:-$(echo "$WORKSPACE_DIR" | tr '/' '-')}/memory"
 EXOCORTEX_DST="$DS_STRATEGY/exocortex"
 SELECTIVE_REINDEX="$WORKSPACE_DIR/DS-MCP/knowledge-mcp/scripts/selective-reindex.sh"
 SOURCES_JSON="$WORKSPACE_DIR/DS-MCP/knowledge-mcp/scripts/sources.json"
