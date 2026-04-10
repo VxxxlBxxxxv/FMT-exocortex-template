@@ -90,6 +90,7 @@
 **EXTENSION POINT:** Проверить `extensions/protocol-close.checks.md`. Если существует → `Read` и выполнить.
 - [ ] WP Context: «Осталось» записано в structured формате (или done помечен)
 - [ ] MEMORY.md: статус РП обновлён
+- [ ] Decision log: прочитать сегодняшние записи в `decisions/decision-log-YYYY-MM.md`, скорректировать если неточно, добавить строку `**Итого сессия:** N решений, вес M`
 
 ### 4. Верификация Quick Close (Haiku R23)
 
@@ -110,6 +111,7 @@
 **РП:** #N — [название]
 **Статус:** done / in_progress
 **Git:** закоммичено + запушено ✅
+**Решения:** N решений, вес M/50
 **EXTENSION POINT:** Проверить `extensions/protocol-close.after.md`. Если существует → `Read` и выполнить.
 **Handoff:** → WP context «Осталось» обновлён / done
 ```
@@ -179,7 +181,7 @@ done
 
 ```bash
 # Запуск одной коман��ой:
-/home/natty/IWE/FMT-exocortex-template/roles/synchronizer/scripts/day-close.sh
+/home/natty/IWE/FMT-exocortex-template/scripts/day-close.sh
 ```
 
 Скрипт выполняет:
