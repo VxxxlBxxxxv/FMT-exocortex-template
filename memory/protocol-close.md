@@ -180,8 +180,8 @@ done
 #### 4. Автоматические шаги (скрипт `day-close.sh`)
 
 ```bash
-# Запуск одной коман��ой:
-/home/natty/IWE/FMT-exocortex-template/scripts/day-close.sh
+# Запуск одной командой (путь через $IWE_SCRIPTS — см. DP.FM.009):
+"$IWE_SCRIPTS/day-close.sh"
 ```
 
 Скрипт выполняет:
@@ -364,6 +364,7 @@ done
 ### Дополнительные шаги Week Close (поверх Week Review)
 
 > **Исполнение:** через `/run-protocol week-close`. Week Review (`week-review.md`) + шаги ниже.
+> **R-вопросник Week Close:** см. [r-questionnaire.md](r-questionnaire.md) раздел «Week Close — 3 вопроса» (сокращено 13 апр 2026 из WP-217). Аналогично для Month: раздел «Month Close — 6 доп. вопросов».
 
 **EXTENSION POINT:** Проверить `extensions/week-close.before.md`. Если существует → `Read` и выполнить.
 
@@ -381,6 +382,19 @@ done
 - Удалить ВСЕ РП прошлой недели из MEMORY.md
 - Перенести in_progress и pending в таблицу новой недели W{N+1}
 - Источник: новый WeekPlan (создаётся в session-prep)
+
+#### 2b. Behaviour Report (автосчётчик паттернов)
+
+> **Обязательный шаг.** Агент запускает скрипт и предъявляет таблицу. Решение — человеческое.
+
+```bash
+~/.claude/lib/behaviour-report.sh
+```
+
+Интерпретировать по критериям из R-вопросника вопрос 8:
+- 🔴 `create_detector` → предложить создать РП на детектор
+- ⚠️ `revert_gate` → предложить откатить гейт в action=warn
+- 📊 `копим` → ничего не делать, данные накапливаются
 
 #### 3. Ревью операционных правил (DP.M.008 #14)
 

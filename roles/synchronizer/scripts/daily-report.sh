@@ -277,7 +277,6 @@ else
     fi
     git reset --quiet 2>/dev/null || true
 
-    mkdir -p "$ARCHIVE_DIR"  # re-create after git stash -u may have removed empty dir
     archive_old_reports
 
     for p in "${COMMIT_ADD_PATHS[@]}"; do

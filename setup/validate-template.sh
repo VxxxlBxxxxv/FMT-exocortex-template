@@ -1,12 +1,13 @@
 #!/bin/bash
 # Validate Template — проверка целостности FMT-exocortex-template
 #
-# 5 проверок:
+# 6 проверок:
 # 1. Нет автор-специфичного контента
 # 2. Нет захардкоженных путей /Users/
 # 3. Нет захардкоженных путей /opt/homebrew
 # 4. MEMORY.md — скелет (мало строк в РП-таблице)
 # 5. Обязательные файлы существуют
+# 6. Нет хардкод-путей к FMT-exocortex-template/scripts|roles в протоколах/скиллах (WP-219, DP.FM.009)
 
 set -euo pipefail
 
@@ -118,6 +119,28 @@ for f in CLAUDE.md ONTOLOGY.md README.md \
     fi
 done
 [ "$MISSING" -eq 0 ] && echo "PASS"
+
+# 6. Нет хардкод-путей к скриптам в протоколах/скиллах (WP-219, DP.FM.009)
+# Протоколы и скиллы должны использовать $IWE_SCRIPTS / $IWE_ROLES / $IWE_TEMPLATE / $IWE_WORKSPACE
+# вместо абсолютных путей к FMT-exocortex-template/scripts|roles.
+echo -n "[6/6] Hardcoded script paths in protocols/skills... "
+CHECK6_FAIL=0
+CHECK6_FILES=""
+for pattern in 'FMT-exocortex-template/scripts' 'FMT-exocortex-template/roles/[a-z]*/scripts'; do
+    hits=$(grep -rnE "$pattern" \
+            "$TEMPLATE_DIR/memory" \
+            "$TEMPLATE_DIR/.claude/skills" \
+            --include="*.md" 2>/dev/null \
+            | grep -v '\$IWE_' || true)
+    if [ -n "$hits" ]; then
+        [ "$CHECK6_FAIL" -eq 0 ] && echo "FAIL"
+        echo "  Pattern '$pattern' found (должен быть \$IWE_SCRIPTS / \$IWE_ROLES):"
+        echo "$hits" | head -3
+        CHECK6_FAIL=1
+        FAIL=1
+    fi
+done
+[ "$CHECK6_FAIL" -eq 0 ] && echo "PASS"
 
 echo ""
 if [ "$FAIL" -eq 0 ]; then

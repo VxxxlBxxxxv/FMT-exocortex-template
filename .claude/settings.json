@@ -66,11 +66,21 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Read",
+        "matcher": "Read|Skill",
         "hooks": [
           {
             "type": "command",
             "command": ".claude/hooks/protocol-completion-reminder.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/protocol-stop-gate.sh"
           }
         ]
       }
