@@ -12,7 +12,10 @@
 | Чеклисты | `memory/checklists.md` |
 | SOTA-практики (18 шт.) | `memory/sota-reference.md` |
 | Протокол Open (WP Gate, Ритуал) | `memory/protocol-open.md` |
-| Протокол Close (чеклист, шаблон) | `memory/protocol-close.md` |
+| Протокол Close (маршрутизация, Quick Close) | `memory/protocol-close.md` |
+| Day Close (полный алгоритм) | `.claude/skills/day-close/SKILL.md` |
+| Week Close (полный алгоритм) | `.claude/skills/week-close/SKILL.md` |
+| Шаблоны DayPlan/WeekPlan | `memory/templates-dayplan.md` |
 | Нулевые принципы + иерархия | `ZP/README.md` |
 | Кодирование сущностей | `SPF/spec/SPF.SPEC.001-entity-coding.md` |
 | Масштабируемость Pack | `SPF/spec/SPF.SPEC.003-pack-scalability.md` |

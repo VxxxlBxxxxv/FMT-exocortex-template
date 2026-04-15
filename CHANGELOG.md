@@ -5,6 +5,25 @@ All notable changes to FMT-exocortex-template will be documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/).
 
+## [0.25.1] — 2026-04-14
+
+### Changed
+- **protocol-close.md** — KE (Knowledge Extraction) добавлен как обязательный шаг 2.5 Quick Close. Знание маршрутизируется в момент сессии (горячий контекст), не откладывается на Day Close. Чеклист Quick Close дополнен строкой KE. Секция Deferred обновлена: KE выведен из отложенных.
+
+## [0.25.0] — 2026-04-13
+
+### Changed
+- **protocol-close.md** — сжат 454→97 строк. Остались: маршрутизация, Quick Close inline, формат «Осталось», чеклист Quick Close. Алгоритмы Day Close и Week Close вынесены в отдельные SKILL.md.
+- **day-open/SKILL.md** — шаблоны DayPlan/WeekPlan/итогов удалены из файла (→ `memory/templates-dayplan.md`). Файл сокращён с ~343 до 127 строк.
+- **update-manifest.json** — добавлены: `day-close/SKILL.md`, `week-close/SKILL.md`, `memory/templates-dayplan.md`.
+- **navigation.md** — добавлены строки для `day-close/SKILL.md`, `week-close/SKILL.md`, `templates-dayplan.md`.
+- **run-protocol/SKILL.md** — добавлена строка: `close` (без уточнения) → `close session` по умолчанию.
+
+### Added
+- **.claude/skills/day-close/SKILL.md** — полный алгоритм Day Close (шаги 0–11) с TodoWrite enforcement. Шаг 0 = «создать список задач прямо сейчас». Главный фикс: агент больше не может пропустить шаги через прямое чтение protocol-close.md.
+- **.claude/skills/week-close/SKILL.md** — полный алгоритм Week Close (шаги 0–9) с TodoWrite enforcement.
+- **memory/templates-dayplan.md** — единый источник шаблонов DayPlan, compact dashboard, WeekPlan, итогов дня. Используется day-open (создание) и day-close (запись итогов).
+
 ## [0.24.1] — 2026-04-13
 
 ### Fixed
