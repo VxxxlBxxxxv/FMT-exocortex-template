@@ -12,6 +12,8 @@ argument-hint: "[code|archgate|capture|wp|chain|adversarial|auto] [путь ил
 
 Аргументы: $ARGUMENTS
 
+**EXTENSION POINT:** Проверить `extensions/verify.md`. Если существует → загрузить как переопределения правил (severity guidance, условия Codex, формат промпта). Применять в шагах 1-4b.
+
 ## Шаг 0. Определить тип проверки
 
 | Аргумент | Тип | Что проверяет |
