@@ -14,7 +14,7 @@ video_check: true
 multiplier_enabled: true
 
 # Day Close: рефлексия (вопросы в конце дня)
-reflection_enabled: false
+reflection_enabled: true
 
 # Week Close: ротация уроков в MEMORY.md
 lesson_rotation: true
