@@ -29,7 +29,7 @@
 
 1. Прочитай `/home/natty/IWE/DS-strategy/inbox/captures.md`
 2. Найди все pending записи (секции `### ...` без метки `[processed]`)
-3. Если pending записей нет → напиши в лог `No pending captures in inbox` и **заверши работу**
+3. Если pending записей нет → сообщение `No pending captures in inbox` выводи через stdout (его поймает `extractor.sh` и запишет в `/home/natty/logs/extractor/YYYY-MM-DD.log`). **НЕ создавай отдельный лог-файл** в `DS-strategy/` или где-либо ещё. Заверши работу.
 4. Если pending > 5 → возьми первые 5 (по порядку в файле)
 
 ### Шаг 2: Обработать каждый capture (max 5)
