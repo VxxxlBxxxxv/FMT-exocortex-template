@@ -47,6 +47,19 @@ video:
 #   - category: content            # Or by category (content, dev, ops)
 #     min_count: 1
 
+day_load:
+  # Уровни нагрузки: low (низкий) | normal (нормальный) | high (высокий)
+  # low  — короткие слоты, 1-2 РП, бюджет ≤2h
+  # normal — стандартный день, 2-3 РП
+  # high — полноценный рабочий день, без ограничений
+  monday: low
+  tuesday: normal
+  wednesday: low
+  thursday: normal
+  friday: low
+  saturday: normal
+  sunday: normal
+
 budget_spread:
   enabled: true          # Distribute weekly budget of WPs across remaining days
   threshold_h: 4         # Only WPs with weekly budget ≥ this value are spread
