@@ -290,7 +290,7 @@ print(json.dumps(result))
 # ============================================================
 
 collect_wp() {
-    local MEMORY_FILE="$HOME/.claude/projects/-Users-$(whoami)-IWE/memory/MEMORY.md"
+    local MEMORY_FILE="$HOME/.claude/projects/-home-$(whoami)-IWE/memory/MEMORY.md"
 
     python3 -c "
 import json, os, re
