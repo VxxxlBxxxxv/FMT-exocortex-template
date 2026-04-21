@@ -70,9 +70,9 @@ case "$mode" in
         TODAY=$(date +%Y-%m-%d)
         RESPONSE=$(waka_fetch "$API/summaries?start=$TODAY&end=$TODAY")
 
-        TOTAL=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['cumulative_total']['text'])" 2>/dev/null || echo "н/д")
-        PROJECTS_JSON=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); json.dump(d['data'][0].get('projects',[]), sys.stdout)" 2>/dev/null || echo "[]")
-        LANGS_JSON=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); json.dump(d['data'][0].get('languages',[]), sys.stdout)" 2>/dev/null || echo "[]")
+        TOTAL=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('cumulative_total',{}).get('text','н/д'))" 2>/dev/null || echo "н/д")
+        PROJECTS_JSON=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); data=d.get('data',[]); json.dump(data[0].get('projects',[]) if data else [], sys.stdout)" 2>/dev/null || echo "[]")
+        LANGS_JSON=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); data=d.get('data',[]); json.dump(data[0].get('languages',[]) if data else [], sys.stdout)" 2>/dev/null || echo "[]")
 
         cat <<EOF
 ## WakaTime: сегодня ($TODAY)
@@ -98,9 +98,9 @@ EOF
         YESTERDAY=$(portable_date_offset 1)
         RESPONSE=$(waka_fetch "$API/summaries?start=$YESTERDAY&end=$YESTERDAY")
 
-        TOTAL=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['cumulative_total']['text'])" 2>/dev/null || echo "н/д")
-        PROJECTS_JSON=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); json.dump(d['data'][0].get('projects',[]), sys.stdout)" 2>/dev/null || echo "[]")
-        LANGS_JSON=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); json.dump(d['data'][0].get('languages',[]), sys.stdout)" 2>/dev/null || echo "[]")
+        TOTAL=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('cumulative_total',{}).get('text','н/д'))" 2>/dev/null || echo "н/д")
+        PROJECTS_JSON=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); data=d.get('data',[]); json.dump(data[0].get('projects',[]) if data else [], sys.stdout)" 2>/dev/null || echo "[]")
+        LANGS_JSON=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); data=d.get('data',[]); json.dump(data[0].get('languages',[]) if data else [], sys.stdout)" 2>/dev/null || echo "[]")
 
         cat <<EOF
 ## WakaTime: вчера ($YESTERDAY)
