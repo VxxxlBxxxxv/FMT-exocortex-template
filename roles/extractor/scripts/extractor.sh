@@ -16,7 +16,7 @@ REPO_DIR="$(dirname "$SCRIPT_DIR")"
 WORKSPACE="/home/natty/IWE"
 PROMPTS_DIR="$REPO_DIR/prompts"
 LOG_DIR="/home/natty/logs/extractor"
-CLAUDE_PATH="$(which claude 2>/dev/null || echo claude)"
+CLAUDE_PATH="/mnt/c/Users/Natty/AppData/Roaming/npm/claude"
 ENV_FILE="/home/natty/.config/aist/env"
 
 # AI CLI: переопределение через переменные окружения (см. strategist.sh)

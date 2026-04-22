@@ -230,7 +230,7 @@ print(json.dumps(result))
 # ============================================================
 
 collect_sessions() {
-    local SESSION_LOG="$WORKSPACE/DS-my-strategy/inbox/open-sessions.log"
+    local SESSION_LOG="$WORKSPACE/DS-strategy/inbox/open-sessions.log"
 
     python3 -c "
 import json, os, re
@@ -290,7 +290,7 @@ print(json.dumps(result))
 # ============================================================
 
 collect_wp() {
-    local MEMORY_FILE="$HOME/.claude/projects/-home-$(whoami)-IWE/memory/MEMORY.md"
+    local MEMORY_FILE="$HOME/.claude/projects/-Users-$(whoami)-IWE/memory/MEMORY.md"
 
     python3 -c "
 import json, os, re
@@ -387,16 +387,17 @@ from datetime import datetime, timedelta
 today = datetime.now().strftime('%Y-%m-%d')
 dayplan_dir = '$DAYPLAN_DIR'
 archive_dir = '$ARCHIVE_DIR'
+gov_dir = '$GOVERNANCE_DIR'
 
 def parse_hours(s):
-    \"\"\"Parse budget string to hours: '2-3h' -> 2.5, '30 мин' -> 0.5, '75 мин' -> 1.25, '1h' -> 1.0\"\"\"
+    \"\"\"Parse budget string to hours: '2-3h'->2.5, '30 мин'->0.5, '1h'->1.0, '2'->2.0 (bare number = hours)\"\"\"
     s = s.replace('~~', '').strip()
     if not s or s in ('—', '-', 'незаплан.', 'незапл.'):
         return 0.0
-    m = re.match(r'(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*h', s, re.I)
+    m = re.match(r'(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*h?\$', s, re.I)
     if m:
         return (float(m.group(1)) + float(m.group(2))) / 2
-    m = re.match(r'(\d+(?:\.\d+)?)\s*h', s, re.I)
+    m = re.match(r'^(\d+(?:\.\d+)?)\s*h?\$', s, re.I)
     if m:
         return float(m.group(1))
     m = re.match(r'(\d+)\s*мин', s, re.I)
@@ -404,8 +405,34 @@ def parse_hours(s):
         return float(m.group(1)) / 60
     return 0.0
 
-def parse_dayplan_budget(filepath):
-    \"\"\"Parse done-WP budgets from a DayPlan file. Returns total hours.\"\"\"
+def parse_mult_section_budget(filepath):
+    \"\"\"Primary parser: extract 'Бюджет закрыт' from Мультипликатор IWE section.
+    Supports two formats:
+      - Table cell:  | Бюджет закрыт | ~16.5h (WP-... 10h + ...) |
+      - Bullet list: - **Бюджет закрыт:** ~20.05h
+    Skips header row '| День | ... | Бюджет закрыт | Мультипликатор |'.\"\"\"
+    if not filepath or not os.path.exists(filepath):
+        return None
+    with open(filepath) as f:
+        content = f.read()
+    patterns = [
+        r'закрыт[^|]*?\|\s*~?\s*(\d+(?:\.\d+)?)\s*h',              # table-cell format
+        r'Бюджет\s+закрыт[:\*\s]+~?\s*(\d+(?:\.\d+)?)\s*h',        # bullet/bold format
+    ]
+    for line in content.split('\\n'):
+        if 'Бюджет закрыт' not in line:
+            continue
+        # Skip header row with 'День | WakaTime | Бюджет закрыт | Мультипликатор'
+        if 'WakaTime' in line and 'Мультипликатор' in line:
+            continue
+        for pat in patterns:
+            m = re.search(pat, line)
+            if m:
+                return float(m.group(1))
+    return None
+
+def parse_dayplan_budget_from_table(filepath):
+    \"\"\"Fallback parser: sum done-row budgets from WP tables.\"\"\"
     if not filepath or not os.path.exists(filepath):
         return 0.0
     with open(filepath) as f:
@@ -430,7 +457,6 @@ def parse_dayplan_budget(filepath):
         if not cells:
             continue
 
-        # Detect header row — only parse tables with budget column (h or Бюджет)
         if 'РП' in stripped and 'Статус' in stripped:
             has_budget_col = any(c in ('h', 'Бюджет') for c in cells)
             in_table = has_budget_col
@@ -442,26 +468,70 @@ def parse_dayplan_budget(filepath):
         if not in_table:
             continue
 
-        # Match done variants: ~~done~~, ~~done (Ф0)~~, | done |
-        low = stripped.lower()
-        is_done = bool(re.search(r'~~done[\s(]', low) or '~~done~~' in low or re.search(r'\|\s*done\s*[\|(]', low))
-        if not is_done:
+        status_idx = next((i for i, h in enumerate(header_cols) if 'Статус' in h), None)
+        budget_idx = next((i for i, h in enumerate(header_cols) if h in ('h', 'Бюджет')), None)
+        if status_idx is None or budget_idx is None:
             continue
 
-        budget_str = ''
-        if len(header_cols) >= 4:
-            if header_cols[0] in ('\U0001f6a6', ''):
-                budget_str = cells[3] if len(cells) > 3 else ''
-            elif len(header_cols) > 2 and 'Бюджет' in header_cols[2]:
-                budget_str = cells[2] if len(cells) > 2 else ''
-            else:
-                for i, h in enumerate(header_cols):
-                    if h in ('h', 'Бюджет'):
-                        budget_str = cells[i] if len(cells) > i else ''
-                        break
+        status_cell = cells[status_idx].replace('~~', '').strip().lower() if len(cells) > status_idx else ''
+        if 'done' not in status_cell:
+            continue
 
+        budget_str = cells[budget_idx] if len(cells) > budget_idx else ''
         total += parse_hours(budget_str)
     return total
+
+MONTH_RU = {1:'янв',2:'фев',3:'мар',4:'апр',5:'май',6:'июн',7:'июл',8:'авг',9:'сен',10:'окт',11:'ноя',12:'дек'}
+
+def parse_weekplan_budget_for_date(date_str, gov_dir):
+    \"\"\"Secondary fallback: ищет 'Итоги <день> <N> <мес>' в WeekPlan-ах, возвращает 'Бюджет закрыт' из секции.\"\"\"
+    from datetime import datetime as _dt
+    dt = _dt.strptime(date_str, '%Y-%m-%d')
+    day_num = dt.day
+    month_ru = MONTH_RU[dt.month]
+    wp_patterns = [
+        os.path.join(gov_dir, 'archive', 'week-plans', 'WeekPlan W*.md'),
+        os.path.join(gov_dir, 'current', 'WeekPlan W*.md'),
+    ]
+    section_re = re.compile(rf'Итоги\s+\S+\s+{day_num}\s+{month_ru}')
+    for pat in wp_patterns:
+        for wp in glob.glob(pat):
+            with open(wp) as f:
+                content = f.read()
+            if not section_re.search(content):
+                continue
+            # Разбить по <details> и найти блок с нужным «Итоги»
+            blocks = content.split('<details')
+            section = None
+            for blk in blocks:
+                if section_re.search(blk):
+                    end = blk.find('</details>')
+                    section = blk[:end] if end >= 0 else blk
+                    break
+            if section is None:
+                continue
+            for line in section.split('\\n'):
+                if 'Бюджет закрыт' not in line:
+                    continue
+                if 'WakaTime' in line and 'Мультипликатор' in line:
+                    continue
+                for pp in (r'закрыт[^|]*?\|\s*~?\s*(\d+(?:\.\d+)?)\s*h',
+                           r'Бюджет\s+закрыт[:\*\s]+~?\s*(\d+(?:\.\d+)?)\s*h'):
+                    mm = re.search(pp, line)
+                    if mm:
+                        return float(mm.group(1))
+    return None
+
+def parse_dayplan_budget(filepath, date_str=None, gov_dir=None):
+    \"\"\"Primary: Мультипликатор-секция DayPlan. Fallback 1: WeekPlan 'Итоги <date>'. Fallback 2: done-строки WP-таблицы.\"\"\"
+    primary = parse_mult_section_budget(filepath)
+    if primary is not None:
+        return primary
+    if date_str and gov_dir:
+        secondary = parse_weekplan_budget_for_date(date_str, gov_dir)
+        if secondary is not None:
+            return secondary
+    return parse_dayplan_budget_from_table(filepath)
 
 def find_dayplan(date_str):
     \"\"\"Find DayPlan file for a given date in current/ or archive/.\"\"\"
@@ -473,23 +543,31 @@ def find_dayplan(date_str):
     return None
 
 # Daily budget
-daily_budget = parse_dayplan_budget(find_dayplan(today))
+daily_budget = parse_dayplan_budget(find_dayplan(today), today, gov_dir)
 
 # Weekly budget: sum all DayPlans from Monday to today
 now = datetime.now()
 monday = now - timedelta(days=now.weekday())  # Monday of current week
 weekly_budget = 0.0
+dayplans_found = 0
 d = monday
 while d <= now:
     ds = d.strftime('%Y-%m-%d')
     dp = find_dayplan(ds)
     if dp:
-        weekly_budget += parse_dayplan_budget(dp)
+        dayplans_found += 1
+        weekly_budget += parse_dayplan_budget(dp, ds, gov_dir)
     d += timedelta(days=1)
+
+# Loud fail: если DayPlan-ы найдены, а бюджет = 0 → парсер не матчит формат
+import sys
+if dayplans_found > 0 and weekly_budget == 0:
+    print(f'WARNING: parser matched {dayplans_found} DayPlans but returned 0h budget — status/budget regex may be out of date vs current DayPlan format', file=sys.stderr)
 
 result = {
     'daily_budget_closed': round(daily_budget, 1),
     'weekly_budget_closed': round(weekly_budget, 1),
+    'dayplans_found_this_week': dayplans_found,
 }
 print(json.dumps(result))
 " 2>/dev/null || echo "{}"
