@@ -3,7 +3,7 @@
 
 ## Контекст
 
-- **Заметки:** /home/natty/IWE/DS-strategy/inbox/[fleeting-notes.md](https://github.com/VxxxlBxxxxv/DS-strategy/blob/main/inbox/fleeting-notes.md)
+- **Заметки:** /home/natty/IWE/FMT-exocortex-template/inbox/fleeting-notes.md
 - **НЭП:** /home/natty/IWE/DS-strategy/docs/Dissatisfactions.md
 - **Стратегия:** /home/natty/IWE/DS-strategy/docs/Strategy.md
 - **План недели:** /home/natty/IWE/DS-strategy/current/WeekPlan W*.md
@@ -36,7 +36,7 @@
 
 #### 1. Прочитать заметки
 
-- Открой `DS-strategy/inbox/fleeting-notes.md`
+- Открой `FMT-exocortex-template/inbox/fleeting-notes.md`
 - Выдели все **жирные** заметки (`**текст**`) — это новые
 - Заметки с `🔄` — тоже просмотри, но не обрабатывай повторно (если нет нового контекста)
 - Если новых заметок нет → сообщить «Новых заметок нет» и завершить
@@ -245,7 +245,8 @@
 
 #### 11. Закоммитить
 
-- Закоммить изменения в DS-strategy (fleeting-notes.md + документы с предложениями + personal/ + inbox cleanup + archive)
+- Закоммить изменения в FMT-exocortex-template (fleeting-notes.md)
+- Закоммить изменения в DS-strategy (документы с предложениями + personal/ + inbox cleanup + archive)
 - Если были записи для Экстрактора → закоммить DS-strategy/inbox/captures.md
 - **secrets.md** НЕ коммитится (.gitignore) — но изменения в нём сохраняются локально
 - Запушить
