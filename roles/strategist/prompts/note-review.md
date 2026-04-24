@@ -3,7 +3,7 @@
 
 ## Контекст
 
-- **Заметки:** /home/natty/IWE/FMT-exocortex-template/inbox/fleeting-notes.md
+- **Заметки:** /home/natty/IWE/DS-strategy/inbox/[fleeting-notes.md](https://github.com/VxxxlBxxxxv/DS-strategy/blob/main/inbox/fleeting-notes.md)
 - **НЭП:** /home/natty/IWE/DS-strategy/docs/Dissatisfactions.md
 - **Стратегия:** /home/natty/IWE/DS-strategy/docs/Strategy.md
 - **План недели:** /home/natty/IWE/DS-strategy/current/WeekPlan W*.md
@@ -36,7 +36,7 @@
 
 #### 1. Прочитать заметки
 
-- Открой `FMT-exocortex-template/inbox/fleeting-notes.md`
+- Открой `DS-strategy/inbox/fleeting-notes.md`
 - Выдели все **жирные** заметки (`**текст**`) — это новые
 - Заметки с `🔄` — тоже просмотри, но не обрабатывай повторно (если нет нового контекста)
 - Если новых заметок нет → сообщить «Новых заметок нет» и завершить
@@ -47,7 +47,7 @@
 - `DS-strategy/current/WeekPlan W*.md` — РП и приоритеты недели
 - `DS-strategy/docs/Strategy.md` — фокусы года, приоритеты месяца
 - MEMORY.md — статусы РП
-- QA-отчёт бота: `DS-agent-workspace/scheduler/feedback-triage/` (последний по дате) — **структурированный отчёт** из feedback_triage DB (авто-классификация ботом). Замечания (✏️) и urgent (high/critical) — в начале файла. Real-time алерты уже отправлены ботом → Note-Review только проверяет кластеры (≥3 в одном кластере → пометить)
+- (опционально, если настроены агенты-сборщики QA) Структурированные QA-отчёты в `/home/natty/IWE/<agent-workspace>/<scheduler>/<reports>/` — последний по дате: замечания (✏️) и urgent (high/critical) в начале файла. Кластеры (≥3 в одном кластере) → пометить. Если агентов нет — пропустить шаг.
 
 #### 3. Классифицировать каждую заметку
 
@@ -245,8 +245,7 @@
 
 #### 11. Закоммитить
 
-- Закоммить изменения в FMT-exocortex-template (fleeting-notes.md)
-- Закоммить изменения в DS-strategy (документы с предложениями + personal/ + inbox cleanup + archive)
+- Закоммить изменения в DS-strategy (fleeting-notes.md + документы с предложениями + personal/ + inbox cleanup + archive)
 - Если были записи для Экстрактора → закоммить DS-strategy/inbox/captures.md
 - **secrets.md** НЕ коммитится (.gitignore) — но изменения в нём сохраняются локально
 - Запушить

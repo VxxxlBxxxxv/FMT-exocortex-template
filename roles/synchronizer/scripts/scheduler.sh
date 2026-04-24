@@ -186,7 +186,7 @@ dispatch() {
     # --- Стратег: week-review (Пн, до morning) ---
     if [ "$DOW" = "1" ] && ! ran_this_week "strategist-week-review"; then
         log "→ strategist week-review (catch-up: hour=$HOUR)"
-        if timeout "$TASK_TIMEOUT_LONG" bash "$STRATEGIST_SH" week-review >> "$LOG_FILE" 2>&1; then
+        if timeout "$TASK_TIMEOUT_LONG" "$STRATEGIST_SH" week-review >> "$LOG_FILE" 2>&1; then
             mark_done_week "strategist-week-review"
         else
             log "WARN: strategist week-review failed (will retry next dispatch)"
@@ -197,7 +197,7 @@ dispatch() {
     # --- Стратег: morning (04:00-21:59) ---
     if (( 10#$HOUR >= 4 && 10#$HOUR < 22 )) && ! ran_today "strategist-morning"; then
         log "→ strategist morning (catch-up: hour=$HOUR)"
-        if timeout "$TASK_TIMEOUT_LONG" bash "$STRATEGIST_SH" morning >> "$LOG_FILE" 2>&1; then
+        if timeout "$TASK_TIMEOUT_LONG" "$STRATEGIST_SH" morning >> "$LOG_FILE" 2>&1; then
             mark_done "strategist-morning"
         else
             log "WARN: strategist morning failed (will retry next dispatch)"
@@ -208,7 +208,7 @@ dispatch() {
     # --- Стратег: note-review (22:00+) ---
     if (( 10#$HOUR >= 22 )) && ! ran_today "strategist-note-review"; then
         log "→ strategist note-review (catch-up: hour=$HOUR)"
-        if timeout "$TASK_TIMEOUT_LONG" bash "$STRATEGIST_SH" note-review >> "$LOG_FILE" 2>&1; then
+        if timeout "$TASK_TIMEOUT_LONG" "$STRATEGIST_SH" note-review >> "$LOG_FILE" 2>&1; then
             mark_done "strategist-note-review"
         else
             log "WARN: strategist note-review failed (will retry next dispatch)"
@@ -219,7 +219,7 @@ dispatch() {
         yesterday=$(portable_date_offset 1)
         if [ -n "$yesterday" ] && [ ! -f "$STATE_DIR/strategist-note-review-$yesterday" ]; then
             log "→ strategist note-review (catch-up for yesterday $yesterday)"
-            if timeout "$TASK_TIMEOUT_LONG" bash "$STRATEGIST_SH" note-review >> "$LOG_FILE" 2>&1; then
+            if timeout "$TASK_TIMEOUT_LONG" "$STRATEGIST_SH" note-review >> "$LOG_FILE" 2>&1; then
                 echo "$(date '+%H:%M:%S') catch-up" > "$STATE_DIR/strategist-note-review-$yesterday"
             else
                 log "WARN: strategist note-review catch-up failed"
@@ -231,7 +231,7 @@ dispatch() {
     # --- Синхронизатор: code-scan (ежедневно) ---
     if ! ran_today "synchronizer-code-scan"; then
         log "→ synchronizer code-scan (hour=$HOUR)"
-        if timeout "$TASK_TIMEOUT_SHORT" bash "$SCRIPT_DIR/code-scan.sh" >> "$LOG_FILE" 2>&1; then
+        if timeout "$TASK_TIMEOUT_SHORT" "$SCRIPT_DIR/code-scan.sh" >> "$LOG_FILE" 2>&1; then
             mark_done "synchronizer-code-scan"
         else
             log "WARN: code-scan failed (will retry next dispatch)"
@@ -242,7 +242,7 @@ dispatch() {
     # --- Синхронизатор: dt-collect (после code-scan) ---
     if ! ran_today "synchronizer-dt-collect"; then
         log "→ synchronizer dt-collect (hour=$HOUR)"
-        if timeout "$TASK_TIMEOUT_SHORT" bash "$SCRIPT_DIR/dt-collect.sh" >> "$LOG_FILE" 2>&1; then
+        if timeout "$TASK_TIMEOUT_SHORT" "$SCRIPT_DIR/dt-collect.sh" >> "$LOG_FILE" 2>&1; then
             mark_done "synchronizer-dt-collect"
         else
             log "WARN: dt-collect failed (will retry next dispatch)"
@@ -254,7 +254,7 @@ dispatch() {
     if ! ran_today "synchronizer-daily-report"; then
         if ran_today "strategist-morning" || (( 10#$HOUR >= 6 )); then
             log "→ synchronizer daily-report (hour=$HOUR)"
-            if timeout "$TASK_TIMEOUT_SHORT" bash "$SCRIPT_DIR/daily-report.sh" >> "$LOG_FILE" 2>&1; then
+            if timeout "$TASK_TIMEOUT_SHORT" "$SCRIPT_DIR/daily-report.sh" >> "$LOG_FILE" 2>&1; then
                 mark_done "synchronizer-daily-report"
             else
                 log "WARN: daily-report failed (will retry next dispatch)"
@@ -269,7 +269,7 @@ dispatch() {
         elapsed=$(last_run_seconds_ago "extractor-inbox-check")
         if [ "$elapsed" -ge 10800 ]; then
             log "→ extractor inbox-check (${elapsed}s since last)"
-            if timeout "$TASK_TIMEOUT_LONG" bash "$EXTRACTOR_SH" inbox-check >> "$LOG_FILE" 2>&1; then
+            if timeout "$TASK_TIMEOUT_LONG" "$EXTRACTOR_SH" inbox-check >> "$LOG_FILE" 2>&1; then
                 mark_interval "extractor-inbox-check"
             else
                 log "WARN: extractor inbox-check failed (will retry next dispatch)"

@@ -716,7 +716,9 @@ print(json.dumps(result))
 # ============================================================
 
 collect_scheduler_reports() {
-    local REPORTS_DIR="$WORKSPACE/DS-agent-workspace/scheduler/scheduler-reports"
+    local AGENT_WS="${AGENT_WORKSPACE:-$WORKSPACE/DS-agent-workspace}"
+    local SCHED_SUBDIR="scheduler/scheduler-reports"
+    local REPORTS_DIR="${SCHEDULER_REPORTS_DIR:-$AGENT_WS/$SCHED_SUBDIR}"
 
     python3 -c "
 import json, os, re, glob

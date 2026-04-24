@@ -1,13 +1,14 @@
 #!/bin/bash
 # Validate Template — проверка целостности FMT-exocortex-template
 #
-# 6 проверок:
+# 7 проверок:
 # 1. Нет автор-специфичного контента
 # 2. Нет захардкоженных путей /Users/
 # 3. Нет захардкоженных путей /opt/homebrew
 # 4. MEMORY.md — скелет (мало строк в РП-таблице)
 # 5. Обязательные файлы существуют
 # 6. Нет хардкод-путей к FMT-exocortex-template/scripts|roles в протоколах/скиллах (WP-219, DP.FM.009)
+# 7. settings.json hooks ↔ .claude/hooks/ cross-ref (issue #13)
 
 set -euo pipefail
 
@@ -71,14 +72,16 @@ done
 echo -n "[2/5] Hardcoded /Users/ paths... "
 count=$(grep -rn '/Users/' "$TEMPLATE_DIR" --include="*.md" --include="*.sh" \
         --include="*.json" --include="*.plist" \
-        --exclude='validate-template.sh' --exclude='setup.sh' 2>/dev/null \
+        --exclude='validate-template.sh' --exclude='setup.sh' \
+        --exclude='CHANGELOG.md' 2>/dev/null \
         | grep -v '/Users/\.\.\./' \
         | grep -v '# .*\(/Users/\|e\.g\.\)' \
         | wc -l | tr -d ' ' || true)
 if [ "$count" -gt 0 ]; then
     echo "FAIL ($count hits)"
     grep -rn '/Users/' "$TEMPLATE_DIR" --include="*.md" --include="*.sh" \
-        --exclude='validate-template.sh' --exclude='setup.sh' 2>/dev/null \
+        --exclude='validate-template.sh' --exclude='setup.sh' \
+        --exclude='CHANGELOG.md' 2>/dev/null \
         | grep -v '/Users/\.\.\./' \
         | grep -v '# .*\(/Users/\|e\.g\.\)' | head -3 || true
     FAIL=1
@@ -162,6 +165,46 @@ for pattern in 'FMT-exocortex-template/scripts' 'FMT-exocortex-template/roles/[a
     fi
 done
 [ "$CHECK6_FAIL" -eq 0 ] && echo "PASS"
+
+# 7. settings.json hooks ↔ .claude/hooks/ cross-ref (issue #13)
+# Проверка в обе стороны:
+#   (a) FAIL: hook упомянут в settings.json, но файла нет в .claude/hooks/
+#   (b) WARN: hook есть в .claude/hooks/, но не упомянут ни в одном settings.json
+#       (может быть вызываем напрямую, например wakatime-heartbeat.sh)
+echo -n "[7/7] Hooks cross-ref (settings.json ↔ .claude/hooks/)... "
+CHECK7_FAIL=0
+HOOKS_DIR="$TEMPLATE_DIR/.claude/hooks"
+SETTINGS_FILES=()
+[ -f "$TEMPLATE_DIR/.claude/settings.json" ] && SETTINGS_FILES+=("$TEMPLATE_DIR/.claude/settings.json")
+[ -f "$TEMPLATE_DIR/.claude/settings.local.json" ] && SETTINGS_FILES+=("$TEMPLATE_DIR/.claude/settings.local.json")
+
+if [ ${#SETTINGS_FILES[@]} -eq 0 ] || [ ! -d "$HOOKS_DIR" ]; then
+    echo "SKIP (no settings.json or hooks/ dir)"
+else
+    REFERENCED=$(grep -hoE '\.claude/hooks/[a-zA-Z0-9_-]+\.sh' "${SETTINGS_FILES[@]}" 2>/dev/null | sort -u || true)
+    for ref in $REFERENCED; do
+        if [ ! -f "$TEMPLATE_DIR/$ref" ]; then
+            [ "$CHECK7_FAIL" -eq 0 ] && echo "FAIL"
+            echo "  Missing hook: $ref (referenced in settings.json but file not found)"
+            CHECK7_FAIL=1
+            FAIL=1
+        fi
+    done
+
+    ORPHAN_WARN=0
+    for hook in "$HOOKS_DIR"/*.sh; do
+        [ -f "$hook" ] || continue
+        name=$(basename "$hook")
+        if ! grep -q "\.claude/hooks/$name" "${SETTINGS_FILES[@]}" 2>/dev/null; then
+            if [ "$ORPHAN_WARN" -eq 0 ]; then
+                [ "$CHECK7_FAIL" -eq 0 ] && echo "PASS (with warnings)"
+                ORPHAN_WARN=1
+            fi
+            echo "  WARN: hook $name не упомянут в settings.json (может быть dead code или прямой вызов)"
+        fi
+    done
+    [ "$CHECK7_FAIL" -eq 0 ] && [ "$ORPHAN_WARN" -eq 0 ] && echo "PASS"
+fi
 
 echo ""
 if [ "$FAIL" -eq 0 ]; then
