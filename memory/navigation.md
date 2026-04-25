@@ -4,7 +4,6 @@ originSessionId: 9a0e726a-951e-4408-9e02-94d7eeffbf74
 ---
 # Навигация по репозиториям (Слой 3)
 
-> Claude читает этот файл при поиске конкретного файла/репо. Для поиска знаний → соответствующий MCP-search tool (зависит от подключённого knowledge-сервера).
 
 ## Ключевые файлы
 
@@ -57,12 +56,9 @@ originSessionId: 9a0e726a-951e-4408-9e02-94d7eeffbf74
 
 | MCP | Путь |
 |-----|------|
-<!-- Добавьте свои MCP-серверы. Пример: -->
-<!-- | `<domain>-mcp` (исходники) | `DS-MCP/<domain>-mcp/src/index.ts` | -->
-<!-- | `<domain>-mcp` (ingest)    | `DS-MCP/<domain>-mcp/scripts/ingest.ts` | -->
-<!-- | Activity Hub               | `your-org/activity-hub/` | -->
-<!-- | Автономные агенты (код)    | `DS-autonomous-agents/` | -->
-<!-- | Данные агентов (workspace) | `DS-agent-workspace/` | -->
+<!-- | Activity Hub | `your-org/activity-hub/` | -->
+| Автономные агенты (код) | `DS-autonomous-agents/` |
+| Данные агентов (workspace) | `DS-agent-workspace/` |
 
 ## Стратегия
 

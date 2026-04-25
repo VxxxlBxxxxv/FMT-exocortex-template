@@ -238,6 +238,7 @@ $warnings
 }
 
 archive_old_reports() {
+    mkdir -p "$ARCHIVE_DIR"
     local count=0
     for old_report in "$REPORT_DIR"/SchedulerReport\ 20*.md; do
         [ -f "$old_report" ] || continue

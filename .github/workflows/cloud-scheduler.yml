@@ -198,7 +198,7 @@ jobs:
 
           # ── 4. Сессии: незакрытые ──
           if [ -f "inbox/open-sessions.log" ]; then
-            OPEN_SESSIONS=$(grep -c "^[0-9]" inbox/open-sessions.log 2>/dev/null || echo "0")
+            OPEN_SESSIONS=$(grep -c "^[0-9]" inbox/open-sessions.log 2>/dev/null || true); OPEN_SESSIONS=${OPEN_SESSIONS:-0}
             if [ "$OPEN_SESSIONS" -gt 0 ]; then
               echo "⚠️ Незакрытых сессий: $OPEN_SESSIONS" >> /tmp/health.txt
               WARNINGS=$((WARNINGS + 1))
@@ -220,8 +220,8 @@ jobs:
 
           # ── 6. WP-статистика (из MEMORY.md backup) ──
           if [ -f "exocortex/MEMORY.md" ]; then
-            WP_IN_PROGRESS=$(grep -c "| in_progress" exocortex/MEMORY.md 2>/dev/null || echo "0")
-            WP_PENDING=$(grep -c "| pending" exocortex/MEMORY.md 2>/dev/null || echo "0")
+            WP_IN_PROGRESS=$(grep -c "| in_progress" exocortex/MEMORY.md 2>/dev/null || true); WP_IN_PROGRESS=${WP_IN_PROGRESS:-0}
+            WP_PENDING=$(grep -c "| pending" exocortex/MEMORY.md 2>/dev/null || true); WP_PENDING=${WP_PENDING:-0}
             echo "📋 РП: <b>${WP_IN_PROGRESS}</b> в работе, <b>${WP_PENDING}</b> ожидают" >> /tmp/health.txt
           fi
 

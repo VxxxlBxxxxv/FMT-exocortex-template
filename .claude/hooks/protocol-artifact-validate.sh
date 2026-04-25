@@ -73,7 +73,7 @@ done
 ERRORS=()
 
 # --- Ф3 Check 1: collapsible <details> блоки ---
-DETAILS_COUNT=$(grep -c '<details' "$DAYPLAN" 2>/dev/null || echo 0)
+DETAILS_COUNT=$(grep -c '<details' "$DAYPLAN" 2>/dev/null || true); DETAILS_COUNT=${DETAILS_COUNT:-0}
 if [ "$DETAILS_COUNT" -lt 3 ]; then
   ERRORS+=("Collapsible секции (<details>) < 3 найдено: $DETAILS_COUNT. DayPlan должен иметь collapsible-структуру")
 fi

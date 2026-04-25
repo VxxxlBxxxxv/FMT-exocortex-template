@@ -1,6 +1,6 @@
 {
   "permissions": {
-    "defaultMode": "dontAsk",
+    "defaultMode": "acceptEdits",
     "allow": [
       "Edit(/.claude/skills/**)",
       "mcp__google-drive__search_files",
@@ -53,6 +53,15 @@
             "command": ".claude/hooks/protocol-artifact-validate.sh"
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/capture-bus.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -72,6 +81,14 @@
           {
             "type": "command",
             "command": ".claude/hooks/protocol-stop-gate.sh"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/capture-bus.sh"
           }
         ]
       }

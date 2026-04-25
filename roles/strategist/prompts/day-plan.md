@@ -3,13 +3,12 @@
 
 Выполни сценарий Day Plan для роли Стратег (R1).
 
-Источник сценария: {{WORKSPACE_DIR}}/PACK-digital-platform/pack/digital-platform/02-domain-entities/DP.ROLE.012-strategist/scenarios/scheduled/02-day-plan.md
 
 ## Контекст
 
-- **HUB (личные планы):** {{WORKSPACE_DIR}}/DS-strategy/current/
-- **SPOKE (планы репо):** {{WORKSPACE_DIR}}/*/WORKPLAN.md
-- **MEMORY:** ~/.claude/projects/{{CLAUDE_PROJECT_SLUG}}/memory/MEMORY.md
+- **HUB (личные планы):** /home/natty/IWE/DS-strategy/current/
+- **SPOKE (планы репо):** /home/natty/IWE/*/WORKPLAN.md
+- **MEMORY:** ~/.claude/projects/-home-natty-IWE/memory/MEMORY.md
 
 ## Именование файлов в current/
 
@@ -30,11 +29,11 @@ DS-strategy/
 **Стратег ОБЯЗАН** собрать коммиты за вчерашний день самостоятельно:
 
 ```bash
-# Для КАЖДОГО репо в {{WORKSPACE_DIR}}/:
-git -C {{WORKSPACE_DIR}}/<repo> log --since="yesterday 00:00" --until="today 00:00" --oneline --no-merges
+# Для КАЖДОГО репо в /home/natty/IWE/:
+git -C /home/natty/IWE/<repo> log --since="yesterday 00:00" --until="today 00:00" --oneline --no-merges
 ```
 
-- Пройди по ВСЕМ репозиториям в `{{WORKSPACE_DIR}}/`
+- Пройди по ВСЕМ репозиториям в `/home/natty/IWE/`
 - Сгруппируй коммиты по репозиториям
 - Сопоставь коммиты с РП из недельного плана
 - Определи статус каждого затронутого РП: done / partial / not started
@@ -84,24 +83,7 @@ git -C {{WORKSPACE_DIR}}/<repo> log --since="yesterday 00:00" --until="today 00:
   - Добавь в таблицу «План на сегодня» колонку «Контекст» со ссылкой на файл
   - В секцию «Рекомендация» включи: текущее состояние из context file, следующий шаг
 
-### 3c. Проверка незалитых коммитов бота (pilot → new-architecture)
-
-> **ВАЖНО:** Используй `git cherry`, а НЕ `git log A..B`. Cherry-pick создаёт новые SHA — `git log` считает их «отсутствующими», хотя содержимое идентичное. `git cherry` сравнивает по patch-id (содержимому).
-
-```bash
-# Коммиты на pilot, отсутствующие на prod (+ = реально отсутствует, - = уже cherry-picked)
-git -C {{WORKSPACE_DIR}}/DS-IT-systems/aist_pilot_bot cherry -v new-architecture pilot 2>/dev/null | grep '^\+'
-# Коммиты на prod, отсутствующие на pilot (обратное направление)
-git -C {{WORKSPACE_DIR}}/DS-IT-systems/aist_pilot_bot cherry -v pilot new-architecture 2>/dev/null | grep '^\+'
-```
-
-- Если есть коммиты с `+` в любом направлении → добавить в DayPlan секцию с ТОЧНЫМ числом:
-  ```
-  **🤖 Бот: рассинхрон веток:** N коммитов на pilot (не на prod), M коммитов на prod (не на pilot). Команда для синхронизации: «мержи на прод».
-  ```
-- Если коммитов с `+` нет → не включать секцию (ветки синхронизированы)
-
-> Сценарий merge: PROCESSES.md § 4.2. Merge выполняется ТОЛЬКО по команде пользователя.
+<!-- YOUR CUSTOM CHECKS HERE -->
 
 ### 3b. Inbox Triage (заметки за вчера)
 
@@ -110,7 +92,7 @@ git -C {{WORKSPACE_DIR}}/DS-IT-systems/aist_pilot_bot cherry -v pilot new-archit
 
 - Проверь `DS-strategy/inbox/fleeting-notes.md` — есть ли **жирные** заметки
 - Если есть (≥1) — выполни мини-триаж inline:
-  1. Классифицируй каждую жирную заметку по 7 категориям: НЭП / Задача / Знание / Черновик / Идея 🔄 / Личные данные / Шум
+  1. Классифицируй каждую жирную заметку по 7 категориям: НЭП / Задача / Знание доменное / Знание реализационное / Черновик / Личные данные / Шум
   2. Сверь с коммитами за вчера (шаг 1) — что уже сделано? (уже сделано → Шум)
   3. Сформируй секцию `📋 Inbox Triage` со всеми корзинами (включая 📝 если есть зёрна для черновиков)
   4. **НЕ** помечай заметки и **НЕ** архивируй — это делает только Note-Review
@@ -159,11 +141,11 @@ agent: Стратег
 
 ## План на сегодня
 
-| 🚦 | # | РП | h | Статус | → R# |
-|----|---|-----|---|--------|------|
-| 🔴 | ... | ... | ... | pending | R{N} |
+| # | РП | Бюджет | Приоритет | Контекст | Статус |
+|---|-----|--------|-----------|----------|--------|
+| ... | ... | ... | ... | [ссылка] / — | pending |
 
-**Бюджет дня:** ~Nh РП / ~Nh физ / Мультипликатор ~Nx
+**Дневной бюджет:** N-Nh
 
 ---
 
@@ -173,19 +155,17 @@ agent: Стратег
 
 ---
 
-## 📋 Inbox Triage (DD мес)
+## Разбор заметок (N)
 
 > Источник: Note-Review (вчера) или мини-триаж (Day-Plan).
 > Секция включается ТОЛЬКО если есть заметки для разбора.
+> Неразобранное переносится в следующий DayPlan автоматически.
 
-### ✅ Архив (отработано)
-- ...
-
-### 📌 Предложения в РП
-- ...
-
-### ❓ На решение
-- ...
+| Заметка | Тип | Предложение | ✅ |
+|---------|-----|-------------|---|
+| «текст» | НЭП | → Dissatisfactions.md | [ ] |
+| «текст» | Задача | → WeekPlan | [ ] |
+| «текст» | Черновик | → drafts/X.md (согласовать) | [ ] |
 
 ---
 

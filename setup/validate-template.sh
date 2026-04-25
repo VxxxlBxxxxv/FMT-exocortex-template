@@ -116,7 +116,7 @@ fi
 echo -n "[4/5] MEMORY.md is skeleton... "
 MEMORY_FILE="$TEMPLATE_DIR/memory/MEMORY.md"
 if [ -f "$MEMORY_FILE" ]; then
-    rp_rows=$(grep -c '^|' "$MEMORY_FILE" 2>/dev/null || echo 0)
+    rp_rows=$(grep -c '^|' "$MEMORY_FILE" 2>/dev/null || true); rp_rows=${rp_rows:-0}
     if [ "$rp_rows" -gt 15 ]; then
         echo "FAIL ($rp_rows table rows, expected ≤15)"
         FAIL=1

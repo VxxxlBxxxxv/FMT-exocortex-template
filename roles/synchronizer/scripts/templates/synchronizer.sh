@@ -21,9 +21,9 @@ build_message() {
             latest_run=$(awk '/=== Code Scan Started ===/{buf=""} {buf=buf"\n"$0} END{print buf}' "$log_file" 2>/dev/null)
 
             local found
-            found=$(echo "$latest_run" | grep -c 'FOUND:' 2>/dev/null || echo "0")
+            found=$(echo "$latest_run" | grep -c 'FOUND:' 2>/dev/null || true); found=${found:-0}
             local skipped
-            skipped=$(echo "$latest_run" | grep -c 'SKIP:' 2>/dev/null || echo "0")
+            skipped=$(echo "$latest_run" | grep -c 'SKIP:' 2>/dev/null || true); skipped=${skipped:-0}
 
             local repo_list
             repo_list=$(echo "$latest_run" | grep 'FOUND:' 2>/dev/null | sed 's/.*FOUND: /  /' || echo "")

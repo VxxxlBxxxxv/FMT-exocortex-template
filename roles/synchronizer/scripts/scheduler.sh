@@ -240,14 +240,20 @@ dispatch() {
     fi
 
     # --- Синхронизатор: dt-collect (после code-scan) ---
+    # AUTHOR-ONLY: требует NEON_URL + DT_USER_ID в ~/.config/aist/env (секреты автора
+    # шаблона). Пользовательский путь — через event-gateway, фаза в WP-253 роадмапе.
     if ! ran_today "synchronizer-dt-collect"; then
-        log "→ synchronizer dt-collect (hour=$HOUR)"
-        if timeout "$TASK_TIMEOUT_SHORT" "$SCRIPT_DIR/dt-collect.sh" >> "$LOG_FILE" 2>&1; then
-            mark_done "synchronizer-dt-collect"
-        else
-            log "WARN: dt-collect failed (will retry next dispatch)"
+        if [ -f "$HOME/.config/aist/env" ] && grep -qE '^NEON_URL=' "$HOME/.config/aist/env" \
+           && grep -qE '^DT_USER_ID=' "$HOME/.config/aist/env"; then
+            log "→ synchronizer dt-collect (hour=$HOUR)"
+            if timeout "$TASK_TIMEOUT_SHORT" "$SCRIPT_DIR/dt-collect.sh" >> "$LOG_FILE" 2>&1; then
+                mark_done "synchronizer-dt-collect"
+            else
+                log "WARN: dt-collect failed (will retry next dispatch)"
+            fi
+            ran=1
         fi
-        ran=1
+        # Если env отсутствует — молча пропускаем (author-only, у пользователей нет секретов).
     fi
 
     # --- Синхронизатор: daily-report (после code-scan и strategist morning) ---

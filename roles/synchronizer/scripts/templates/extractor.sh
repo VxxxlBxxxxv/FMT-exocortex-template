@@ -19,9 +19,9 @@ build_message() {
             fi
 
             local candidates
-            candidates=$(grep -c '^## Кандидат' "$report" 2>/dev/null || echo "0")
+            candidates=$(grep -c '^## Кандидат' "$report" 2>/dev/null || true); candidates=${candidates:-0}
             local accept
-            accept=$(grep -c 'Вердикт.*accept' "$report" 2>/dev/null || echo "0")
+            accept=$(grep -c 'Вердикт.*accept' "$report" 2>/dev/null || true); accept=${accept:-0}
 
             printf "<b>🔍 Knowledge Extractor: %s</b>\n\n" "$process"
             printf "📅 %s\n\n" "$DATE"
