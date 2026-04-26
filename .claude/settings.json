@@ -62,6 +62,15 @@
             "command": ".claude/hooks/capture-bus.sh"
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/dry-run-gate.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [

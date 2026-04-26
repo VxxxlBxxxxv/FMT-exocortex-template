@@ -139,12 +139,8 @@ fi
 # Graceful degradation: если что-то из этого отсутствует — молча пропускаем.
 if [ "${CAPTURE_RAW_EVENTS:-0}" = "1" ]; then
   DB_URL="${IWE_DATABASE_URL:-}"
-  if [ -z "$DB_URL" ]; then
-    # Попытаться подхватить из .env activity-hub
-    ENV_FILE="${IWE_ROOT:-$HOME/IWE}/DS-IT-systems/activity-hub/.env"
-    if [ -f "$ENV_FILE" ]; then
-      DB_URL=$(grep '^DATABASE_URL=' "$ENV_FILE" 2>/dev/null | head -1 | cut -d'=' -f2-)
-    fi
+  if [ -z "$DB_URL" ] && [ -n "${IWE_DB_ENV_FILE:-}" ] && [ -f "$IWE_DB_ENV_FILE" ]; then
+    DB_URL=$(grep '^DATABASE_URL=' "$IWE_DB_ENV_FILE" 2>/dev/null | head -1 | cut -d'=' -f2-)
   fi
 
   PSQL_BIN=$(which psql 2>/dev/null || true)

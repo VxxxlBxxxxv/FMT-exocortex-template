@@ -4,6 +4,31 @@
 >
 > Исключение — этот `README.md`: он обновляется как платформенный справочник (новые hook points, примеры). Пользовательский контент в нём не хранится.
 
+## Dry-run контракт (БЛОКИРУЮЩЕЕ для extensions)
+
+> **Полный контракт:** [memory/dry-run-contract.md](../memory/dry-run-contract.md). Когда `/audit-installation` smoke-тестит ритуал, он создаёт sentinel `/tmp/iwe-dry-run-${SESSION_ID}.flag` и ожидает, что **никто не пишет**.
+
+PreToolUse-хук `dry-run-gate.sh` блокирует Write/Edit/git-write/MCP-write автоматически. Но **extensions, которые запускают собственный bash или вызывают exotic tools** (бинарные API, прямой psql) — могут обойти хук.
+
+### Обязательство для extension
+
+Если extension содержит write-логику (создание файла, INSERT в БД, отправка сообщения), **в начале** должна быть проверка sentinel:
+
+```bash
+SID="${CLAUDE_SESSION_ID:-noid}"
+if [ -f "/tmp/iwe-dry-run-${SID}.flag" ]; then
+    echo "[extension <name>] dry-run active, skipping write steps"
+    exit 0
+fi
+# далее обычная логика
+```
+
+**Альтернатива:** сделать write через стандартные tools (Write/Edit/Bash redirect) — хук перехватит автоматически. Явная проверка нужна только если extension хочет дать «осмысленный rehearsal» (например, печать «здесь будет создан DayPlan») вместо немого block'а.
+
+**Защита от sticky-state:** TTL sentinel — 10 минут (mtime). Если sentinel старше — хук игнорирует и удаляет (фейл сессии CLI / kill -9).
+
+---
+
 ## Как расширить протокол
 
 Создайте файл с именем `<protocol>.<hook>.md`, где:

@@ -13,15 +13,15 @@ argument-hint: "[open|close] [day|session]"
 
 ## Шаг 1. Определить протокол
 
-| Аргумент | Файл | Skill (полный алгоритм) |
-|----------|------|------------------------|
-| `day-open` / `open day` | `memory/protocol-open.md § День` | `.claude/skills/day-open/SKILL.md` |
-| `open session` или задание | `memory/protocol-open.md § Сессия` | — |
-| `day-close` / `close day` | `memory/protocol-close.md § День` | `.claude/skills/day-close/SKILL.md` |
-| `close session` | `memory/protocol-close.md § Сессия` | — |
-| `week-close` | `memory/protocol-close.md § Неделя` | `.claude/skills/week-close/SKILL.md` |
+| Аргумент | Маршрутизация (краткая) | Полный алгоритм |
+|----------|------------------------|-----------------|
+| `day-open` / `open day` | `memory/protocol-open.md` (§ Масштаб: День) | `.claude/skills/day-open/SKILL.md` |
+| `open session` или задание | `memory/protocol-open.md` (§ Масштаб: Сессия) | — (inline в protocol-open.md) |
+| `day-close` / `close day` | `memory/protocol-close.md` (§ Маршрутизация) | `.claude/skills/day-close/SKILL.md` |
+| `close session` | `memory/protocol-close.md` (§ Quick Close) | — (inline в protocol-close.md) |
+| `week-close` | `memory/protocol-close.md` (§ Маршрутизация) | `.claude/skills/week-close/SKILL.md` |
 
-Если есть Skill-файл → читай его (содержит полный алгоритм + шаблоны). Protocol-файл = краткий маршрутизатор.
+> Если у аргумента есть Skill-файл → читай его (содержит полный алгоритм + чеклист). Protocol-файл = слим-маршрутизатор + Quick Close inline.
 
 ## Шаг 1b. Загрузить extensions (БЛОКИРУЮЩЕЕ)
 

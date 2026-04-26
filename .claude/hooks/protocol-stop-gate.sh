@@ -12,6 +12,11 @@
 set -uo pipefail
 export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
 
+# --- WP-265 Ф5.2: cleanup dry-run sentinel on session end ---
+if [ -n "${CLAUDE_SESSION_ID:-}" ]; then
+    rm -f "/tmp/iwe-dry-run-${CLAUDE_SESSION_ID}.flag" 2>/dev/null || true
+fi
+
 # --- Infinite loop guard ---
 if [ "${STOP_HOOK_ACTIVE:-}" = "1" ]; then
   echo '{}'

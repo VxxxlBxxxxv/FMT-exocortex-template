@@ -1,6 +1,5 @@
 # Capture Detectors
 
-> **Spec:** [WP-217-capture-bus-spec.md](../../DS-my-strategy/inbox/WP-217-capture-bus-spec.md)
 > **Dispatcher:** [../hooks/capture-bus.sh](../hooks/capture-bus.sh)
 > **Registry:** [../config/capture-detectors.sh](../config/capture-detectors.sh)
 
@@ -46,8 +45,8 @@
 echo '{
   "hook_event_name": "PostToolUse",
   "tool_name": "Write",
-  "tool_input": {"file_path": "/Users/you/IWE/DS-my-strategy/random-file.md"},
-  "cwd": "/Users/you/IWE/DS-my-strategy"
+  "tool_input": {"file_path": "/Users/.../IWE/<governance-repo>/random-file.md"},
+  "cwd": "/Users/.../IWE/<governance-repo>"
 }' | .claude/detectors/detector_incident.sh
 ```
 

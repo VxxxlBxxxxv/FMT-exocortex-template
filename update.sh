@@ -345,6 +345,8 @@ if [ -f "$ENV_FILE" ]; then
                     -e "s|{{TIMEZONE_HOUR}}|${ENV_TIMEZONE_HOUR:-}|g" \
                     -e "s|{{TIMEZONE_DESC}}|${ENV_TIMEZONE_DESC:-}|g" \
                     -e "s|{{HOME_DIR}}|${ENV_HOME_DIR:-$HOME}|g" \
+                    -e "s|{{GOVERNANCE_REPO}}|${ENV_GOVERNANCE_REPO:-DS-strategy}|g" \
+                    -e "s|{{IWE_TEMPLATE}}|${ENV_IWE_TEMPLATE:-$SCRIPT_DIR}|g" \
                     "$filepath"
                 PLACEHOLDER_HIT=$((PLACEHOLDER_HIT + 1))
             fi
@@ -359,6 +361,29 @@ if [ -f "$ENV_FILE" ]; then
         # === Preserve secrets: L4_BACKEND, L4_DATABASE_URL ===
         # These are NOT substituted into template files.
         # If they exist in .exocortex.env, they must NOT be overwritten by update.sh.
+
+        # === Auto-add GOVERNANCE_REPO + IWE_TEMPLATE to legacy .exocortex.env (0.28.5+) ===
+        # Если .exocortex.env создан до 0.28.5 — этих ключей нет; дописать.
+        if ! grep -q '^GOVERNANCE_REPO=' "$ENV_FILE" 2>/dev/null; then
+            DETECTED_GOV="DS-strategy"
+            if [ -n "${ENV_WORKSPACE_DIR:-}" ] && [ -d "${ENV_WORKSPACE_DIR}/DS-strategy" ]; then
+                DETECTED_GOV="DS-strategy"
+            elif [ -n "${ENV_WORKSPACE_DIR:-}" ]; then
+                for d in "${ENV_WORKSPACE_DIR}"/DS-*; do
+                    case "${d##*/}" in
+                        DS-*strategy*) DETECTED_GOV="${d##*/}"; break ;;
+                    esac
+                done
+            fi
+            echo "GOVERNANCE_REPO=$DETECTED_GOV" >> "$ENV_FILE"
+            echo "  ✓ Добавлено GOVERNANCE_REPO=$DETECTED_GOV в .exocortex.env (миграция 0.28.5)"
+            ENV_GOVERNANCE_REPO="$DETECTED_GOV"
+        fi
+        if ! grep -q '^IWE_TEMPLATE=' "$ENV_FILE" 2>/dev/null; then
+            echo "IWE_TEMPLATE=$SCRIPT_DIR" >> "$ENV_FILE"
+            echo "  ✓ Добавлено IWE_TEMPLATE=$SCRIPT_DIR в .exocortex.env (миграция 0.28.5)"
+            ENV_IWE_TEMPLATE="$SCRIPT_DIR"
+        fi
 
         # === Migrate ~/.iwe-env if present (Ф8 migration scenario) ===
         IWE_ENV_GLOBAL="$HOME/.iwe-env"
@@ -500,9 +525,10 @@ if [ -d "$CLAUDE_MEMORY_DIR" ]; then
     echo "  ✓ memory/MEMORY.md — не тронут"
 fi
 
-# Propagate skills, hooks, rules to workspace if changed
+# Propagate skills, hooks, rules, lib, config, detectors to workspace if changed.
+# lib/config/detectors — runtime dependencies капчер-шины (capture-bus.sh) и детекторов.
 for f in "${NEW_FILES[@]}" "${UPDATED_FILES[@]}"; do
-    case "$f" in .claude/skills/*|.claude/hooks/*|.claude/rules/*|.claude/settings.json)
+    case "$f" in .claude/skills/*|.claude/hooks/*|.claude/rules/*|.claude/lib/*|.claude/config/*|.claude/detectors/*|.claude/settings.json)
         src="$SCRIPT_DIR/$f"
         dst="$WORKSPACE_DIR/$f"
         mkdir -p "$(dirname "$dst")"

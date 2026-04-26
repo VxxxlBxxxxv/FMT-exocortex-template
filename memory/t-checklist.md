@@ -32,7 +32,7 @@ valid_from: 2026-04-10
 | T7 | Архивация done WP contexts → archive/wp-contexts/ | агент | день | inbox/ забит, путаница активных/закрытых |
 | T8 | Backup memory/ + CLAUDE.md → `<strategy-repo>/exocortex/` (governance-репо пользователя) | агент | день | экзокортекс отстаёт, recovery ломается |
 | T9 | Архивация старых DayPlan'ов → archive/day-plans/ | агент | день (auto-chore) | current/ забит устаревшими DayPlan |
-| T10 | Downstream sync (update.sh — reindex + pack-project + template) | агент | день при изменениях Pack | knowledge-mcp отдаёт устаревший Pack, template-sync ломается |
+| T10 | Downstream sync (update.sh — reindex + pack-project + template) | агент | день при изменениях Pack | MCP-сервер отдаёт устаревший Pack, template-sync ломается |
 | T11 | Linear sync (статусы linear ↔ git) | агент | день | Linear отражает не то, что в git |
 | T12 | Governance batch: WeekPlan/DayPlan/WP-REGISTRY/open-sessions.log обновлены | агент | день | план-факт расходится |
 | T13 | Drift top-3 critical в Day Report (`iwe-drift.sh --top 3 --critical`) | агент (S-вставка) | день | drift копится невидимо |

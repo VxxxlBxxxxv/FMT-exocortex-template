@@ -228,6 +228,28 @@ HOME_DIR="$HOME"
 # Compute Claude project slug: /Users/alice/IWE → -Users-alice-IWE
 CLAUDE_PROJECT_SLUG="$(echo "$WORKSPACE_DIR" | tr '/' '-')"
 
+# Auto-detect governance repo (used in placeholder substitution + .exocortex.env).
+# Стратегия: (1) DS-strategy (default), (2) wildcard DS-*-strategy* (legacy/локальные имена).
+# Если ни один не найден — default DS-strategy (будет создан при первом seed-ритуале).
+GOVERNANCE_REPO=""
+if [ -d "$WORKSPACE_DIR/DS-strategy" ]; then
+    GOVERNANCE_REPO="DS-strategy"
+fi
+if [ -z "$GOVERNANCE_REPO" ]; then
+    for d in "$WORKSPACE_DIR"/DS-*; do
+        case "${d##*/}" in
+            DS-*strategy*|DS-strategy)
+                GOVERNANCE_REPO="${d##*/}"
+                break
+                ;;
+        esac
+    done
+fi
+GOVERNANCE_REPO="${GOVERNANCE_REPO:-DS-strategy}"
+
+# IWE_TEMPLATE = путь к FMT-репо (где живёт setup.sh).
+IWE_TEMPLATE_PATH="$TEMPLATE_DIR"
+
 echo ""
 echo "Configuration:"
 echo "  GitHub user:    $GITHUB_USER"
@@ -285,6 +307,8 @@ CLAUDE_PROJECT_SLUG=$CLAUDE_PROJECT_SLUG
 TIMEZONE_HOUR=$TIMEZONE_HOUR
 TIMEZONE_DESC=$TIMEZONE_DESC
 HOME_DIR=$HOME_DIR
+GOVERNANCE_REPO=$GOVERNANCE_REPO
+IWE_TEMPLATE=$IWE_TEMPLATE_PATH
 
 # === Platform LLM Proxy (optional own API key for unlimited usage) ===
 PLATFORM_LLM_PROXY_URL=https://llm.aisystant.com/v1
@@ -316,6 +340,8 @@ if $DRY_RUN; then
     echo "    4 → $TIMEZONE_HOUR"
     echo "    5:00 UTC → $TIMEZONE_DESC"
     echo "    /home/natty → $HOME_DIR"
+    echo "    DS-strategy → $GOVERNANCE_REPO"
+    echo "    /home/natty/IWE/FMT-exocortex-template → $IWE_TEMPLATE_PATH"
 else
     find "$TEMPLATE_DIR" -type f \( -name "*.md" -o -name "*.json" -o -name "*.sh" -o -name "*.plist" -o -name "*.yaml" -o -name "*.yml" \) | while IFS= read -r file; do
         sed_inplace \
@@ -326,6 +352,8 @@ else
             -e "s|4|$TIMEZONE_HOUR|g" \
             -e "s|5:00 UTC|$TIMEZONE_DESC|g" \
             -e "s|/home/natty|$HOME_DIR|g" \
+            -e "s|DS-strategy|$GOVERNANCE_REPO|g" \
+            -e "s|/home/natty/IWE/FMT-exocortex-template|$IWE_TEMPLATE_PATH|g" \
             "$file"
     done
 
@@ -409,13 +437,14 @@ else
     fi
 fi
 
-# === 4b. Propagate skills, hooks, rules to workspace ===
-echo "[4b] Installing skills, hooks, rules..."
+# === 4b. Propagate skills, hooks, rules, lib, config, detectors to workspace ===
+echo "[4b] Installing skills, hooks, rules, lib, config, detectors..."
 if $DRY_RUN; then
-    echo "  [DRY RUN] Would copy .claude/skills/, .claude/hooks/, .claude/rules/ → $WORKSPACE_DIR/.claude/"
+    echo "  [DRY RUN] Would copy .claude/{skills,hooks,rules,lib,config,detectors}/ → $WORKSPACE_DIR/.claude/"
 else
     mkdir -p "$WORKSPACE_DIR/.claude"
-    for subdir in skills hooks rules; do
+    # lib/config/detectors — runtime dependencies капчер-шины (capture-bus.sh) и детекторов
+    for subdir in skills hooks rules lib config detectors; do
         if [ -d "$TEMPLATE_DIR/.claude/$subdir" ]; then
             cp -r "$TEMPLATE_DIR/.claude/$subdir" "$WORKSPACE_DIR/.claude/"
             echo "  ✓ .claude/$subdir/ → $WORKSPACE_DIR/.claude/$subdir/"
@@ -476,9 +505,14 @@ IWE_ENV_FILE="$HOME/.iwe-paths"
 ZSHENV_FILE="$HOME/.zshenv"
 IWE_ENV_MARKER="# IWE environment (WP-219, DP.FM.009): lookup-слой для путей к скриптам"
 
+# GOVERNANCE_REPO уже определён выше (для placeholder substitution и .exocortex.env).
+# Используется в .claude/lib/capture_writer.sh, .claude/detectors/detector_decision.sh,
+# scripts/iwe-drift-helpers/check-arch-version.sh, check-status-legend.sh.
+
 if $DRY_RUN; then
-    echo "  [DRY RUN] Would write $IWE_ENV_FILE with IWE_WORKSPACE/IWE_TEMPLATE/IWE_SCRIPTS/IWE_ROLES"
+    echo "  [DRY RUN] Would write $IWE_ENV_FILE with IWE_WORKSPACE/IWE_TEMPLATE/IWE_SCRIPTS/IWE_ROLES/IWE_GOVERNANCE_REPO"
     echo "  [DRY RUN] Would ensure $ZSHENV_FILE sources $IWE_ENV_FILE"
+    [ -n "$GOVERNANCE_REPO" ] && echo "  [DRY RUN] Detected governance repo: $GOVERNANCE_REPO"
 else
     cat > "$IWE_ENV_FILE" <<IWEENV_EOF
 # IWE environment variables
@@ -489,6 +523,7 @@ export IWE_WORKSPACE="$WORKSPACE_DIR"
 export IWE_TEMPLATE="\$IWE_WORKSPACE/FMT-exocortex-template"
 export IWE_SCRIPTS="\$IWE_TEMPLATE/scripts"
 export IWE_ROLES="\$IWE_TEMPLATE/roles"
+export IWE_GOVERNANCE_REPO="$GOVERNANCE_REPO"
 IWEENV_EOF
     echo "  ✓ $IWE_ENV_FILE written"
 

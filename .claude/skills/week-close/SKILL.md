@@ -1,33 +1,121 @@
 ---
 name: week-close
-description: "Протокол закрытия недели (Week Close). Алиас для /run-protocol week-close -- симметрия с /day-open."
+description: "Протокол закрытия недели (Week Close). Ретро 7 дней + carry-over в новую неделю + платформенные шаги (бэкап, dirty repos)."
 argument-hint: ""
-version: 1.1.0
+version: 1.2.0
 ---
 
-# Week Close (алиас)
+# Week Close (протокол закрытия недели)
 
-> **Симметрия:** `/day-open` открывает, `/week-close` закрывает неделю.
-> **Реализация:** делегирует в `/run-protocol week-close`.
+> **Роль:** R1 Стратег. **Бюджет:** ~30 мин.
+> **Принцип:** SKILL.md = L1 платформенный файл. Пользователь не редактирует напрямую — только через `extensions/`.
 
-Выполни `/run-protocol week-close` с полным алгоритмом из `memory/protocol-close.md § Неделя`.
+## БЛОКИРУЮЩЕЕ: пошаговое исполнение
 
-## Платформенные шаги (выполняются всегда)
+Week Close = протокол. Исполнять ТОЛЬКО пошагово через TodoWrite.
+**Шаг 0 — ПЕРВОЕ действие:** создать список задач прямо сейчас (до любых других действий).
+Каждый шаг алгоритма → отдельная задача (pending → in_progress → completed).
 
-### Бэкап IWE в iCloud
+## Алгоритм
+
+### 0. Extensions (before)
+Проверить: `ls extensions/week-close.before.md`. Если существует → `Read` → выполнить как первые шаги.
+
+### 1. Сбор данных за 7 дней
+
+```bash
+for repo in $(ls /home/natty/IWE/); do
+  if [ -d /home/natty/IWE/$repo/.git ]; then
+    commits=$(git -C /home/natty/IWE/$repo log --since="last monday 00:00" --until="today 00:00" --oneline --no-merges 2>/dev/null)
+    [ -n "$commits" ] && echo "=== $repo ===" && echo "$commits"
+  fi
+done
+```
+
+Сопоставить коммиты с РП в WeekPlan → определить статусы (done/partial/not started).
+
+### 2. Headless week-review (если включён launchd Пн 00:00)
+
+> **Условный шаг:** если запущен через `strategist.sh week-review` (Пн 00:00 launchd) — алгоритм идёт через `/home/natty/IWE/FMT-exocortex-template/roles/strategist/prompts/week-review.md`. В интерактивном режиме `/week-close` (вечер Вс) — выполнять следующие шаги вручную.
+
+### 3. Ретро (closed/partial/not_started/blocked)
+
+**3a.** Закрытые РП: что сделано, ключевые артефакты, мультипликатор за неделю.
+**3b.** Частичные: % выполнения, что осталось, перенос в W+1.
+**3c.** Не стартовавшие: причина, перенос или закрытие.
+**3d.** Заблокированные: блокер, ETA снятия.
+
+### 4. Метрики недели
+
+- Completion rate: X/Y РП (N%)
+- Коммитов всего, активных дней
+- WakaTime итог недели (физическое время)
+- Бюджет закрыт (сумма done × бюджет + partial × % × бюджет)
+- Мультипликатор недели = Бюджет закрыт / WakaTime
+
+### 5. Carry-over → W+1
+
+Незавершённые РП с pending/in_progress статусами → перенести в новый WeekPlan W{N+1} (создаст session-prep автоматически в Пн 04:00 либо вручную).
+
+### 6. Captures и уроки
+
+- Просмотреть `inbox/fleeting-notes.md` за неделю → маршрутизировать невыключенные.
+- Уроки сессий → MEMORY.md + thematic `lessons_*.md` (если есть).
+- Drift-scan недели: что в MEMORY.md устарело за 7 дней.
+
+### 7. Платформенные шаги
+
+#### 7a. Бэкап IWE в iCloud
 
 > Условный шаг: только macOS с iCloud Drive.
 
 ```bash
-/home/natty/IWE/scripts/backup-icloud.sh
+${IWE_SCRIPTS}/backup-icloud.sh
 ```
 
 Архив всех файлов IWE (без `.git`, `node_modules`, `.venv`) → iCloud Drive. Хранит 4 последних архива.
 
-### Скан незакоммиченных файлов
+#### 7b. Скан незакоммиченных файлов
 
 ```bash
-/home/natty/IWE/scripts/check-dirty-repos.sh
+${IWE_SCRIPTS}/check-dirty-repos.sh
 ```
 
 Если есть грязные репо → закоммитить и запушить ДО завершения Week Close.
+
+### 8. Запись итогов в WeekPlan
+
+Дописать секцию «Итоги W{N}» в текущий WeekPlan (структура — см. `roles/strategist/prompts/week-review.md`).
+
+### 9. Extensions (after)
+
+Проверить: `ls extensions/week-close.after.md`. Если существует → `Read` → выполнить.
+
+### 10. Закоммитить governance-репо
+
+```bash
+cd /home/natty/IWE/DS-strategy && git add -A && git commit -m "week-close: W{N} итоги" && git push
+```
+
+### 11. Верификация (Haiku R23)
+
+Запустить sub-agent Haiku в роли R23 Верификатор (context isolation).
+Передать: чеклист, итоги недели, список обновлённых файлов.
+
+---
+
+## Чеклист Week Close
+
+- [ ] Все изменения закоммичены и запушены (по всем репо)
+- [ ] Ретро 7 дней: closed/partial/not_started/blocked разобраны
+- [ ] Метрики посчитаны (completion rate, мультипликатор)
+- [ ] Carry-over → W+1 (или явно «нет»)
+- [ ] Captures маршрутизированы, уроки записаны
+- [ ] Drift-scan недели: устаревшие факты обновлены
+- [ ] iCloud backup выполнен (если macOS)
+- [ ] Dirty repos: 0 (или явно проигнорированы)
+- [ ] Итоги W{N} записаны в WeekPlan
+- [ ] Extensions `.after.md` выполнены (если есть)
+- [ ] Governance-репо закоммичено
+
+Все ✅ → «Неделя закрыта.» Иначе — указать что осталось.

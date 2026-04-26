@@ -47,7 +47,7 @@
 - `DS-strategy/current/WeekPlan W*.md` — РП и приоритеты недели
 - `DS-strategy/docs/Strategy.md` — фокусы года, приоритеты месяца
 - MEMORY.md — статусы РП
-- QA-отчёт бота: `DS-agent-workspace/scheduler/feedback-triage/` (последний по дате) — **структурированный отчёт** из feedback_triage DB (авто-классификация ботом). Замечания (✏️) и urgent (high/critical) — в начале файла. Real-time алерты уже отправлены ботом → Note-Review только проверяет кластеры (≥3 в одном кластере → пометить)
+- **(опционально)** QA-отчёт бота: `/home/natty/IWE/DS-agent-workspace/scheduler/feedback-triage/` (последний по дате) — структурированный отчёт из feedback_triage DB (если установлен `DS-agent-workspace`). Замечания (✏️) и urgent (high/critical) — в начале файла. Real-time алерты уже отправлены ботом → Note-Review только проверяет кластеры (≥3 в одном кластере → пометить). **Пропустить** если `[ ! -d "/home/natty/IWE/DS-agent-workspace" ]`.
 
 #### 3. Классифицировать каждую заметку
 

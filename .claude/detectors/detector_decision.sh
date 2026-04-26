@@ -60,10 +60,10 @@ if [ -n "$CWD" ] && [[ "$CWD" == "$IWE_ROOT"/* ]]; then
   fi
 fi
 
-# Fallback: DS-my-strategy как governance-репо
+# Fallback: governance-репо из env IWE_GOVERNANCE_REPO
 if [ -z "$TARGET_REPO_HINT" ]; then
-  if [ -d "$IWE_ROOT/DS-my-strategy" ]; then
-    TARGET_REPO_HINT="$IWE_ROOT/DS-my-strategy"
+  if [ -n "${IWE_GOVERNANCE_REPO:-}" ] && [ -d "$IWE_ROOT/$IWE_GOVERNANCE_REPO" ]; then
+    TARGET_REPO_HINT="$IWE_ROOT/$IWE_GOVERNANCE_REPO"
   else
     exit 0
   fi

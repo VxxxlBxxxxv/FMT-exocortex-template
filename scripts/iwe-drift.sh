@@ -82,10 +82,16 @@ dir_newest_mtime_days_ago() {
     echo $(( (now - newest) / 86400 ))
 }
 
-# Парсинг YAML (наивный, только для фиксированного формата этого манифеста)
+# Парсинг YAML (наивный, только для фиксированного формата этого манифеста).
+# B10 fix (0.28.5): парсим ТОЛЬКО секцию `pairs:`. activity_checks: и другие
+# top-level секции игнорируем — иначе awk ловит их `^  - id:` и засоряет отчёт.
 parse_manifest() {
     local manifest="$1"
     awk '
+        /^pairs:[[:space:]]*$/  { in_pairs = 1; next }
+        /^[a-zA-Z_][a-zA-Z_0-9]*:[[:space:]]*$/ { if ($0 !~ /^pairs:/) in_pairs = 0 }
+        !in_pairs { next }
+
         /^  - id:/ { if (id != "") print_record(); id = clean($3) }
         /^    source:/ { source = clean($2) }
         /^    derived:/ { derived = clean($2) }
@@ -120,32 +126,65 @@ collect() {
     while IFS=$'\t' read -r id source derived relation check thresh crit owner symptom; do
         [ -z "$id" ] && continue
 
-        local src_path="$source"
-        local dst_path="$derived"
-        case "$src_path" in /*) ;; *) src_path="$IWE_ROOT/$src_path" ;; esac
-        case "$dst_path" in /*) ;; *) dst_path="$IWE_ROOT/$dst_path" ;; esac
+        local lag status
 
-        local src_age dst_age lag status
-        src_age=$(dir_newest_mtime_days_ago "$src_path")
-        dst_age=$(dir_newest_mtime_days_ago "$dst_path")
+        # B10 fix (0.28.5): диспетчер по check-полю.
+        # mtime-lag (default) — сравнение mtime'ов source/derived
+        # script:<path> — внешний helper, exit code → status
+        case "$check" in
+            script:*)
+                local helper_rel="${check#script:}"
+                local helper_path="$IWE_ROOT/$helper_rel"
+                # Fallback: если не в IWE_ROOT, пробуем в FMT-репо
+                if [ ! -f "$helper_path" ]; then
+                    helper_path="$IWE_ROOT/FMT-exocortex-template/$helper_rel"
+                fi
+                if [ ! -f "$helper_path" ]; then
+                    lag="?"
+                    status="missing"
+                else
+                    set +e
+                    bash "$helper_path" >/dev/null 2>&1
+                    local helper_rc=$?
+                    set -e
+                    case "$helper_rc" in
+                        0)  lag="0";  status="ok" ;;
+                        1)  lag="?";  status="warn" ;;
+                        2)  lag="?";  status="critical" ;;
+                        *)  lag="?";  status="missing" ;;
+                    esac
+                fi
+                ;;
+            *)
+                # mtime-lag (default)
+                local src_path="$source"
+                local dst_path="$derived"
+                case "$src_path" in /*) ;; *) src_path="$IWE_ROOT/$src_path" ;; esac
+                case "$dst_path" in /*) ;; *) dst_path="$IWE_ROOT/$dst_path" ;; esac
 
-        if [ "$src_age" -lt 0 ] || [ "$dst_age" -lt 0 ]; then
-            lag="?"
-            status="missing"
-        else
-            # lag = dst_age - src_age (положительный = derived отстаёт)
-            lag=$(( dst_age - src_age ))
-            if [ "$lag" -lt 0 ]; then lag=0; fi
-            if [ -z "$crit" ] || [ -z "$thresh" ]; then
-                status="ok"
-            elif [ "$lag" -ge "$crit" ]; then
-                status="critical"
-            elif [ "$lag" -ge "$thresh" ]; then
-                status="warn"
-            else
-                status="ok"
-            fi
-        fi
+                local src_age dst_age
+                src_age=$(dir_newest_mtime_days_ago "$src_path")
+                dst_age=$(dir_newest_mtime_days_ago "$dst_path")
+
+                if [ "$src_age" -lt 0 ] || [ "$dst_age" -lt 0 ]; then
+                    lag="?"
+                    status="missing"
+                else
+                    # lag = dst_age - src_age (положительный = derived отстаёт)
+                    lag=$(( dst_age - src_age ))
+                    if [ "$lag" -lt 0 ]; then lag=0; fi
+                    if [ -z "$crit" ] || [ -z "$thresh" ]; then
+                        status="ok"
+                    elif [ "$lag" -ge "$crit" ]; then
+                        status="critical"
+                    elif [ "$lag" -ge "$thresh" ]; then
+                        status="warn"
+                    else
+                        status="ok"
+                    fi
+                fi
+                ;;
+        esac
 
         printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$lag" "$id" "$relation" "$status" "$owner" "$symptom"
     done < "$records_file"

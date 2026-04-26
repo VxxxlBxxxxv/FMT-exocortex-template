@@ -52,12 +52,12 @@ if [ -z "$DAYPLAN" ]; then
   exit 0
 fi
 
-# Required sections (parameterized — update this list when format changes)
+# Required sections (parameterized — update this list when format changes).
+# Scout раздел опционален: проверяется отдельно ниже (см. блок "Scout").
 SECTIONS=(
   "План на сегодня"
   "Календарь"
   "IWE за ночь"
-  "Наработки Scout"
   "Разбор заметок"
   "Итоги вчера"
 )
@@ -85,9 +85,12 @@ if [ "$CALENDAR_CONTENT" -lt 3 ]; then
   ERRORS+=("Секция 'Календарь' пустая или слишком короткая (${CALENDAR_CONTENT} строк)")
 fi
 
-# Scout: должна содержать хотя бы упоминание находок или "нет находок"
-if ! awk '/Наработки Scout/,/^<\/details>/' "$DAYPLAN" 2>/dev/null | grep -qE 'наход|capture|статус|нет|find'; then
-  ERRORS+=("Секция 'Наработки Scout' пустая")
+# Scout: проверяется только если секция вообще присутствует в DayPlan (опциональный компонент,
+# зависит от DS-agent-workspace). Если секции нет — Scout не сконфигурирован, валидатор не блокирует.
+if grep -q "Наработки Scout" "$DAYPLAN" 2>/dev/null; then
+  if ! awk '/Наработки Scout/,/^<\/details>/' "$DAYPLAN" 2>/dev/null | grep -qE 'наход|capture|статус|нет|find|disabled|not configured'; then
+    ERRORS+=("Секция 'Наработки Scout' пустая (допустимы маркеры 'нет находок', 'disabled', 'not configured')")
+  fi
 fi
 
 # --- Ф3 Check 3: формат мультипликатора ---
