@@ -9,20 +9,20 @@
 
 ## Контекст
 
-- **WeekPlan:** /home/natty/IWE/DS-strategy/current/WeekPlan W*.md (последний по дате)
-- **MEMORY:** ~/.claude/projects/-home-natty-IWE/memory/MEMORY.md
-- **Exocortex backup:** /home/natty/IWE/DS-strategy/exocortex/
+- **WeekPlan:** {{WORKSPACE_DIR}}/DS-strategy/current/WeekPlan W*.md (последний по дате)
+- **MEMORY:** ~/.claude/projects/{{CLAUDE_PROJECT_SLUG}}/memory/MEMORY.md
+- **Exocortex backup:** {{WORKSPACE_DIR}}/DS-strategy/exocortex/
 
 ## Алгоритм
 
 ### 1. Сбор коммитов за сегодня
 
 ```bash
-# Для КАЖДОГО репо в /home/natty/IWE/:
-git -C /home/natty/IWE/<repo> log --since="today 00:00" --oneline --no-merges
+# Для КАЖДОГО репо в {{WORKSPACE_DIR}}/:
+git -C {{WORKSPACE_DIR}}/<repo> log --since="today 00:00" --oneline --no-merges
 ```
 
-- Пройди по ВСЕМ репозиториям в `/home/natty/IWE/`
+- Пройди по ВСЕМ репозиториям в `{{WORKSPACE_DIR}}/`
 - Сгруппируй коммиты по репозиториям
 - Сопоставь с РП из недельного плана
 - Определи статус каждого затронутого РП: done / partial / not started
@@ -46,15 +46,15 @@ git -C /home/natty/IWE/<repo> log --since="today 00:00" --oneline --no-merges
 
 ### 4. Backup экзокортекса
 
-Скопируй актуальные файлы в `/home/natty/IWE/DS-strategy/exocortex/`:
+Скопируй актуальные файлы в `{{WORKSPACE_DIR}}/DS-strategy/exocortex/`:
 
 ```bash
 # Корневой CLAUDE.md
-cp /home/natty/IWE/CLAUDE.md /home/natty/IWE/DS-strategy/exocortex/CLAUDE.md
+cp {{WORKSPACE_DIR}}/CLAUDE.md {{WORKSPACE_DIR}}/DS-strategy/exocortex/CLAUDE.md
 
 # Memory (Слой 3)
-cp ~/.claude/projects/-home-natty-IWE/memory/MEMORY.md /home/natty/IWE/DS-strategy/exocortex/MEMORY.md
-cp ~/.claude/projects/-home-natty-IWE/memory/*.md /home/natty/IWE/DS-strategy/exocortex/
+cp ~/.claude/projects/{{CLAUDE_PROJECT_SLUG}}/memory/MEMORY.md {{WORKSPACE_DIR}}/DS-strategy/exocortex/MEMORY.md
+cp ~/.claude/projects/{{CLAUDE_PROJECT_SLUG}}/memory/*.md {{WORKSPACE_DIR}}/DS-strategy/exocortex/
 ```
 
 ### 5. Закоммитить

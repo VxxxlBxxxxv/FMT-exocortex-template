@@ -3,12 +3,12 @@
 
 ## Контекст
 
-- **Заметки:** /home/natty/IWE/DS-strategy/inbox/[fleeting-notes.md](https://github.com/VxxxlBxxxxv/DS-strategy/blob/main/inbox/fleeting-notes.md)
-- **НЭП:** /home/natty/IWE/DS-strategy/docs/Dissatisfactions.md
-- **Стратегия:** /home/natty/IWE/DS-strategy/docs/Strategy.md
-- **План недели:** /home/natty/IWE/DS-strategy/current/WeekPlan W*.md
-- **Inbox Экстрактора:** /home/natty/IWE/DS-strategy/inbox/captures.md
-- **MEMORY:** ~/.claude/projects/-home-natty-IWE/memory/MEMORY.md
+- **Заметки:** {{WORKSPACE_DIR}}/DS-strategy/inbox/[fleeting-notes.md](https://github.com/{{GITHUB_USER}}/DS-strategy/blob/main/inbox/fleeting-notes.md)
+- **НЭП:** {{WORKSPACE_DIR}}/DS-strategy/docs/Dissatisfactions.md
+- **Стратегия:** {{WORKSPACE_DIR}}/DS-strategy/docs/Strategy.md
+- **План недели:** {{WORKSPACE_DIR}}/DS-strategy/current/WeekPlan W*.md
+- **Inbox Экстрактора:** {{WORKSPACE_DIR}}/DS-strategy/inbox/captures.md
+- **MEMORY:** ~/.claude/projects/{{CLAUDE_PROJECT_SLUG}}/memory/MEMORY.md
 
 ## Предусловие
 
@@ -47,7 +47,7 @@
 - `DS-strategy/current/WeekPlan W*.md` — РП и приоритеты недели
 - `DS-strategy/docs/Strategy.md` — фокусы года, приоритеты месяца
 - MEMORY.md — статусы РП
-- **(опционально)** QA-отчёт бота: `/home/natty/IWE/DS-agent-workspace/scheduler/feedback-triage/` (последний по дате) — структурированный отчёт из feedback_triage DB (если установлен `DS-agent-workspace`). Замечания (✏️) и urgent (high/critical) — в начале файла. Real-time алерты уже отправлены ботом → Note-Review только проверяет кластеры (≥3 в одном кластере → пометить). **Пропустить** если `[ ! -d "/home/natty/IWE/DS-agent-workspace" ]`.
+- QA-отчёт бота: `DS-agent-workspace/scheduler/feedback-triage/` (последний по дате) — **структурированный отчёт** из feedback_triage DB (авто-классификация ботом). Замечания (✏️) и urgent (high/critical) — в начале файла. Real-time алерты уже отправлены ботом → Note-Review только проверяет кластеры (≥3 в одном кластере → пометить)
 
 #### 3. Классифицировать каждую заметку
 
@@ -73,7 +73,7 @@
 - **Личные данные → personal/:** контакт → `personal/contacts.md`, аккаунт/URL → `personal/accounts.md`, токен/пароль → `personal/secrets.md`, прочее → `personal/reference.md`
 
 **Проверка актуальности (обязательно перед классификацией):**
-- Сверь заметку с коммитами за сегодня (`git log --since="00:00" --all --oneline` по всем /home/natty/IWE/ репо) и текущим WeekPlan
+- Сверь заметку с коммитами за сегодня (`git log --since="00:00" --all --oneline` по всем {{WORKSPACE_DIR}}/ репо) и текущим WeekPlan
 - Если задача из заметки **уже сделана** (есть коммит или РП done) → Шум (зачеркнуть), не тянуть в план
 - Если проблема из заметки **уже решена** → Шум
 - Если заметка ссылается на ситуацию, которая **изменилась** за день → оценить с учётом нового контекста

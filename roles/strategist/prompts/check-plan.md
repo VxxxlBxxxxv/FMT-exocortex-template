@@ -4,7 +4,7 @@
 
 ## Контекст
 
-- Планы: /home/natty/IWE/DS-strategy/current/
+- Планы: {{WORKSPACE_DIR}}/DS-strategy/current/
 
 ## Алгоритм
 

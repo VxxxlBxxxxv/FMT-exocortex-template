@@ -2,7 +2,7 @@
 # Шаблон уведомлений: Синхронизатор (R8)
 # Вызывается из notify.sh через source
 
-LOG_DIR="/home/natty/logs/synchronizer"
+LOG_DIR="{{HOME_DIR}}/logs/synchronizer"
 DATE=$(date +%Y-%m-%d)
 
 build_message() {

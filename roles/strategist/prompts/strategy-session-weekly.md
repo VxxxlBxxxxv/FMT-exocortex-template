@@ -3,11 +3,11 @@
 
 ## Контекст
 
-- **HUB (личные планы):** /home/natty/IWE/DS-strategy/current/
-- **Документы стратегии:** /home/natty/IWE/DS-strategy/docs/ (Strategy.md, Dissatisfactions.md, Session Agenda.md)
-- **Inbox:** /home/natty/IWE/DS-strategy/inbox/
-- **SPOKE (планы репо):** /home/natty/IWE/*/WORKPLAN.md
-- **MEMORY:** ~/.claude/projects/-home-natty-IWE/memory/MEMORY.md
+- **HUB (личные планы):** {{WORKSPACE_DIR}}/DS-strategy/current/
+- **Документы стратегии:** {{WORKSPACE_DIR}}/DS-strategy/docs/ (Strategy.md, Dissatisfactions.md, Session Agenda.md)
+- **Inbox:** {{WORKSPACE_DIR}}/DS-strategy/inbox/
+- **SPOKE (планы репо):** {{WORKSPACE_DIR}}/*/WORKPLAN.md
+- **MEMORY:** ~/.claude/projects/{{CLAUDE_PROJECT_SLUG}}/memory/MEMORY.md
 
 ## Предусловие
 

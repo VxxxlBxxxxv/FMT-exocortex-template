@@ -64,183 +64,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 1. Нет автор-специфичного контента
-      # Патерны делятся на глобальные (запрет везде) и "protocol-only" (запрет в скиллах/
-      # хуках/шаблонах/скриптах, но разрешено в README/onboarding/docs/CHANGELOG как продукт).
-      - name: Check for author-specific content
-        run: |
-          FAIL=0
+      # C1 fix (0.28.6): CI source-of-truth = local validator (setup/validate-template.sh).
+      # Раньше CI имел собственный inline blacklist, который расходился с local — например,
+      # PROTOCOL_PATHS включал `roles/`, что ловило conditional refs в strategist prompts.
+      # Теперь CI делегирует author-specific / hardcoded-paths / MEMORY-skeleton / required-files /
+      # hooks-cross-ref в local validator; CI-only остаются: smoke-test, MCP doc, placeholders.
+      - name: Run local validator (source-of-truth)
+        run: bash setup/validate-template.sh "$PWD"
 
-          # Глобальные — автор-только имена и приватные репо. Запрещены везде.
-          # Исключения: CHANGELOG.md (история промоций) + сами валидаторы (self-reference).
-          for pattern in "tserentserenov" "PACK-MIM" "aist_bot_newarchitecture" \
-                         "DS-Knowledge-Index-Tseren" "DS-my-strategy" \
-                         "engines/tailor"; do
-            count=$(grep -rn "$pattern" . --include="*.md" --include="*.sh" \
-                    --include="*.py" --include="*.json" --include="*.plist" \
-                    --include="*.yaml" --include="*.yml" \
-                    --exclude='validate-template.yml' \
-                    --exclude='validate-template.sh' 2>/dev/null \
-                    | grep -v 'CHANGELOG.md' \
-                    | wc -l)
-            if [ "$count" -gt 0 ]; then
-              echo "FAIL: Found '$pattern' in $count locations:"
-              grep -rn "$pattern" . --include="*.md" --include="*.sh" \
-                  --include="*.py" --include="*.json" --include="*.plist" \
-                  --include="*.yaml" --include="*.yml" \
-                  --exclude='validate-template.yml' \
-                  --exclude='validate-template.sh' 2>/dev/null \
-                  | grep -v 'CHANGELOG.md' | head -5
-              FAIL=1
-            fi
-          done
-
-          # Protocol-only — имена продуктовых сервисов автора. Разрешены в README/docs/onboarding/
-          # (как упоминание продукта), запрещены в протоколах/скиллах/хуках/шаблонах планов/CLAUDE.md/ролях.
-          PROTOCOL_PATHS=".claude/skills .claude/hooks .claude/rules memory CLAUDE.md roles"
-          for pattern in "@aist_me_bot" "digital-twin" "content-pipeline" \
-                         "knowledge-mcp" "gateway-mcp" "DS-agent-workspace/scheduler"; do
-            # shellcheck disable=SC2086
-            count=$(grep -rn "$pattern" $PROTOCOL_PATHS 2>/dev/null \
-                    | grep -v 'CHANGELOG.md' \
-                    | grep -v 'README.md' \
-                    | wc -l)
-            if [ "$count" -gt 0 ]; then
-              echo "FAIL: Found '$pattern' in protocol-space ($count locations — OK в README/docs, не в скиллах/хуках/шаблонах):"
-              # shellcheck disable=SC2086
-              grep -rn "$pattern" $PROTOCOL_PATHS 2>/dev/null | head -5
-              FAIL=1
-            fi
-          done
-
-          [ "$FAIL" -eq 0 ] && echo "PASS: No author-specific content"
-          exit $FAIL
-
-      # 2. Нет захардкоженных /Users/ и /opt/homebrew путей
-      # Исключения зеркалят setup/validate-template.sh (локальный валидатор):
-      #   /Users/  — validate-template.{yml,sh}, setup.sh (примеры), /Users/.../ placeholder, комментарии-примеры
-      #   /opt/homebrew — README, PLATFORM-COMPAT.md, validate-template.{yml,sh}, setup.sh, plist PATH
-      - name: Check for hardcoded paths
-        run: |
-          FAIL=0
-          count=$(grep -rn '/Users/' . --include="*.md" --include="*.sh" \
-                  --include="*.json" --include="*.plist" \
-                  --exclude='validate-template.yml' \
-                  --exclude='validate-template.sh' \
-                  --exclude='setup.sh' 2>/dev/null \
-                  | grep -v '/Users/\.\.\./' \
-                  | grep -v '# .*\(/Users/\|e\.g\.\)' \
-                  | grep -v 'CHANGELOG.md' \
-                  | wc -l)
-          if [ "$count" -gt 0 ]; then
-            echo "FAIL: Found /Users/ in $count locations:"
-            grep -rn '/Users/' . --include="*.md" --include="*.sh" \
-                --exclude='validate-template.yml' \
-                --exclude='validate-template.sh' \
-                --exclude='setup.sh' 2>/dev/null \
-                | grep -v '/Users/\.\.\./' \
-                | grep -v '# .*\(/Users/\|e\.g\.\)' \
-                | grep -v 'CHANGELOG.md' | head -5
-            FAIL=1
-          fi
-
-          count=$(grep -rn '/opt/homebrew' . --include="*.md" --include="*.sh" \
-                  --include="*.json" --include="*.plist" \
-                  --exclude='validate-template.yml' \
-                  --exclude='validate-template.sh' \
-                  --exclude='setup.sh' 2>/dev/null \
-                  | grep -v 'README.md' \
-                  | grep -v 'PLATFORM-COMPAT.md' \
-                  | grep -v '/usr/local/bin.*:/opt/homebrew' \
-                  | wc -l)
-          if [ "$count" -gt 0 ]; then
-            echo "FAIL: Found /opt/homebrew in $count locations:"
-            grep -rn '/opt/homebrew' . --include="*.md" --include="*.sh" \
-                --exclude='validate-template.yml' \
-                --exclude='validate-template.sh' \
-                --exclude='setup.sh' 2>/dev/null \
-                | grep -v 'README.md' | grep -v 'PLATFORM-COMPAT.md' | head -5
-            FAIL=1
-          fi
-
-          [ "$FAIL" -eq 0 ] && echo "PASS: No hardcoded paths"
-          exit $FAIL
-
-      # 3. MEMORY.md — скелет
-      - name: Check MEMORY.md is skeleton
-        run: |
-          if [ -f "memory/MEMORY.md" ]; then
-            rows=$(grep -c '^|' memory/MEMORY.md 2>/dev/null || true); rows=${rows:-0}
-            if [ "$rows" -gt 15 ]; then
-              echo "FAIL: MEMORY.md has $rows table rows (expected ≤15)"
-              exit 1
-            fi
-            echo "PASS: MEMORY.md is skeleton ($rows rows)"
-          else
-            echo "WARN: memory/MEMORY.md not found"
-          fi
-
-      # 4. Обязательные файлы
-      - name: Check required files
-        run: |
-          FAIL=0
-          for f in CLAUDE.md ONTOLOGY.md README.md \
-                   memory/MEMORY.md memory/hard-distinctions.md \
-                   memory/roles.md \
-                   roles/strategist/scripts/strategist.sh; do
-            if [ ! -f "$f" ]; then
-              echo "MISSING: $f"
-              FAIL=1
-            fi
-          done
-          [ "$FAIL" -eq 0 ] && echo "PASS: All required files present"
-          exit $FAIL
-
-      # 5. MCP — серверы подключаются через claude.ai/settings/connectors (не локально)
+      # CI-only check: MCP — серверы подключаются через claude.ai/settings/connectors
       - name: Check MCP documentation
         run: |
-          # MCP Gateway (iwe-knowledge at mcp.aisystant.com/mcp) is managed through claude.ai connectors
-          # Validate that setup.sh contains instructions for users
           if grep -q "claude.ai/settings/connectors" setup.sh; then
             echo "PASS: setup.sh contains MCP connector instructions"
           else
             echo "FAIL: setup.sh missing MCP connector instructions"
             exit 1
           fi
-
-      # 7. Hooks cross-ref: settings.json ↔ .claude/hooks/ (issue #13)
-      - name: Check hooks cross-ref
-        run: |
-          FAIL=0
-          SETTINGS_FILES=()
-          [ -f ".claude/settings.json" ] && SETTINGS_FILES+=(".claude/settings.json")
-          [ -f ".claude/settings.local.json" ] && SETTINGS_FILES+=(".claude/settings.local.json")
-
-          if [ ${#SETTINGS_FILES[@]} -eq 0 ] || [ ! -d ".claude/hooks" ]; then
-            echo "SKIP: no settings.json or hooks/ dir"
-            exit 0
-          fi
-
-          # (a) FAIL: hook referenced in settings.json but file missing
-          REFERENCED=$(grep -hoE '\.claude/hooks/[a-zA-Z0-9_-]+\.sh' "${SETTINGS_FILES[@]}" 2>/dev/null | sort -u || true)
-          for ref in $REFERENCED; do
-            if [ ! -f "$ref" ]; then
-              echo "FAIL: Missing hook $ref (referenced in settings.json but file not found)"
-              FAIL=1
-            fi
-          done
-
-          # (b) WARN: hook in dir but not referenced (may be direct-call or dead code)
-          for hook in .claude/hooks/*.sh; do
-            [ -f "$hook" ] || continue
-            name=$(basename "$hook")
-            if ! grep -q "\.claude/hooks/$name" "${SETTINGS_FILES[@]}" 2>/dev/null; then
-              echo "WARN: hook $name не упомянут в settings.json (может быть direct-call)"
-            fi
-          done
-
-          [ "$FAIL" -eq 0 ] && echo "PASS: hooks cross-ref OK"
-          exit $FAIL
 
       # 6. Smoke-test: хуки не падают на чистом пользовательском окружении.
       # Имитируем pristine user: DS-strategy вместо DS-my-strategy, DayPlan с минимальным шаблоном.

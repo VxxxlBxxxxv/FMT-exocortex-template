@@ -62,8 +62,8 @@ FMT-exocortex-template/              DS-strategy/ (отдельный репо)
 
 | Время (UTC) | День | Сценарий | Plist |
 |-------------|------|----------|-------|
-| 4:00 | Понедельник | `session-prep` (headless) | `com.strategist.morning` |
-| 4:00 | Вт-Вс | `day-plan` | `com.strategist.morning` |
+| {{TIMEZONE_HOUR}}:00 | Понедельник | `session-prep` (headless) | `com.strategist.morning` |
+| {{TIMEZONE_HOUR}}:00 | Вт-Вс | `day-plan` | `com.strategist.morning` |
 | 00:00 | Понедельник | `week-review` | `com.strategist.weekreview` |
 
 > На Linux: настройте cron вручную (`crontab -e`). Без автоматизации Стратег запускается вручную.

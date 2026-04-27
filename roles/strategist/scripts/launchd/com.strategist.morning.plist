@@ -7,30 +7,30 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/home/natty/IWE/FMT-exocortex-template/roles/strategist/scripts/strategist.sh</string>
+        <string>{{IWE_RUNTIME}}/roles/strategist/scripts/strategist.sh</string>
         <string>morning</string>
     </array>
 
     <key>StartCalendarInterval</key>
     <dict>
         <key>Hour</key>
-        <integer>4</integer>
+        <integer>{{TIMEZONE_HOUR}}</integer>
         <key>Minute</key>
         <integer>0</integer>
     </dict>
 
     <key>StandardOutPath</key>
-    <string>/home/natty/logs/strategist/launchd-morning.log</string>
+    <string>{{HOME_DIR}}/logs/strategist/launchd-morning.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/home/natty/logs/strategist/launchd-morning-error.log</string>
+    <string>{{HOME_DIR}}/logs/strategist/launchd-morning-error.log</string>
 
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
         <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
         <key>HOME</key>
-        <string>/home/natty</string>
+        <string>{{HOME_DIR}}</string>
     </dict>
 
     <key>RunAtLoad</key>

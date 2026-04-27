@@ -4,7 +4,7 @@ originSessionId: 9a0e726a-951e-4408-9e02-94d7eeffbf74
 ---
 # FPF (First Principles Framework) — справочник
 
-> Источник: `/home/natty/IWE/FPF/FPF-Spec.md` (4.6 MB, ~50000 строк)
+> Источник: `{{HOME_DIR}}/IWE/FPF/FPF-Spec.md` (4.6 MB, ~50000 строк)
 
 ## Когда читать FPF
 
@@ -78,4 +78,4 @@ originSessionId: 9a0e726a-951e-4408-9e02-94d7eeffbf74
 
 ## Обновление
 
-Периодически: `cd /home/natty/IWE/FPF && git pull`
+Периодически: `cd {{HOME_DIR}}/IWE/FPF && git pull`

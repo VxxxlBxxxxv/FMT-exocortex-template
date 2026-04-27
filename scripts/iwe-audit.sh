@@ -140,24 +140,43 @@ emit_inventory_row "memory/protocol-work.md" 1 ""
 emit_inventory_row "memory/protocol-close.md" 1 ""
 
 # Скрипты
-# update.sh: на user-инсталляции живёт в scripts/. На автор-инсталляции
-# (params.yaml: author_mode: true) — в FMT-exocortex-template/. Адаптивно.
+# update.sh ЖИВЁТ ТОЛЬКО в FMT-exocortex-template/update.sh для всех режимов
+# (он сам резолвит SCRIPT_DIR=FMT-template, WORKSPACE_DIR=parent). Никогда не
+# пропагируется в workspace/scripts/. Аналогично iwe-drift.sh: для user-mode
+# живёт только в FMT-template/scripts/, в author-mode дублируется в workspace/scripts/.
 AUTHOR_MODE=0
 if [ -f "$IWE_ROOT/params.yaml" ] && grep -qE "^author_mode:[[:space:]]*true" "$IWE_ROOT/params.yaml"; then
     AUTHOR_MODE=1
 fi
-if [ "$AUTHOR_MODE" = "1" ]; then
-    if exists_any "$IWE_ROOT/FMT-exocortex-template/update.sh"; then
-        TOTAL=$((TOTAL + 1)); FOUND=$((FOUND + 1))
-        printf "| \`%s\` | %s | %s |\n" "scripts/update.sh" "✅" "author_mode: source в FMT-exocortex-template/update.sh"
-    else
-        TOTAL=$((TOTAL + 1)); CRITICAL_MISSING=$((CRITICAL_MISSING + 1))
-        printf "| \`%s\` | %s | %s |\n" "scripts/update.sh" "❌" "author_mode: не найден ни в scripts/, ни в FMT-exocortex-template/"
-    fi
+
+# update.sh — всегда в FMT-template (для обоих режимов)
+TOTAL=$((TOTAL + 1))
+if exists_any "$IWE_ROOT/FMT-exocortex-template/update.sh"; then
+    FOUND=$((FOUND + 1))
+    printf "| \`%s\` | %s | %s |\n" "FMT-exocortex-template/update.sh" "✅" "self-update запускается отсюда"
 else
-    emit_inventory_row "scripts/update.sh" 1 ""
+    CRITICAL_MISSING=$((CRITICAL_MISSING + 1))
+    printf "| \`%s\` | %s | %s |\n" "FMT-exocortex-template/update.sh" "❌" "не найден — обновления невозможны"
 fi
-emit_inventory_row "scripts/iwe-drift.sh" 1 ""
+
+# iwe-drift.sh: проверяем оба возможных места (user-mode → только FMT-template, author-mode → оба)
+TOTAL=$((TOTAL + 1))
+DRIFT_FMT="$IWE_ROOT/FMT-exocortex-template/scripts/iwe-drift.sh"
+DRIFT_WS="$IWE_ROOT/scripts/iwe-drift.sh"
+if exists_any "$DRIFT_FMT"; then
+    FOUND=$((FOUND + 1))
+    if [ "$AUTHOR_MODE" = "1" ] && exists_any "$DRIFT_WS"; then
+        printf "| \`%s\` | %s | %s |\n" "scripts/iwe-drift.sh" "✅" "author_mode: workspace + FMT (template-sync экспортирует workspace → FMT)"
+    else
+        printf "| \`%s\` | %s | %s |\n" "scripts/iwe-drift.sh" "✅" "FMT-exocortex-template/scripts/iwe-drift.sh (source-of-truth для user-mode)"
+    fi
+elif exists_any "$DRIFT_WS"; then
+    FOUND=$((FOUND + 1))
+    printf "| \`%s\` | %s | %s |\n" "scripts/iwe-drift.sh" "⚠️" "только в workspace/scripts/ (FMT-template отсутствует)"
+else
+    CRITICAL_MISSING=$((CRITICAL_MISSING + 1))
+    printf "| \`%s\` | %s | %s |\n" "scripts/iwe-drift.sh" "❌" "не найден ни в FMT-template, ни в workspace"
+fi
 
 # params.yaml — конфиг
 emit_inventory_row "params.yaml" 1 ""
@@ -187,18 +206,11 @@ echo ""
 echo "## 2. L1 drift (платформа vs FMT)"
 echo ""
 
-# B10 fix (0.28.5): drift-скрипт живёт в FMT-репо, не в workspace root.
-# Поддержка обоих layouts: legacy ($IWE_ROOT/scripts) + canonical ($IWE_TEMPLATE/scripts).
-DRIFT_SCRIPT=""
-for candidate in \
-    "$IWE_ROOT/FMT-exocortex-template/scripts/iwe-drift.sh" \
-    "$IWE_ROOT/scripts/iwe-drift.sh" \
-    "${IWE_TEMPLATE:-}/scripts/iwe-drift.sh"; do
-    if [ -n "$candidate" ] && [ -f "$candidate" ]; then
-        DRIFT_SCRIPT="$candidate"
-        break
-    fi
-done
+# Ищем iwe-drift.sh: предпочитаем workspace (author-mode source-of-truth), фоллбэк на FMT-template (user-mode).
+DRIFT_SCRIPT="$IWE_ROOT/scripts/iwe-drift.sh"
+if [ ! -f "$DRIFT_SCRIPT" ] && [ -f "$IWE_ROOT/FMT-exocortex-template/scripts/iwe-drift.sh" ]; then
+    DRIFT_SCRIPT="$IWE_ROOT/FMT-exocortex-template/scripts/iwe-drift.sh"
+fi
 if [ -f "$DRIFT_SCRIPT" ]; then
     # Не валим весь скрипт если iwe-drift падает — set -eu выключаем точечно
     set +e
@@ -212,10 +224,52 @@ if [ -f "$DRIFT_SCRIPT" ]; then
     set -e
     if [ $DRIFT_RC -ne 0 ]; then
         echo ""
-        echo "_iwe-drift.sh exit code: $DRIFT_RC_"
+        echo "_iwe-drift.sh exit code: ${DRIFT_RC}_"
     fi
 else
     echo "❌ \`scripts/iwe-drift.sh\` не найден — drift-сверка пропущена"
+fi
+echo ""
+
+# ---------- Раздел 2b: Generated runtime drift (WP-273 Этап 2) ----------
+
+echo "## 2b. Generated runtime (.iwe-runtime/) drift"
+echo ""
+
+BUILD_RUNTIME="$IWE_ROOT/FMT-exocortex-template/setup/build-runtime.sh"
+RUNTIME_DIR="$IWE_ROOT/.iwe-runtime"
+
+if [ ! -f "$BUILD_RUNTIME" ]; then
+    echo "_N/A — \`setup/build-runtime.sh\` не найден (clone до WP-273 Этап 2)._"
+elif [ ! -d "$RUNTIME_DIR" ]; then
+    echo "⚠️ \`$RUNTIME_DIR/\` не существует. Запустите:"
+    echo ""
+    echo '```bash'
+    echo "bash $BUILD_RUNTIME --workspace $IWE_ROOT"
+    echo '```'
+else
+    set +e
+    DRIFT_OUTPUT=$(bash "$BUILD_RUNTIME" --diff --workspace "$IWE_ROOT" --quiet 2>&1)
+    DRIFT_RC=$?
+    set -e
+
+    if [ "$DRIFT_RC" -eq 0 ]; then
+        echo "✅ runtime in sync (build-runtime --diff: 0 changes)"
+    elif [ "$DRIFT_RC" -eq 5 ]; then
+        echo "⚠️ runtime drift detected (FMT обновился, но \`.iwe-runtime/\` устарел):"
+        echo ""
+        echo '```'
+        echo "$DRIFT_OUTPUT" | head -20
+        echo '```'
+        echo ""
+        echo "**Действие:** \`bash $BUILD_RUNTIME --workspace $IWE_ROOT\`"
+    else
+        echo "❌ build-runtime --diff упал (rc=$DRIFT_RC):"
+        echo ""
+        echo '```'
+        echo "$DRIFT_OUTPUT" | head -10
+        echo '```'
+    fi
 fi
 echo ""
 
@@ -262,8 +316,8 @@ else
     echo ""
 
     # Шаблон ищется в двух местах:
-    # (1) /home/natty/IWE/FMT-strategy-template/ — отдельная директория (авторская)
-    # (2) /home/natty/IWE/FMT-exocortex-template/templates/strategy-skeleton/ — внутри FMT (приезжает через update.sh)
+    # (1) {{WORKSPACE_DIR}}/FMT-strategy-template/ — отдельная директория (авторская)
+    # (2) {{WORKSPACE_DIR}}/FMT-exocortex-template/templates/strategy-skeleton/ — внутри FMT (приезжает через update.sh)
     FMT_DIR="$IWE_ROOT/FMT-strategy-template"
     if [ ! -d "$FMT_DIR" ] && [ -d "$IWE_ROOT/FMT-exocortex-template/templates/strategy-skeleton" ]; then
         FMT_DIR="$IWE_ROOT/FMT-exocortex-template/templates/strategy-skeleton"
@@ -431,7 +485,7 @@ else
     set +e
     GH_USER=$(grep -E "^GITHUB_USER=" "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'")
     set -e
-    if [ -z "$GH_USER" ] || [ "$GH_USER" = "VxxxlBxxxxv" ]; then
+    if [ -z "$GH_USER" ] || [ "$GH_USER" = "{{GITHUB_USER}}" ]; then
         echo "⚠️ \`GITHUB_USER\` пуст или = плейсхолдер. Решение: отредактировать \`~/.exocortex.env\`, проставить логин."
         UPD_WARN=$((UPD_WARN + 1))
     else

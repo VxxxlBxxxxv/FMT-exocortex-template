@@ -48,7 +48,7 @@ originSessionId: 9a0e726a-951e-4408-9e02-94d7eeffbf74
 
 | Тип знания | Куда | Когда | Через KE? |
 |------------|------|-------|-----------|
-| Правило для всех репо (1-3 строки) | `/home/natty/IWE/CLAUDE.md` | Сразу | Нет |
+| Правило для всех репо (1-3 строки) | `{{HOME_DIR}}/IWE/CLAUDE.md` | Сразу | Нет |
 | Правило для одного репо (1-3 строки) | `<repo>/CLAUDE.md` | Сразу | Нет |
 | Доменное (архитектура, паттерны) | Соответствующий Pack | Close | Да (KE) |
 | Различение, метод, FM, WP | Соответствующий Pack | Close | Да (KE) |
@@ -209,7 +209,7 @@ originSessionId: 9a0e726a-951e-4408-9e02-94d7eeffbf74
 
 **Если все три → предложить:** *«Skill candidate: [название] — [что делает]. Оформить как `.claude/skills/[name]/SKILL.md`?»*
 
-**Куда:** FMT-exocortex-template/.claude/skills/ (первоисточник) → sync → рабочий /home/natty/IWE/.claude/skills/
+**Куда:** FMT-exocortex-template/.claude/skills/ (первоисточник) → sync → рабочий {{HOME_DIR}}/IWE/.claude/skills/
 
 ## 2d. Review критических документов (Q-bundles + двухуровневый review)
 

@@ -14,11 +14,11 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 STATE_DIR="$HOME/.local/state/exocortex"
-LOG_DIR="/home/natty/logs/synchronizer"
-STRATEGY_DIR="/home/natty/IWE/DS-strategy"
+LOG_DIR="{{HOME_DIR}}/logs/synchronizer"
+STRATEGY_DIR="{{WORKSPACE_DIR}}/DS-strategy"
 
 # Agent Workspace: если существует — отчёты идут туда
-AGENT_WORKSPACE="/home/natty/IWE/DS-agent-workspace"
+AGENT_WORKSPACE="{{WORKSPACE_DIR}}/DS-agent-workspace"
 if [ -d "$AGENT_WORKSPACE/.git" ]; then
     REPORT_DIR="$AGENT_WORKSPACE/scheduler/reports"
     ARCHIVE_DIR="$AGENT_WORKSPACE/scheduler/reports/archive"
@@ -41,7 +41,7 @@ DRY_RUN=false
 
 REPORT_FILE="$REPORT_DIR/SchedulerReport $DATE.md"
 SCHEDULER_LOG="$LOG_DIR/scheduler-$DATE.log"
-STRATEGIST_LOG="/home/natty/logs/strategist/$DATE.log"
+STRATEGIST_LOG="{{HOME_DIR}}/logs/strategist/$DATE.log"
 
 mkdir -p "$ARCHIVE_DIR"
 
@@ -225,7 +225,7 @@ $warnings
 **Что делать:**
 "
         if echo "$warnings" | grep -q "push failed" 2>/dev/null; then
-            report+="- **push failed:** Mac был оффлайн. Запусти \`cd /home/natty/IWE/DS-strategy && git pull --rebase && git push\`
+            report+="- **push failed:** Mac был оффлайн. Запусти \`cd {{WORKSPACE_DIR}}/DS-strategy && git pull --rebase && git push\`
 "
         fi
     else

@@ -6,9 +6,9 @@
 
 ## Контекст
 
-- **HUB (личные планы):** /home/natty/IWE/DS-strategy/current/
-- **SPOKE (планы репо):** /home/natty/IWE/*/WORKPLAN.md
-- **MEMORY:** ~/.claude/projects/-home-natty-IWE/memory/MEMORY.md
+- **HUB (личные планы):** {{WORKSPACE_DIR}}/DS-strategy/current/
+- **SPOKE (планы репо):** {{WORKSPACE_DIR}}/*/WORKPLAN.md
+- **MEMORY:** ~/.claude/projects/{{CLAUDE_PROJECT_SLUG}}/memory/MEMORY.md
 
 ## Именование файлов в current/
 
@@ -29,11 +29,11 @@ DS-strategy/
 **Стратег ОБЯЗАН** собрать коммиты за вчерашний день самостоятельно:
 
 ```bash
-# Для КАЖДОГО репо в /home/natty/IWE/:
-git -C /home/natty/IWE/<repo> log --since="yesterday 00:00" --until="today 00:00" --oneline --no-merges
+# Для КАЖДОГО репо в {{WORKSPACE_DIR}}/:
+git -C {{WORKSPACE_DIR}}/<repo> log --since="yesterday 00:00" --until="today 00:00" --oneline --no-merges
 ```
 
-- Пройди по ВСЕМ репозиториям в `/home/natty/IWE/`
+- Пройди по ВСЕМ репозиториям в `{{WORKSPACE_DIR}}/`
 - Сгруппируй коммиты по репозиториям
 - Сопоставь коммиты с РП из недельного плана
 - Определи статус каждого затронутого РП: done / partial / not started

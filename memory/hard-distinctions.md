@@ -78,9 +78,9 @@ originSessionId: 9a0e726a-951e-4408-9e02-94d7eeffbf74
 
 | # | Тип | Где | Владелец |
 |---|-----|-----|----------|
-| 1 | Universal protocol (ОРЗ) | FMT/scripts/ → /home/natty/IWE/scripts/ | Платформа |
+| 1 | Universal protocol (ОРЗ) | FMT/scripts/ → {{WORKSPACE_DIR}}/scripts/ | Платформа |
 | 1b | Role-specific protocol | FMT/roles/<role>/scripts/ | Платформа + роль |
-| 2 | Author protocol | /home/natty/IWE/scripts/ (не в FMT) | Автор |
+| 2 | Author protocol | {{WORKSPACE_DIR}}/scripts/ (не в FMT) | Автор |
 | 3 | Service | `<service>/scripts/` | Сервис |
 | 4 | Repo operations | `<repo>/.ops/` или `<repo>/scripts/` | Репо |
 | 5 | Agent hook | `.claude/hooks/` или `.claude/skills/<skill>/` | Агентная инфра |
@@ -130,9 +130,9 @@ originSessionId: 9a0e726a-951e-4408-9e02-94d7eeffbf74
 **Пример правильной маршрутизации:**
 
 ```
-/home/natty/IWE/scripts/week-draft-append.sh                     # скрипт
-/home/natty/IWE/scripts/logs/week-draft-append.log               # лог (рядом)
-/home/natty/IWE/scripts/state/last-append.yaml                   # state file (рядом)
+{{WORKSPACE_DIR}}/scripts/week-draft-append.sh                     # скрипт
+{{WORKSPACE_DIR}}/scripts/logs/week-draft-append.log               # лог (рядом)
+{{WORKSPACE_DIR}}/scripts/state/last-append.yaml                   # state file (рядом)
   2026-04-17-week-draft-append-failed.md               # инцидент (если упадёт)
 ```
 

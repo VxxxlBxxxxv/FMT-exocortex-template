@@ -13,11 +13,11 @@ set -e
 # Конфигурация
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
-WORKSPACE="/home/natty/IWE"
+WORKSPACE="{{WORKSPACE_DIR}}"
 PROMPTS_DIR="$REPO_DIR/prompts"
-LOG_DIR="/home/natty/logs/extractor"
-CLAUDE_PATH="/mnt/c/Users/Natty/AppData/Roaming/npm/claude"
-ENV_FILE="/home/natty/.config/aist/env"
+LOG_DIR="{{HOME_DIR}}/logs/extractor"
+CLAUDE_PATH="{{CLAUDE_PATH}}"
+ENV_FILE="{{HOME_DIR}}/.config/aist/env"
 
 # AI CLI: переопределение через переменные окружения (см. strategist.sh)
 AI_CLI="${AI_CLI:-$CLAUDE_PATH}"
@@ -47,7 +47,15 @@ notify() {
 
 notify_telegram() {
     local scenario="$1"
-    local notify_script="$WORKSPACE/FMT-exocortex-template/roles/synchronizer/scripts/notify.sh"
+    # WP-273 Этап 2: notify.sh живёт в .iwe-runtime/ (Generated runtime). Fallback на FMT.
+    local notify_script
+    if [ -n "${IWE_RUNTIME:-}" ] && [ -f "$IWE_RUNTIME/roles/synchronizer/scripts/notify.sh" ]; then
+        notify_script="$IWE_RUNTIME/roles/synchronizer/scripts/notify.sh"
+    elif [ -f "$WORKSPACE/.iwe-runtime/roles/synchronizer/scripts/notify.sh" ]; then
+        notify_script="$WORKSPACE/.iwe-runtime/roles/synchronizer/scripts/notify.sh"
+    else
+        notify_script="$WORKSPACE/FMT-exocortex-template/roles/synchronizer/scripts/notify.sh"
+    fi
     if [ -f "$notify_script" ]; then
         "$notify_script" extractor "$scenario" >> "$LOG_FILE" 2>&1 || true
     fi

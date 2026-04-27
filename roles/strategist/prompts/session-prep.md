@@ -3,12 +3,12 @@
 
 ## Контекст
 
-- **HUB (личные планы):** /home/natty/IWE/DS-strategy/current/
-- **Документы стратегии:** /home/natty/IWE/DS-strategy/docs/ (ВСЕ файлы: Strategy.md, Dissatisfactions.md, Session Agenda.md)
-- **Inbox:** /home/natty/IWE/DS-strategy/inbox/ ([fleeting-notes.md](https://github.com/VxxxlBxxxxv/DS-strategy/blob/main/inbox/fleeting-notes.md) + свежие файлы за неделю)
-- **SPOKE (планы репо):** /home/natty/IWE/*/WORKPLAN.md
-- **Стратегические карты:** /home/natty/IWE/*/MAPSTRATEGIC.md (если есть в репо)
-- **MEMORY:** ~/.claude/projects/-home-natty-IWE/memory/MEMORY.md
+- **HUB (личные планы):** {{WORKSPACE_DIR}}/DS-strategy/current/
+- **Документы стратегии:** {{WORKSPACE_DIR}}/DS-strategy/docs/ (ВСЕ файлы: Strategy.md, Dissatisfactions.md, Session Agenda.md)
+- **Inbox:** {{WORKSPACE_DIR}}/DS-strategy/inbox/ ([fleeting-notes.md](https://github.com/{{GITHUB_USER}}/DS-strategy/blob/main/inbox/fleeting-notes.md) + свежие файлы за неделю)
+- **SPOKE (планы репо):** {{WORKSPACE_DIR}}/*/WORKPLAN.md
+- **Стратегические карты:** {{WORKSPACE_DIR}}/*/MAPSTRATEGIC.md (если есть в репо)
+- **MEMORY:** ~/.claude/projects/{{CLAUDE_PROJECT_SLUG}}/memory/MEMORY.md
 
 ## Именование файлов в current/
 
@@ -45,7 +45,7 @@ DS-strategy/
 
 - Прочитай `DS-strategy/inbox/fleeting-notes.md`
 - Прочитай ВСЕ файлы из `DS-strategy/inbox/` (кроме .DS_Store и .docx)
-- **(опционально)** Прочитай QA-отчёт бота: `/home/natty/IWE/DS-agent-workspace/scheduler/feedback-triage/` (последний по дате) — структурированный отчёт из feedback_triage DB: замечания (✏️) первые, urgent (high/critical) вторые, кластеры проблем третьи. Auto-triage уже выполнен ботом → Session-Prep проверяет кластеры (≥3 = **urgent** → WP-debt) и помечает resolved. **Пропустить** если `[ ! -d "/home/natty/IWE/DS-agent-workspace" ]`.
+- Прочитай QA-отчёт бота: `DS-agent-workspace/scheduler/feedback-triage/` (последний по дате) — **структурированный отчёт** из feedback_triage DB: замечания (✏️) первые, urgent (high/critical) вторые, кластеры проблем третьи. Auto-triage уже выполнен ботом → Session-Prep проверяет кластеры (≥3 = **urgent** → WP-debt) и помечает resolved
 - Для каждой заметки/файла определи: → в план недели? → capture в Pack? → в повестку для обсуждения? → удалить?
 - **Недельная агрегация Inbox Triage:**
   > Это НЕ дубль ежедневного triage Note-Review. Note-Review классифицирует заметки и пишет предложения в целевые документы. Session-Prep агрегирует результаты за неделю из этих документов + добавляет unsatisfied-questions.
@@ -73,7 +73,7 @@ DS-strategy/
 #### 4. Сверка со стратегией + агрегация MAPSTRATEGIC (→ блок «Стратегическая сверка»)
 
 - Прочитай `DS-strategy/docs/Strategy.md` — фокусы года, Q1 цели, приоритеты месяца
-- Прочитай `/home/natty/IWE/*/MAPSTRATEGIC.md` (если файл есть в репо)
+- Прочитай `{{WORKSPACE_DIR}}/*/MAPSTRATEGIC.md` (если файл есть в репо)
 - **Агрегируй** фазы из MAPSTRATEGIC.md → обнови секцию «Текущие фазы (MAPSTRATEGIC)» в Strategy.md
 - Обнови «Приоритеты месяца» — статусы на основе итогов в WeekPlan
 - Проверь: соответствуют ли текущие РП стратегическому направлению?
@@ -81,7 +81,7 @@ DS-strategy/
 
 #### 5. Обход WORKPLAN.md (Hub-and-Spoke)
 
-- Прочитай `/home/natty/IWE/*/WORKPLAN.md` из каждого репо
+- Прочитай `{{WORKSPACE_DIR}}/*/WORKPLAN.md` из каждого репо
 - Собери все РП со статусом pending/in-progress
 - Выяви расхождения с HUB-планом
 

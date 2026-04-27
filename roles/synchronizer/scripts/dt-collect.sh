@@ -142,7 +142,7 @@ print(json.dumps(result))
 }
 
 # ============================================================
-# 2. Git Stats (все репо в /home/natty/IWE/)
+# 2. Git Stats (все репо в {{WORKSPACE_DIR}}/)
 # ============================================================
 
 collect_git() {
@@ -150,7 +150,7 @@ collect_git() {
 import subprocess, json, os
 from datetime import datetime, timedelta
 
-workspace = os.path.expanduser('/home/natty/IWE')
+workspace = os.path.expanduser('{{WORKSPACE_DIR}}')
 repos = []
 for name in sorted(os.listdir(workspace)):
     path = os.path.join(workspace, name)
@@ -230,7 +230,7 @@ print(json.dumps(result))
 # ============================================================
 
 collect_sessions() {
-    local SESSION_LOG="$GOVERNANCE_DIR/inbox/open-sessions.log"
+    local SESSION_LOG="$WORKSPACE/DS-strategy/inbox/open-sessions.log"
 
     python3 -c "
 import json, os, re
@@ -261,7 +261,7 @@ if os.path.exists(log_path):
 
 # Also count from git log (more reliable — sessions leave commits)
 import subprocess
-workspace = os.path.expanduser('/home/natty/IWE')
+workspace = os.path.expanduser('{{WORKSPACE_DIR}}')
 git_sessions_7d = 0
 for name in os.listdir(workspace):
     path = os.path.join(workspace, name)
@@ -618,7 +618,7 @@ collect_pack() {
     python3 -c "
 import json, os, re
 
-workspace = os.path.expanduser('/home/natty/IWE')
+workspace = os.path.expanduser('{{WORKSPACE_DIR}}')
 pack_stats = {}
 total_md = 0
 total_entities = 0

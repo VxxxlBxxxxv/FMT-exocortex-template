@@ -22,14 +22,14 @@
 
 ### Шаг 0: Прочитать конфигурацию
 
-1. Прочитай `/home/natty/IWE/FMT-exocortex-template/roles/extractor/config/routing.md` — таблицы маршрутизации.
-2. Прочитай `/home/natty/IWE/FMT-exocortex-template/roles/extractor/config/feedback-log.md` — лог отклонённых кандидатов. Если capture похож на ранее отклонённый → пропусти.
+1. Прочитай `{{WORKSPACE_DIR}}/FMT-exocortex-template/roles/extractor/config/routing.md` — таблицы маршрутизации.
+2. Прочитай `{{WORKSPACE_DIR}}/FMT-exocortex-template/roles/extractor/config/feedback-log.md` — лог отклонённых кандидатов. Если capture похож на ранее отклонённый → пропусти.
 
 ### Шаг 1: Проверить inbox
 
-1. Прочитай `/home/natty/IWE/DS-strategy/inbox/captures.md`
+1. Прочитай `{{WORKSPACE_DIR}}/DS-strategy/inbox/captures.md`
 2. Найди все pending записи: секции `### ...` БЕЗ любого из 4 маркеров статуса на той же строке (`[analyzed]`, `[processed]`, `[duplicate]`, `[defer]`). Если стоит хоть один — capture уже в workflow, пропускай.
-3. Если pending записей нет → сообщение `No pending captures in inbox` выводи через stdout (его поймает `extractor.sh` и запишет в `/home/natty/logs/extractor/YYYY-MM-DD.log`). **НЕ создавай отдельный лог-файл** в `DS-strategy/` или где-либо ещё. Заверши работу.
+3. Если pending записей нет → сообщение `No pending captures in inbox` выводи через stdout (его поймает `extractor.sh` и запишет в `{{HOME_DIR}}/logs/extractor/YYYY-MM-DD.log`). **НЕ создавай отдельный лог-файл** в `DS-strategy/` или где-либо ещё. Заверши работу.
 4. Если pending > 5 → возьми первые 5 (по порядку в файле)
 
 ### Шаг 2: Обработать каждый capture (max 5)
@@ -70,7 +70,7 @@
 
 ### Шаг 3: Сгенерировать Extraction Report
 
-Создай файл отчёта: `/home/natty/IWE/DS-strategy/inbox/extraction-reports/{YYYY-MM-DD}-inbox-check.md`
+Создай файл отчёта: `{{WORKSPACE_DIR}}/DS-strategy/inbox/extraction-reports/{YYYY-MM-DD}-inbox-check.md`
 
 Если файл с таким именем уже существует, добавь суффикс: `{YYYY-MM-DD}-inbox-check-2.md`.
 
