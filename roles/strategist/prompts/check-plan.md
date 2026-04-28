@@ -4,7 +4,7 @@
 
 ## Контекст
 
-- Планы: {{WORKSPACE_DIR}}/DS-strategy/current/
+- Планы: {{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/current/
 
 ## Алгоритм
 

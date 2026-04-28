@@ -3,9 +3,9 @@
 
 ## Контекст
 
-- **HUB (личные планы):** {{WORKSPACE_DIR}}/DS-strategy/current/
-- **Документы стратегии:** {{WORKSPACE_DIR}}/DS-strategy/docs/ (Strategy.md, Dissatisfactions.md, Session Agenda.md)
-- **Inbox:** {{WORKSPACE_DIR}}/DS-strategy/inbox/
+- **HUB (личные планы):** {{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/current/
+- **Документы стратегии:** {{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/docs/ (Strategy.md, Dissatisfactions.md, Session Agenda.md)
+- **Inbox:** {{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/inbox/
 - **SPOKE (планы репо):** {{WORKSPACE_DIR}}/*/WORKPLAN.md
 - **MEMORY:** ~/.claude/projects/{{CLAUDE_PROJECT_SLUG}}/memory/MEMORY.md
 
@@ -20,7 +20,7 @@
 
 #### 1. Открытие сессии
 
-- Найди `WeekPlan W*.md` со `status: draft` в `DS-strategy/current/`
+- Найди `WeekPlan W*.md` со `status: draft` в `{{GOVERNANCE_REPO}}/current/`
 - Покажи пользователю краткую сводку: повестка, ключевые вопросы, carry-over
 - Спроси: «Начнём по повестке или есть срочные вопросы?»
 
@@ -68,6 +68,6 @@
 - **ОБЯЗАТЕЛЬНО:** Если добавлена работа, не отражённая в Strategy.md → обнови Strategy.md (приоритеты месяца, фазы, Q1 результаты)
 - **ОБЯЗАТЕЛЬНО:** Очисти обработанные из fleeting-notes.md и inbox/
 - **ОБЯЗАТЕЛЬНО:** Обратная синхронизация MAPSTRATEGIC.md — если элемент из MAPSTRATEGIC взят в работу (создан РП) → обнови статус фазы в `<repo>/MAPSTRATEGIC.md` (пометь как in-progress, добавь ссылку на РП). Если фаза завершена (РП done) → пометь как done.
-- Закоммить изменения в DS-strategy и затронутых репо
+- Закоммить изменения в {{GOVERNANCE_REPO}} и затронутых репо
 
 **Результат:** утверждённый WeekPlan W{N} (`status: confirmed`), обновлённые Strategy.md, WORKPLAN.md, MEMORY.md, MAPSTRATEGIC.md, очищенный inbox.

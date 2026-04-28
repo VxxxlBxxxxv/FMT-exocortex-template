@@ -5,6 +5,163 @@ All notable changes to FMT-exocortex-template will be documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/).
 
+## [0.29.8] — 2026-04-28
+
+### Added (правило именования РП в WP-REGISTRY.md)
+
+CLAUDE.md §9 (Авторское — Именование РП): новый абзац «Название в WP-REGISTRY.md = ≤80 символов, только русский». Запрещено в названии: статус, даты, фазы, parenthetical-нарратив, английские пояснения, ссылки на другие РП. Контекст РП живёт в `inbox/WP-NNN-*.md` (активные) и `archive/wp-contexts/` (закрытые). Эталоны: WP-254, WP-258, WP-264. Допустимы кодовые идентификаторы и Pack-ID, если являются собственным именем артефакта (`projection-worker`, `DP.SC.125`, `cut-over`, `IWE`).
+
+### Why
+
+Распухшие названия в текущем реестре (WP-265…WP-278 разрослись до 500+ символов с английским нарративом, статусами фаз и метриками) перестали быть индексом и превратились в свалку handoff-ов. Правило-индекс возвращает реестр к роли каталога, а нарратив — на своё место в inbox-карточку РП.
+
+## [0.29.7] — 2026-04-27
+
+### Fixed (Round 5 Евгения — 4 платформенных хвоста после migration на 0.29.6)
+
+После прогона `update.sh` на 0.29.6 в реальном пилотском IWE Евгений нашёл 4 хвоста миграции. Все системные, разной глубины.
+
+**R5.1 — `migrate-to-runtime-target.sh --dry-run` падает на ERROR:** dry-run не копирует `.exocortex.env` в workspace (по логике «без записей»), но потом передаёт `build-runtime --env-file "$WORKSPACE_DIR/.exocortex.env"` принудительно — файла нет, build-runtime exit 2. Прямой `build-runtime --dry-run` с legacy env path работает.
+- **Фикс:** после Step 3 пересчитываю `ENV_FILE` по принципу «что реально есть на диске» (workspace → FMT legacy → exit). Dry-run использует существующий source без побочных эффектов.
+
+**R5.2 — `BACKUP_DIR: unbound variable` в clean-FMT ветке:** `BACKUP_DIR=` объявлялся только в `DIRTY_COUNT > 0`-ветке (Step 5), но печатался безусловно в финальном hint (line 205) под `set -eu` → bash валится при clean-FMT повторном запуске.
+- **Фикс:** инициализация `BACKUP_DIR=""` в начале + защита печати условием `[ -n "$BACKUP_DIR" ] && echo …`. Hint не показывается при clean-FMT — там и backup'а нет.
+
+**R5.3 — `~/.iwe-paths` не апгрейдится при миграции 0.28→0.29:** `setup.sh [4d]` пишет полный набор IWE_* переменных (включая `IWE_RUNTIME`), но миграция 0.28→0.29 идёт через `migrate-to-runtime-target.sh`, который вообще не трогает `~/.iwe-paths`. Старый файл остаётся без `export IWE_RUNTIME` → `install.sh` для launchd-ролей видит неполный env.
+- **Корневая причина:** OwnerIntegrity нарушен — source-of-truth для `~/.iwe-paths` дублировался в `setup.sh [4d]` и должен быть в migrate, но не был.
+- **Фикс системный:** новый хелпер `setup/install-iwe-paths.sh` — единственный writer `~/.iwe-paths`. Вызывается из `setup.sh [4d]` (рефакторинг) и из `migrate-to-runtime-target.sh` Step 6 (новый шаг). Идемпотентный, поддерживает `--dry-run`. update.sh может тоже его вызывать при следующих апгрейдах без новой логики.
+
+**R5.4 — strategist/extractor/synchronizer launchd plist'ы не экспортируют IWE_***: `EnvironmentVariables` в plist'ах содержал только `PATH+HOME`. Дочерний скрипт `strategist.sh` / `extractor.sh` / `scheduler.sh` под launchd не видел `IWE_TEMPLATE/IWE_WORKSPACE/IWE_RUNTIME` — launchctl не читает `~/.zshenv` / `~/.iwe-paths`. Скрипты падали в fallback-warning.
+- **Фикс:** в исходных plist'ах (`roles/*/scripts/launchd/*.plist`, substituted) добавлены ключи `IWE_TEMPLATE/IWE_WORKSPACE/IWE_RUNTIME` в `EnvironmentVariables` как `{{IWE_TEMPLATE}}/{{WORKSPACE_DIR}}/{{IWE_RUNTIME}}`-плейсхолдеры. build-runtime подставит per-host значения. Плисты становятся **self-contained**: launchd-runner'ы больше не зависят от shell env.
+
+### Why
+
+Round 5 закрыл паттерн «launchd зависит от shell env» (R5.4) — это устойчивый класс багов, который ловил Евгения каждый раз. Системная очистка через self-contained plist'ы делает дочерние скрипты воспроизводимыми независимо от того, как открывался процесс. R5.3 закрыл OwnerIntegrity-нарушение в генерации `~/.iwe-paths` — теперь один writer на все три триггера (setup/migrate/update).
+
+## [0.29.6] — 2026-04-27
+
+### Fixed (R6.1** — критический блокер от sub-agent post-release verify 0.29.5)
+
+Sub-agent post-release verify нашёл блокер, который мой 0.29.5 fix создал заново — **более серьёзный, чем то, что 0.29.5 закрывал**.
+
+**Что произошло:** в 0.29.5 я добавил sed-substitution в `run_claude` runners (`strategist.sh`, `extractor.sh`):
+```bash
+sed -e "s|{{GOVERNANCE_REPO}}|$_gov_repo|g" ...
+```
+
+`build-runtime.sh` обрабатывал эти runner'ы как substituted — sed подменял `{{GOVERNANCE_REPO}}` ВНУТРИ моего sed-выражения. После build runner становился:
+```bash
+sed -e "s|DS-evgenii-pilot-strategy|$_gov_repo|g" ...  # ИСКАЛ значение в промпте
+```
+
+Промпты в FMT с `{{GOVERNANCE_REPO}}` НЕ подменялись → LLM получал raw плейсхолдеры. **Все runners сломаны для всех пилотов кроме `GOVERNANCE_REPO=DS-strategy`** (мой авторский кейс — поэтому я не заметил).
+
+**Почему мой smoke test не поймал:** Test 6c в 0.29.5 симулировал sed с оригинальными `{{...}}` плейсхолдерами на тестовом промпте — НЕ читал реальный substituted runner из `.iwe-runtime/`. Имитация ≠ реальность.
+
+**Фикс:** escape через bash-конкатенацию одиночных скобок:
+```bash
+local _o='{''{' _c='}''}'  # build-runtime ищет цельный токен, не находит
+sed -e "s|${_o}GOVERNANCE_REPO${_c}|$_gov|g" ...
+```
+
+`build-runtime` ищет `\{\{[A-Z_]+\}\}` regex'ом, не находит составные `'{''{'` + `'}''}'`. Runner после build остаётся неизменным.
+
+### Added (тесты + детектор для catch регрессии)
+
+- **smoke-test 6c переписан** — теперь читает РЕАЛЬНЫЙ substituted runner из `.iwe-runtime/`, проверяет что в его sed-выражениях НЕТ literal-значений (только escape-токены), end-to-end проверяет что substitution работает с `DS-pilot-strategy`.
+- **integration-contract-validator detector #8 `sed_placeholder_escape`** — парсит overlay-реестр, для каждого substituted-файла проверяет НЕТ ли bare `{{X}}` в sed-выражениях. Catch'ит регрессию класса R6.1**.
+
+### Why
+Архитектурный урок: **«sub-agent oversight даёт +30% покрытия» — снова подтверждено**. Мой 0.29.5 audit нашёл R6.1*, но создал R6.1** (более серьёзный, потому что my fix был неправильным). Sub-agent verify поймал это до того как пилот обновился. **Без sub-agent verify ВСЕ пилоты получили бы сломанную автоматизацию.** Расширение smoke-test до чтения реального runtime + новый detector — закрывают этот класс пермаментно.
+
+## [0.29.5] — 2026-04-27
+
+### Fixed (R6.1* — sub-agent post-release verify нашёл upущение proactive audit'а)
+
+После 0.29.4 sub-agent post-release verify нашёл, что мой proactive audit пропустил **R6.1*** — тот же класс GOVERNANCE_REPO hardcode, но в файлах, которые smoke test не покрывал:
+- `roles/strategist/scripts/cleanup-processed-notes.py:26` — `WORKSPACE = Path.home() / "IWE" / "DS-strategy"` — **жёсткий хардкод** в Python. Любой пилот с нестандартным `GOVERNANCE_REPO` → fail при запуске cleanup.
+- 67 хардкодов `DS-strategy` в `roles/strategist/prompts/*.md` и `roles/extractor/prompts/*.md` — bare paths без `{{GOVERNANCE_REPO}}`. LLM получает неверный путь.
+
+Корневая причина пропуска: smoke test 0.29.4 проверял только `.sh` в `.iwe-runtime/roles/`, не `.py` и не `prompts/` (которые read-only из FMT, не substituted).
+
+**Фиксы:**
+- `cleanup-processed-notes.py` — `_resolve_workspace()` функция читает `IWE_WORKSPACE` + `IWE_GOVERNANCE_REPO` из env-vars, fallback на `.exocortex.env` (`grep GOVERNANCE_REPO=`), затем default `DS-strategy`. Тестировано: `IWE_WORKSPACE=/tmp/iwe-test IWE_GOVERNANCE_REPO=DS-pilot-strategy` → `WORKSPACE = /tmp/iwe-test/DS-pilot-strategy` ✅.
+- 67 хардкодов в prompts → `{{GOVERNANCE_REPO}}`. Архитектурное решение: prompts остаются read-only в FMT с placeholders, runner подставляет sed'ом при чтении. Single source, no duplication.
+- `run_claude` в `strategist.sh` и `extractor.sh` — добавлена sed-substitution: `{{GOVERNANCE_REPO}}|{{WORKSPACE_DIR}}|{{GITHUB_USER}}` подставляются из env (`IWE_GOVERNANCE_REPO`, `IWE_WORKSPACE`, `GITHUB_USER`) в момент чтения prompt-файла.
+
+### Added (smoke test 9 → 11 + detector #6 → #7)
+
+- **smoke-test 6c:** prompts substitution — создаёт временный prompt с `{{GOVERNANCE_REPO}}`, проверяет sed-substitution в стиле runner'а.
+- **smoke-test 6d:** `cleanup-processed-notes.py` резолвит `GOVERNANCE_REPO` из env (с `IWE_GOVERNANCE_REPO=DS-pilot-strategy` → `WORKSPACE = .../DS-pilot-strategy`).
+- **integration-contract-validator detector #7 `prompts_python_coverage`:** ищет hardcoded `DS-strategy` в `roles/**/*.py` и `roles/**/prompts/*.md`. Антипаттерн: `.py` без чтения `GOVERNANCE_REPO` env, prompts с bare `DS-strategy/` без `{{GOVERNANCE_REPO}}`.
+
+### Why
+Подтверждение архитектурного тезиса: **adversarial sub-agent oversight даёт +30% покрытия даже после proactive audit**. Каждый цикл находит новые подкатегории. R6.1* — extension R6.1 на новые типы файлов (.py, prompts), которые мой smoke test не покрывал. Решение для 0.29.5: расширили scope smoke + добавили detector #7. Прогноз: следующий audit, скорее всего, найдёт R6.1** (новый класс файлов или новая категория hardcode'ов).
+
+## [0.29.4] — 2026-04-27
+
+### Fixed (proactive audit — 5 нового класса проблем до Round 6)
+
+После релиза 0.29.3 запустили adversarial sub-agent с мандатом «найди новый класс, который пропустили Round 4-5». Найдено 5 классов, все НЕ повторение R4.x/R5.x. Закрываем превентивно.
+
+- **R6.1 BLOCKER — `GOVERNANCE_REPO` dead placeholder.** Плейсхолдер был зарегистрирован в overlay, но в 7 substituted-файлах путь `/DS-strategy` был **захардкожен**: `roles/synchronizer/scripts/{scheduler,daily-report,dt-collect,code-scan}.sh`, `roles/synchronizer/scripts/templates/{strategist,extractor}.sh`, `roles/strategist/scripts/strategist.sh`, `roles/extractor/scripts/extractor.sh`. Любой пилот с нестандартным именем хаба (например `DS-pilot-strategy`) — автоматизация молча обращается не туда. Заменил все хардкоды на `{{GOVERNANCE_REPO}}`. Авторский кейс (`DS-my-strategy`) — тот же класс.
+
+- **R6.2 BLOCKER — permanent false-positive в `update.sh:462`.** `grep -rl '{{...}}' "$SCRIPT_DIR"` сканировал FMT, где плейсхолдеры это by design (clean upstream). Каждый запуск `update.sh` у каждого пилота заканчивался «⚠ 54 файлов содержат незаменённые переменные» — UX-катастрофа, разрушает доверие. Сканируем теперь `$WORKSPACE_DIR/.iwe-runtime/` — там их быть не должно после build-runtime.
+
+- **R6.3 IMPORTANT — race window в `build-runtime.sh:338-344`.** Окно между `mv RUNTIME → RUNTIME.old.$$` и `mv $BUILD_DIR/runtime → RUNTIME` — `$RUNTIME_DIR` не существует. Если в этот момент scheduler dispatch'ится — обращается к runner-пути → fail или silent skip. Добавил `flock -x -w 30` на `$WORKSPACE_DIR/.iwe-runtime.lock` в build-runtime + shared `flock -s -w 5` в scheduler перед чтением runner-путей.
+
+- **R6.4 IMPORTANT — `update.sh:734` Step 7.5 regression.** После WP-273 `.exocortex.env` живёт в workspace. Step 7.5 переприсваивал `ENV_FILE="$SCRIPT_DIR/.exocortex.env"` (FMT, где файла нет) — `if [ -f ... ]` всегда false → migration hint про `IWE-INITIAL-NEEDED` никогда не показывался пилотам с старым Strategy.md skeleton. Используем `${WORKSPACE_DIR}/.exocortex.env`.
+
+- **R6.5 NICE-TO-HAVE — scheduler self-reentrancy.** Если предыдущий dispatch завис на 30 мин (Claude CLI), launchd запускал следующий — двойной morning strategist, двойные коммиты. Добавил non-blocking `flock -n 8` на `$STATE_DIR/scheduler.lock` в `dispatch()` — новый dispatch выходит сразу с лог-сообщением.
+
+### Changed (smoke-test расширен 6 → 9 тестов)
+
+Добавлены regression guards для R6.x:
+- Test 6a: `GOVERNANCE_REPO=DS-pilot-strategy` подставляется в `.iwe-runtime/` (не остаётся literal `DS-strategy`).
+- Test 6b: 0 leftover placeholders в `.iwe-runtime/`.
+
+Заодно пофиксили баг самого smoke-test: `... | head -1 >/dev/null` always-exit-0 → false-positive FAIL. Заменено на `[ -n "$VAR" ]`.
+
+### Why
+Архитектурный паттерн «найди до того как Евгений найдёт» — proactive search. Sub-agent post-release verify 0.29.2 предсказал «1-2 проблемы из нового класса максимум». Реальность: 5 проблем (2 blocker, 2 important, 1 nice). Подтверждает ценность adversarial review до релиза. WP-273 Этап 4 (proactive audit pass).
+
+## [0.29.3] — 2026-04-27
+
+### Added (Этап 3 WP-273 — test coverage + observability)
+
+После Round 5 sub-agent assessment явно назвал три паттерна риска: (1) env-зависимость как неявный контракт между шагами, (2) validator страдает от drift'а сам, (3) silent degradation в runner fallback chains. Этап 3 закрывает эти три класса без архитектурного пересмотра — добавлением test coverage, уточнением детекторов и WARNING'ов при legacy fallback.
+
+**Новые артефакты:**
+- `setup/smoke-test-fresh-install.sh` — e2e smoke test архитектуры F. Имитирует пилота: создаёт чистый workspace, запускает build-runtime, проверяет idempotency, runner резолвит PROMPTS_DIR в FMT (не runtime), install.sh fail-fast без env. 6 тестов в одном скрипте, цель — ловить R5.x regressions до релиза. Запускать локально или в CI workflow.
+
+**Новые детекторы в integration-contract-validator.sh** (4 → 6):
+- **Detector #5 `runner_readonly`** — runners (strategist.sh, extractor.sh) резолвят PROMPTS_DIR через `$IWE_TEMPLATE`; scheduler.sh имеет `ROLES_DIR_TEMPLATE` для role.yaml lookup. Закрывает R5.1 regression class.
+- **Detector #6 `install_failfast`** — все 3 install.sh имеют `grep -qE '\{\{[A-Z_]+\}\}'` check на PLIST_SRC. Закрывает R5.2 regression class.
+
+### Fixed (validator false positives)
+- **Detector #3 `extension_table` regex** — раньше терминировался на первом `` ` `` в строке, пропускал EXTENSION POINT'ы где в строке было несколько backtick'ов (например `` ДО `git commit` проверить `extensions/X.md` ``). Расширили: ищем `extensions/X.md` независимо от «EXTENSION POINT» маркера. Из 6 false positive WARN — теперь 0.
+- **Detector #4 `hook_artifact` regex** — раньше ловил любой `grep TOOL_INPUT`, включая легитимный gating «это git commit вообще?». Уточнён до конкретного антипаттерна R4.5: grep на artifact-имена (`DayPlan|WeekPlan|day-close|day-open|week-close|week-open`). Из 1 false positive WARN — 0.
+
+### Changed (silent degradation guards)
+- **3× runners** (strategist.sh, extractor.sh, scheduler.sh): WARNING в stderr при использовании legacy fallback (когда `$IWE_TEMPLATE` не экспортирована). Раньше runner молча резолвил на `$HOME/IWE/FMT-exocortex-template` — пилот не видел что env неполная. Теперь явное предупреждение с подсказкой `source ~/.zshenv`.
+
+### Why
+Вопрос «сколько ещё таких проблем будет?» — sub-agent post-release verify 0.29.2 явно назвал три паттерна риска. Архитектура F остаётся правильной (source/runtime separation, OwnerIntegrity, Data Portability), но контракт между шагами и наблюдаемость legacy-paths требовали усиления. Прогноз Round 6: 1-2 проблемы вместо 4-5, кривая стабилизируется.
+
+## [0.29.2] — 2026-04-27
+
+### Fixed (Round 5 Евгения — runtime/automation path blockers)
+
+Round 5 нашёл 4 критических расхождения в архитектуре F после red-team-проверки на чистом 0.29.1:
+
+- **R5.1 — runtime неполный для runners.** `.iwe-runtime/` содержал substituted скрипты, но НЕ содержал `roles/*/prompts/`, `roles/*/role.yaml`, `roles/synchronizer/scripts/notify.sh`. При этом runner-скрипты (`strategist.sh`, `extractor.sh`) искали `PROMPTS_DIR="$REPO_DIR/prompts"` рядом с собой → `.iwe-runtime/roles/strategist/prompts/` (пусто) → fail. **Фикс:** runners теперь резолвят `PROMPTS_DIR` через `$IWE_TEMPLATE/roles/<role>/prompts` (read-only из FMT) с fallback. Аналогично `notify_script` в strategist.sh/extractor.sh, `NOTIFY_SH` и `role.yaml` lookup в scheduler.sh. Архитектурный принцип сохранён: substituted в runtime, read-only из FMT — без дублирования read-only данных.
+- **R5.2 — install.sh ставил plist с literal `{{IWE_RUNTIME}}`.** Если запущен без экспортированной env-переменной (например, в новом shell без source), fallback chain сваливался в legacy FMT path — а plist в FMT содержит `{{IWE_RUNTIME}}` (clean upstream). Результат: `~/Library/LaunchAgents/com.X.plist` с literal плейсхолдером, launchd не выполняет. **Фикс:** install.sh во всех 3 ролях имеет fail-fast — `grep -qE '\{\{[A-Z_]+\}\}'` на выбранном PLIST_SRC. При обнаружении плейсхолдеров — exit 2 + конкретные подсказки (source ~/.zshenv / bash build-runtime / migrate).
+- **R5.3 — update.sh roles reinstall шёл ДО build-runtime.** Если roles изменились, install.sh запускался против устаревшего `.iwe-runtime/`. **Фикс:** Step 6d (build-runtime) добавлен ПЕРЕД roles reinstall блоком. Старый Step 8 (build-runtime в конце) удалён как дубликат. Перед roles reinstall дополнительно `source ~/.iwe-paths` — гарантирует IWE_RUNTIME/IWE_TEMPLATE в env для install.sh fail-fast.
+- **R5.4 — migrate-to-runtime-target.sh финальные инструкции неправильно упорядочены.** Говорил «1. install agents → 2. source ~/.zshenv» — но install требует env уже expanded. **Фикс:** новый порядок «1. source ~/.zshenv → 2. verify .iwe-runtime → 3. install selected roles» с явной подсказкой про fail-fast (если шаг 1 пропущен).
+
+### Why
+Round 5 от Евгения после полной верификации 0.29.1 на чистом workspace. Все 4 проблемы — порядковые/конфигурационные на стыке runner ↔ build-runtime ↔ install.sh. Архитектура F остаётся корректной (FMT immutable, runtime regenerable), но «контракт между шагами» (env propagation, ordering) был неполным.
+
 ## [0.29.1] — 2026-04-27
 
 ### Fixed (CI green — pilot feedback Евгений)

@@ -29,6 +29,18 @@ if [ ! -f "$PLIST_SRC" ]; then
     exit 1
 fi
 
+# WP-273 R5 fix: fail-fast если plist содержит literal {{...}}
+if grep -qE '\{\{[A-Z_]+\}\}' "$PLIST_SRC" 2>/dev/null; then
+    echo "ERROR: $PLIST_SRC содержит незаменённые плейсхолдеры:" >&2
+    grep -oE '\{\{[A-Z_]+\}\}' "$PLIST_SRC" | sort -u | sed 's/^/  /' >&2
+    echo "" >&2
+    echo "Возможные причины:" >&2
+    echo "  1. IWE_RUNTIME не экспортирован → 'source ~/.zshenv' или 'source ~/.iwe-paths'" >&2
+    echo "  2. .iwe-runtime/ ещё не создан → 'bash \$IWE_TEMPLATE/setup/build-runtime.sh'" >&2
+    echo "  3. Старый clone до WP-273 Этап 2 → 'bash \$IWE_TEMPLATE/scripts/migrate-to-runtime-target.sh'" >&2
+    exit 2
+fi
+
 # Делаем скрипты исполняемыми (runtime path)
 if [ -d "$SCRIPTS_DIR_RUNTIME" ]; then
     chmod +x "$SCRIPTS_DIR_RUNTIME/"*.sh 2>/dev/null || true

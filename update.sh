@@ -340,7 +340,7 @@ if [ -f "$ENV_FILE" ]; then
         done < "$ENV_FILE"
 
         # WP-273 Этап 2: substitution в FMT-файлах больше НЕ выполняется.
-        # Substituted значения генерируются build-runtime.sh в .iwe-runtime/ (Step 8 ниже).
+        # Substituted значения генерируются build-runtime.sh в .iwe-runtime/ (Step 6d ниже, ПЕРЕД roles reinstall).
         # Это закрывает R4.6 (self-heal): build-runtime идемпотентен, повторный запуск
         # update.sh пересоздаёт runtime даже если предыдущий прервался.
         :  # placeholder substitution NO-OP в FMT
@@ -458,11 +458,18 @@ ENVEOF
     done
 fi
 
-# Check remaining placeholders
-REMAINING=$(grep -rl '{{[A-Z_]*}}' "$SCRIPT_DIR" --include="*.md" --include="*.sh" --include="*.json" --include="*.yaml" --include="*.yml" 2>/dev/null | wc -l | tr -d ' ')
-if [ "$REMAINING" -gt 0 ]; then
-    echo "  ⚠ $REMAINING файлов содержат незаменённые переменные."
-    echo "  Проверьте .exocortex.env и перезапустите: bash update.sh"
+# Check remaining placeholders.
+# WP-273 0.29.4 R6.2 fix: раньше сканировали $SCRIPT_DIR (FMT) — но в FMT
+# плейсхолдеры это by design (clean upstream). Получали навсегда «⚠ 54 файлов
+# содержат незаменённые переменные» у каждого пилота на каждом update.
+# Проверяем теперь .iwe-runtime/ — там их быть не должно после build-runtime.
+RUNTIME_CHECK_DIR="${WORKSPACE_DIR}/.iwe-runtime"
+if [ -d "$RUNTIME_CHECK_DIR" ]; then
+    REMAINING=$(grep -rl '{{[A-Z_]*}}' "$RUNTIME_CHECK_DIR" --include="*.md" --include="*.sh" --include="*.json" --include="*.yaml" --include="*.yml" --include="*.plist" 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$REMAINING" -gt 0 ]; then
+        echo "  ⚠ $REMAINING файлов в .iwe-runtime/ содержат незаменённые переменные."
+        echo "  Проверьте .exocortex.env (значения placeholders) и перезапустите: bash $SCRIPT_DIR/setup/build-runtime.sh"
+    fi
 fi
 
 # === Step 6: Reinstall platform-space ===
@@ -669,7 +676,22 @@ if [ -f "$MCP_WORKSPACE" ] && [ -f "$MCP_USER" ]; then
     fi
 fi
 
-# Reinstall roles if changed
+# === Step 6d: Rebuild generated runtime ПЕРЕД roles reinstall (WP-273 R5 fix) ===
+# Round 5 Евгения обнаружил порядковую проблему: roles reinstall вызывался ДО build-runtime,
+# из-за чего install.sh брал плисты из устаревшего .iwe-runtime/ или legacy FMT с placeholder'ами.
+# Правильный порядок: сначала пересобрать .iwe-runtime/ из актуального FMT + .exocortex.env,
+# потом install.sh каждой роли (чтение из свежего runtime).
+if [ -x "$SCRIPT_DIR/setup/build-runtime.sh" ] || [ -f "$SCRIPT_DIR/setup/build-runtime.sh" ]; then
+    echo ""
+    echo "Generated runtime (.iwe-runtime/)..."
+    bash "$SCRIPT_DIR/setup/build-runtime.sh" \
+        --workspace "$WORKSPACE_DIR" \
+        --env-file "${WORKSPACE_DIR}/.exocortex.env" \
+        --quiet 2>&1 | sed 's/^/  /' || \
+        echo "  ⚠ build-runtime.sh завершился с ошибкой. Запустите вручную: bash $SCRIPT_DIR/setup/build-runtime.sh"
+fi
+
+# Reinstall roles if changed (ПОСЛЕ build-runtime — install читает из свежего .iwe-runtime/)
 ROLES_CHANGED=false
 for f in "${NEW_FILES[@]}" "${UPDATED_FILES[@]}"; do
     case "$f" in roles/*)
@@ -682,6 +704,8 @@ done
 if $ROLES_CHANGED && command -v launchctl >/dev/null 2>&1; then
     echo ""
     echo "Роли обновлены. Переустановка..."
+    # Source ~/.iwe-paths (если есть) — гарантирует IWE_RUNTIME/IWE_TEMPLATE в env для install.sh
+    [ -f "$HOME/.iwe-paths" ] && . "$HOME/.iwe-paths"
     for role_dir in "$SCRIPT_DIR"/roles/*/; do
         [ -f "$role_dir/install.sh" ] && [ -f "$role_dir/role.yaml" ] || continue
         if grep -q 'auto:.*true' "$role_dir/role.yaml" 2>/dev/null; then
@@ -707,7 +731,9 @@ fi
 # === Step 7.5: Migration hint — initial-marker для old clones (0.28.5+) ===
 # Если у пользователя есть Strategy.md без маркера IWE-INITIAL-NEEDED — намекнуть.
 # Это для пользователей, склонировавших до 0.28.5 (skeleton-marker появился в 0.28.5).
-ENV_FILE="$SCRIPT_DIR/.exocortex.env"
+# WP-273 0.29.4 R6.4 fix: после WP-273 .exocortex.env живёт в workspace, не в FMT.
+# Раньше использовали $SCRIPT_DIR (FMT) → файла там нет → hint никогда не показывался.
+ENV_FILE="${WORKSPACE_DIR}/.exocortex.env"
 if [ -f "$ENV_FILE" ]; then
     ENV_WS=$(grep -E '^WORKSPACE_DIR=' "$ENV_FILE" | head -1 | cut -d= -f2-)
     ENV_GOV=$(grep -E '^GOVERNANCE_REPO=' "$ENV_FILE" | head -1 | cut -d= -f2-)
@@ -720,19 +746,6 @@ if [ -f "$ENV_FILE" ]; then
             echo "    bash $SCRIPT_DIR/scripts/migrate-initial-marker.sh"
         fi
     fi
-fi
-
-# === Step 8: Rebuild generated runtime (WP-273 Этап 2, архитектура F) ===
-# Идемпотентный rebuild $WORKSPACE_DIR/.iwe-runtime/ из обновлённого FMT + .exocortex.env.
-# Закрывает R4.6 (self-heal): даже если update прервался, повторный запуск чинит drift.
-if [ -x "$SCRIPT_DIR/setup/build-runtime.sh" ] || [ -f "$SCRIPT_DIR/setup/build-runtime.sh" ]; then
-    echo ""
-    echo "Generated runtime (.iwe-runtime/)..."
-    bash "$SCRIPT_DIR/setup/build-runtime.sh" \
-        --workspace "$WORKSPACE_DIR" \
-        --env-file "${WORKSPACE_DIR}/.exocortex.env" \
-        --quiet 2>&1 | sed 's/^/  /' || \
-        echo "  ⚠ build-runtime.sh завершился с ошибкой. Запустите вручную: bash $SCRIPT_DIR/setup/build-runtime.sh"
 fi
 
 # === Done ===

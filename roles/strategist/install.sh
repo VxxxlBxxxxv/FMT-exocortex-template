@@ -25,6 +25,22 @@ fi
 echo "Installing Strategist Agent launchd jobs..."
 echo "  LAUNCHD_DIR: $LAUNCHD_DIR"
 
+# WP-273 R5 fix (Round 5 Евгения): fail-fast если выбранный plist содержит literal {{...}}.
+# Это предотвращает копирование незаменённых плейсхолдеров в ~/Library/LaunchAgents/
+# (если IWE_RUNTIME не expanded, fallback падает на FMT с placeholder'ами).
+for plist_check in "$LAUNCHD_DIR/com.strategist.morning.plist" "$LAUNCHD_DIR/com.strategist.weekreview.plist"; do
+    if [ -f "$plist_check" ] && grep -qE '\{\{[A-Z_]+\}\}' "$plist_check" 2>/dev/null; then
+        echo "ERROR: $plist_check содержит незаменённые плейсхолдеры:" >&2
+        grep -oE '\{\{[A-Z_]+\}\}' "$plist_check" | sort -u | sed 's/^/  /' >&2
+        echo "" >&2
+        echo "Возможные причины:" >&2
+        echo "  1. IWE_RUNTIME не экспортирован → 'source ~/.zshenv' или 'source ~/.iwe-paths'" >&2
+        echo "  2. .iwe-runtime/ ещё не создан → 'bash \$IWE_TEMPLATE/setup/build-runtime.sh'" >&2
+        echo "  3. Старый clone до WP-273 Этап 2 → 'bash \$IWE_TEMPLATE/scripts/migrate-to-runtime-target.sh'" >&2
+        exit 2
+    fi
+done
+
 # Unload old agents if present
 launchctl unload "$TARGET_DIR/com.strategist.morning.plist" 2>/dev/null || true
 launchctl unload "$TARGET_DIR/com.strategist.weekreview.plist" 2>/dev/null || true

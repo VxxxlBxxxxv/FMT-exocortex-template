@@ -11,10 +11,23 @@
 set -e
 
 # Конфигурация
+# WP-273 R5 fix (Round 5 Евгения): substituted runner живёт в .iwe-runtime/,
+# но prompts/ — read-only, должны браться из FMT через $IWE_TEMPLATE.
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
 WORKSPACE="{{WORKSPACE_DIR}}"
-PROMPTS_DIR="$REPO_DIR/prompts"
+
+# PROMPTS_DIR резолв: $IWE_TEMPLATE → standard FMT → relative (legacy)
+if [ -n "${IWE_TEMPLATE:-}" ] && [ -d "$IWE_TEMPLATE/roles/extractor/prompts" ]; then
+    PROMPTS_DIR="$IWE_TEMPLATE/roles/extractor/prompts"
+elif [ -d "$WORKSPACE/FMT-exocortex-template/roles/extractor/prompts" ]; then
+    PROMPTS_DIR="$WORKSPACE/FMT-exocortex-template/roles/extractor/prompts"
+    echo "[$(date '+%H:%M:%S')] WARN: \$IWE_TEMPLATE не задана, fallback на $WORKSPACE/FMT-exocortex-template. source ~/.zshenv?" >&2
+else
+    PROMPTS_DIR="$REPO_DIR/prompts"
+    echo "[$(date '+%H:%M:%S')] WARN: legacy PROMPTS_DIR fallback на $PROMPTS_DIR (pre-WP-273). Запустите migrate-to-runtime-target.sh." >&2
+fi
+
 LOG_DIR="{{HOME_DIR}}/logs/extractor"
 CLAUDE_PATH="{{CLAUDE_PATH}}"
 ENV_FILE="{{HOME_DIR}}/.config/aist/env"
@@ -47,14 +60,17 @@ notify() {
 
 notify_telegram() {
     local scenario="$1"
-    # WP-273 Этап 2: notify.sh живёт в .iwe-runtime/ (Generated runtime). Fallback на FMT.
+    # WP-273 R5 fix: notify.sh — read-only из FMT (не substituted, нет плейсхолдеров).
+    # Resolution order: $IWE_TEMPLATE → standard FMT path → runtime fallback (legacy).
     local notify_script
-    if [ -n "${IWE_RUNTIME:-}" ] && [ -f "$IWE_RUNTIME/roles/synchronizer/scripts/notify.sh" ]; then
-        notify_script="$IWE_RUNTIME/roles/synchronizer/scripts/notify.sh"
-    elif [ -f "$WORKSPACE/.iwe-runtime/roles/synchronizer/scripts/notify.sh" ]; then
-        notify_script="$WORKSPACE/.iwe-runtime/roles/synchronizer/scripts/notify.sh"
-    else
+    if [ -n "${IWE_TEMPLATE:-}" ] && [ -f "$IWE_TEMPLATE/roles/synchronizer/scripts/notify.sh" ]; then
+        notify_script="$IWE_TEMPLATE/roles/synchronizer/scripts/notify.sh"
+    elif [ -f "$WORKSPACE/FMT-exocortex-template/roles/synchronizer/scripts/notify.sh" ]; then
         notify_script="$WORKSPACE/FMT-exocortex-template/roles/synchronizer/scripts/notify.sh"
+    elif [ -n "${IWE_RUNTIME:-}" ] && [ -f "$IWE_RUNTIME/roles/synchronizer/scripts/notify.sh" ]; then
+        notify_script="$IWE_RUNTIME/roles/synchronizer/scripts/notify.sh"
+    else
+        notify_script="$WORKSPACE/.iwe-runtime/roles/synchronizer/scripts/notify.sh"
     fi
     if [ -f "$notify_script" ]; then
         "$notify_script" extractor "$scenario" >> "$LOG_FILE" 2>&1 || true
@@ -80,8 +96,19 @@ run_claude() {
         exit 1
     fi
 
+    # WP-273 0.29.6 R6.1** escape: build-runtime НЕ должен подменять плейсхолдеры
+    # в sed-выражениях этого runner'а (иначе runner после build ищет values вместо
+    # placeholders в промптах). Собираем двойно-фигурные токены через bash-конкатенацию.
     local prompt
-    prompt=$(cat "$command_path")
+    local _gov_repo="${IWE_GOVERNANCE_REPO:-DS-strategy}"
+    local _ws="${IWE_WORKSPACE:-$HOME/IWE}"
+    local _gh_user="${GITHUB_USER:-your-username}"
+    local _o='{''{' _c='}''}'
+    prompt=$(sed \
+        -e "s|${_o}GOVERNANCE_REPO${_c}|$_gov_repo|g" \
+        -e "s|${_o}WORKSPACE_DIR${_c}|$_ws|g" \
+        -e "s|${_o}GITHUB_USER${_c}|$_gh_user|g" \
+        "$command_path")
 
     # Добавить extra args к промпту
     if [ -n "$extra_args" ]; then
@@ -105,7 +132,7 @@ $extra_args"
     log "Completed process: $command_file"
 
     # Commit + push changes (отчёты, помеченные captures)
-    local strategy_dir="$WORKSPACE/DS-strategy"
+    local strategy_dir="$WORKSPACE/{{GOVERNANCE_REPO}}"
 
     if [ -d "$strategy_dir/.git" ]; then
         # Очистить staging area
@@ -149,7 +176,7 @@ case "$1" in
         fi
 
         # Быстрая проверка: есть ли captures в inbox
-        CAPTURES_FILE="$WORKSPACE/DS-strategy/inbox/captures.md"
+        CAPTURES_FILE="$WORKSPACE/{{GOVERNANCE_REPO}}/inbox/captures.md"
         if [ -f "$CAPTURES_FILE" ]; then
             # Маркеры имеют вид `[analyzed 2026-MM-DD]`, `[processed 2026-MM-DD]`, `[duplicate]`, `[defer]` —
             # используем `\b` (word boundary), а не `\]`, чтобы ловить датированные маркеры.

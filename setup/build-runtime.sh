@@ -333,18 +333,33 @@ if $DRY_RUN; then
 fi
 
 # === Atomic swap: replace runtime + copy workspace files ===
+# WP-273 0.29.4 R6.3 fix: flock на $WORKSPACE_DIR/.iwe-runtime.lock — предотвращает
+# race window между двумя одновременными build-runtime ИЛИ build-runtime + scheduler.
+# scheduler.sh тоже берёт shared lock на этот файл перед чтением runner-путей.
+mkdir -p "$WORKSPACE_DIR"
+LOCK_FILE="${WORKSPACE_DIR}/.iwe-runtime.lock"
 
-# 1. Replace .iwe-runtime/ atomically
+# Используем flock если доступен (Linux всегда; macOS — через util-linux brew, optional)
+if command -v flock >/dev/null 2>&1; then
+    exec 9>"$LOCK_FILE"
+    if ! flock -x -w 30 9; then
+        echo "ERROR: build-runtime: не удалось получить exclusive lock на $LOCK_FILE за 30 сек" >&2
+        exit 6
+    fi
+fi
+
+# 1. Replace .iwe-runtime/ atomically (под lock'ом — никто не читает в этот момент)
 RUNTIME_OLD="${RUNTIME_DIR}.old.$$"
 if [ -d "$RUNTIME_DIR" ]; then
     mv "$RUNTIME_DIR" "$RUNTIME_OLD"
 fi
 
-mkdir -p "$WORKSPACE_DIR"
 mv "$BUILD_DIR/runtime" "$RUNTIME_DIR"
 
 # Cleanup old runtime
 [ -d "$RUNTIME_OLD" ] && rm -rf "$RUNTIME_OLD"
+
+# Lock освобождается автоматически при exit (FD 9 закрывается)
 
 # 2. Copy workspace files (НЕ atomic — это не критично, файлы независимы)
 COPIED_COUNT=0

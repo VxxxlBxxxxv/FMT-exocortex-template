@@ -27,9 +27,9 @@
 
 ### Шаг 1: Проверить inbox
 
-1. Прочитай `{{WORKSPACE_DIR}}/DS-strategy/inbox/captures.md`
+1. Прочитай `{{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/inbox/captures.md`
 2. Найди все pending записи: секции `### ...` БЕЗ любого из 4 маркеров статуса на той же строке (`[analyzed]`, `[processed]`, `[duplicate]`, `[defer]`). Если стоит хоть один — capture уже в workflow, пропускай.
-3. Если pending записей нет → сообщение `No pending captures in inbox` выводи через stdout (его поймает `extractor.sh` и запишет в `{{HOME_DIR}}/logs/extractor/YYYY-MM-DD.log`). **НЕ создавай отдельный лог-файл** в `DS-strategy/` или где-либо ещё. Заверши работу.
+3. Если pending записей нет → сообщение `No pending captures in inbox` выводи через stdout (его поймает `extractor.sh` и запишет в `{{HOME_DIR}}/logs/extractor/YYYY-MM-DD.log`). **НЕ создавай отдельный лог-файл** в `{{GOVERNANCE_REPO}}/` или где-либо ещё. Заверши работу.
 4. Если pending > 5 → возьми первые 5 (по порядку в файле)
 
 ### Шаг 2: Обработать каждый capture (max 5)
@@ -70,7 +70,7 @@
 
 ### Шаг 3: Сгенерировать Extraction Report
 
-Создай файл отчёта: `{{WORKSPACE_DIR}}/DS-strategy/inbox/extraction-reports/{YYYY-MM-DD}-inbox-check.md`
+Создай файл отчёта: `{{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/inbox/extraction-reports/{YYYY-MM-DD}-inbox-check.md`
 
 Если файл с таким именем уже существует, добавь суффикс: `{YYYY-MM-DD}-inbox-check-2.md`.
 
@@ -89,7 +89,7 @@ remaining: M
 # Extraction Report (Inbox-Check)
 
 **Дата:** {YYYY-MM-DD}
-**Источник:** DS-strategy/inbox/captures.md
+**Источник:** {{GOVERNANCE_REPO}}/inbox/captures.md
 **Обработано captures:** N из {total pending}
 **Осталось:** M
 
@@ -135,7 +135,7 @@ remaining: M
 
 ### Шаг 4: Пометить captures как проанализированные
 
-В `DS-strategy/inbox/captures.md` — для каждого проанализированного capture добавь метку `[analyzed YYYY-MM-DD]` к заголовку:
+В `{{GOVERNANCE_REPO}}/inbox/captures.md` — для каждого проанализированного capture добавь метку `[analyzed YYYY-MM-DD]` к заголовку:
 
 **Было:** `### Паттерн X`
 **Стало:** `### Паттерн X [analyzed 2026-02-12]`
@@ -146,7 +146,7 @@ remaining: M
 
 1. Закоммить extraction report (новый)
 2. Закоммить captures.md (метки analyzed)
-3. Запушить DS-strategy
+3. Запушить {{GOVERNANCE_REPO}}
 
 **Сообщение коммита:** `inbox-check: N captures → extraction report {date}`
 
@@ -162,7 +162,7 @@ remaining: M
 
 > Когда пользователь говорит «review extraction report» или «apply KE report»:
 
-1. Прочитай последний отчёт из `DS-strategy/inbox/extraction-reports/`
+1. Прочитай последний отчёт из `{{GOVERNANCE_REPO}}/inbox/extraction-reports/`
 2. Покажи каждый кандидат пользователю
 3. Для accept — создай файл, закоммить в целевой Pack
 4. Для reject — записать причину в feedback-log.md
