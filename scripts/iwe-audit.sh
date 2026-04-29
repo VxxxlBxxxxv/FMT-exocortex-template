@@ -429,14 +429,19 @@ for bin in git curl python3; do
 done
 echo ""
 
-echo "### Конфигурация (~/.exocortex.env)"
+echo "### Конфигурация (.exocortex.env)"
 echo ""
-ENV_FILE="$HOME/.exocortex.env"
+# WP-273: setup.sh ≥0.7.0 сохраняет .exocortex.env в $IWE_ROOT/, не в $HOME/
+if [ -f "$IWE_ROOT/.exocortex.env" ]; then
+    ENV_FILE="$IWE_ROOT/.exocortex.env"
+else
+    ENV_FILE="$HOME/.exocortex.env"  # legacy: installs before setup.sh ≥0.7.0
+fi
 if [ ! -f "$ENV_FILE" ]; then
     if [ "$AUTHOR_MODE" = "1" ]; then
-        echo "ℹ️ \`~/.exocortex.env\` не нужен в author_mode (плейсхолдеры подставляются template-sync.sh, не update.sh)."
+        echo "ℹ️ \`.exocortex.env\` не нужен в author_mode (плейсхолдеры подставляются template-sync.sh, не update.sh)."
     else
-        echo "❌ Файл \`~/.exocortex.env\` отсутствует — update.sh не сможет подставить плейсхолдеры. Решение: запустить \`bash $IWE_ROOT/setup.sh\` (если первая установка) или скопировать из FMT-exocortex-template/templates/."
+        echo "❌ Файл \`.exocortex.env\` отсутствует — update.sh не сможет подставить плейсхолдеры. Решение: запустить \`bash $IWE_ROOT/setup.sh\`."
         UPD_FAIL=$((UPD_FAIL + 1))
     fi
 else

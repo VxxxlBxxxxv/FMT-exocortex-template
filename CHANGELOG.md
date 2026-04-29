@@ -5,6 +5,88 @@ All notable changes to FMT-exocortex-template will be documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/).
 
+## [0.29.12] — 2026-04-28
+
+### Fixed
+
+- **`scripts/iwe-audit.sh` — путь поиска `.exocortex.env`** — скрипт искал файл в `$HOME/.exocortex.env`, но `setup.sh ≥0.7.0` (WP-273) сохраняет его в `$IWE_ROOT/.exocortex.env`. Пользователи с актуальной установкой получали ложную ошибку «файл отсутствует». Исправлено: сначала проверяется `$IWE_ROOT/`, fallback на `$HOME/` для legacy-инсталляций (до 0.7.0). Фидбек пилота Дмитрия, 28 апр.
+
+## [0.29.11] — 2026-04-28
+
+### Added
+
+- **`deprecated_files` в манифесте** — `update.sh` теперь обнаруживает и удаляет устаревшие L1-файлы (WP-5 Ф-N артефакт #1). Добавлен раздел `deprecated_files` в `update-manifest.json` и `generate-manifest.sh`; `update.sh` показывает список и удаляет при применении. Первая партия: `strategist-agent/` (удалён), `roles/strategist/prompts+scripts/` (переехало в `.claude/skills/`), `LEARNING-PATH.md` (переехал в `docs/`), `memory/claude-md-maintenance.md` + `memory/wp-gate-lesson.md` (устарели).
+- **`/iwe-bug-report` скилл** — создаёт GitHub issue в FMT-exocortex-template через `gh issue create` (6 шагов: категоризация → детали → gh CLI check → issue → URL).
+- **`docs/onboarding/iwe-layers.md`** — онбординг-схема слоёв L1/L2/L3.
+- **`.stignore` по умолчанию** — шаблон добавлен в корень FMT (`717d2d8`). При `update.sh` пользователь получает рабочий `.stignore` для Syncthing (исключены `.git/`, `node_modules/`, `.venv/`, `*.pyc` и другие build-артефакты). Фидбек пилота Дмитрия, 27 апр.
+- **`day-close` шаг 10b rule-classifier** — добавлен шаг `python3 $HOME/IWE/.claude/scripts/rule-classifier.py` после коммита в SKILL.md day-close (WP-272 Ф5.2, `0e41292`). Обогащает журнал `~/logs/rule-engine/YYYY-MM-DD-classified.jsonl`. Exit-код игнорируется (идемпотентно); убивать через 60 сек если зависает.
+
+## [0.29.10] — 2026-04-28
+
+### Fixed (Linux portability — bug-report от пилота Дмитрия)
+
+После 0.29.9 Дмитрий обнаружил два cross-platform бага при запуске `iwe-drift.sh` + `iwe-audit.sh` на Linux после `update.sh`:
+
+- **`scripts/iwe-drift.sh`** функция `dir_newest_mtime_days_ago` безусловно вызывала `xargs -0 stat -f %m` (BSD-only). На Linux GNU stat `-f` = filesystem info → текст «Inodes: ...» → арифметика падала с `unbound variable`.
+- **`scripts/iwe-audit.sh:227`** опечатка `$DRIFT_RC_` (trailing underscore) под `set -u` парсилась как имя переменной `DRIFT_RC_` → unbound при ненулевом exit code drift-скрипта.
+
+**Round 1 фикс ([`a967b7e`](https://github.com/TserenTserenov/FMT-exocortex-template/commit/a967b7e)):** cross-platform детект BSD/GNU stat через exit-check `if stat -f %m / >/dev/null 2>&1`; опечатка → `${DRIFT_RC}_`.
+
+**Round 2 фикс ([`9112c6a`](https://github.com/TserenTserenov/FMT-exocortex-template/commit/9112c6a)):** red-team subagent (Sonnet, isolated, adversarial deep audit) нашёл регрессию для Alpine/busybox — busybox stat толерантен к неизвестным флагам, exit-check возвращал 0 даже без поддержки `-f %m`. Финальный фикс:
+- Probe через **format-check** (`[[ "$_probe" =~ ^[0-9]+$ ]]`) вместо exit-check — отвергает мусор «Inodes: 99», даже если exit=0.
+- Detection вынесен на load-time → global array `STAT_MTIME_FLAGS` (один probe вместо повторов).
+- `stat $stat_fmt` (unquoted word-split) → `stat "${STAT_MTIME_FLAGS[@]}"` (массив, future-proof).
+- `mtime_days_ago` тоже переведён на массив (был тот же exit-check).
+- Probe на `/dev/null` вместо `/` (портативнее).
+
+**Verification:**
+- macOS smoke (BSD): `iwe-drift.sh --top 5` + `iwe-audit.sh` PASS.
+- macOS regression-mock (PATH override, fake busybox `stat -f` → «Inodes: 99», exit 0): format-check отверг мусор → GNU branch → drift-таблица c числовым lag. Alpine-регрессия закрыта.
+- `validate-template.sh` PASS.
+- Linux подтверждение от Дмитрия — ожидается после `update.sh`.
+
+**Мета-урок:** Round 1 author-blind на macOS закрыл оригинальные баги Дмитрия, но red-team round 2 нашёл регрессию для подмножества Linux (Alpine/busybox). Каждый «не-author» = новый класс ошибок; cross-platform pipeline (author macOS → пилот Linux/Alpine/WSL) требует валидации на каждой платформе деплоя. Кандидат в РП «IWE release discipline» (W19+): GitHub Actions matrix `[macos-latest, ubuntu-latest]` для validate-template.sh + smoke ключевых скриптов. Подтверждение мета-урока Round 1+2+3 Евгения (26 апр): «Two-pass sub-agent verification > one-pass; adversarial deep audit > standard QA».
+
+## [0.29.9] — 2026-04-28
+
+### Fixed (R5.5 — Suffix extensions native, WP-273 reopened по триггеру Евгения)
+
+После 0.29.7 Евгений заметил незакрытый contract gap: helper `.claude/scripts/load-extensions.sh` существует (R4.4 артефакт из 0.29.0/0.29.7), но **ни один skill/protocol его не вызывает** — все 13 EXTENSION POINT'ов всё ещё инструктируют `ls extensions/<protocol>.<hook>.md` (exact filename). `extensions/README.md` обещает wildcard suffix («Несколько расширений одного hook — загружаются в алфавитном порядке»), но кодом end-to-end это не закрыто. Это паттерн «Spec ↔ State drift» — helper готов, consumers не подключены.
+
+**Корневая причина:** R4.4 в WP-273 закоммитил helper, но автор пропустил «закрытие контракта» — точку, где skills/protocols фактически начинают вызывать loader. Suffix-файлы лежали бы пассивно, manifest-файлы оставались единственным рабочим способом — пилоты делали ручные manifest'ы с Read'ом suffix-файлов как workaround.
+
+**Фикс end-to-end (13 EXTENSION POINT'ов):**
+
+| Файл | Точки | Hook'и |
+|------|-------|--------|
+| `memory/protocol-open.md` | 1 | after |
+| `memory/protocol-close.md` | 2 | checks, after |
+| `.claude/skills/run-protocol/SKILL.md` | 3 (generic) | before, after, checks |
+| `.claude/skills/day-open/SKILL.md` | 3 | before, after, checks |
+| `.claude/skills/day-close/SKILL.md` | 4 (3 × `checks` + 1 × `before`) | before, checks |
+| `.claude/skills/month-close/SKILL.md` | 2 | before, after |
+
+Каждый паттерн `ls extensions/X.Y.md → Read` заменён на:
+```
+bash .claude/scripts/load-extensions.sh X Y → exit 0 → Read каждый файл из вывода (alphabetic) → выполнить
+```
+
+**Документация (контракт wildcard):**
+- `extensions/README.md` обновлён: 13 EP вместо 9 (добавлены `day-open.checks`, `day-close.before`, `month-close.before/after`); явный раздел про loader-native (с 0.29.9); manifest sorts ПОСЛЕ suffix lexico → пометка про `01-`, `02-` префиксы для управления порядком; пара unicode-битых ячеек таблицы починена (`ша�� 6д` → `шаг 6д`, `Ре��лексия` → `Рефлексия`).
+- `.claude/skills/extend/SKILL.md` каталог: 13 EP в таблице, явный раздел про suffix.
+
+**Smoke-test:** `setup/smoke-test-fresh-install.sh` Test 7 (3 sub-теста):
+- 7a — manifest + 2 suffix → 3 файла, alphabetic order `health → linear → manifest`.
+- 7b — hook без файлов → exit 1.
+- 7c — только suffix без manifest → exit 0.
+Всего 12 PASS / 2 FAIL (две FAIL — pre-existing R6.x known issues, не R5.5).
+
+**Эффект для пилотов:** теперь можно держать **только** suffix-файлы (`day-close.after.health.md` + `day-close.after.linear.md`) без manifest-файла. Если manifest существовал как workaround (Read'ом подгружал suffix) — его надо **удалить**, иначе loader подхватит и manifest, и suffix → двойное выполнение.
+
+### Why
+
+Закрытие WP-273 4-го корня провала «Spec ↔ State drift» через **end-to-end** замыкание контракта. R4.4 в 0.29.0/0.29.7 был наполовину сделан — helper без consumer'ов это не contract closure, а **обещание** в документации без реализации. Метапаттерн: «положить файл в репо ≠ закрыть контракт». R5.5 показал что Round-серии Евгения работают как валидатор: helper мог пролежать пассивным месяц, пока пилот первый раз попробовал бы suffix-файл и обнаружил.
+
 ## [0.29.8] — 2026-04-28
 
 ### Added (правило именования РП в WP-REGISTRY.md)

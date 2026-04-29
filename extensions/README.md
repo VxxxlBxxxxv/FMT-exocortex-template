@@ -31,9 +31,16 @@ fi
 
 ## Как расширить протокол
 
-Создайте файл с именем `<protocol>.<hook>.md`, где:
-- `<protocol>` — имя протокола (`protocol-close`, `protocol-open`, `day-open`)
+Создайте файл с именем:
+- `<protocol>.<hook>.md` — единственный extension для hook (manifest-стиль), или
+- `<protocol>.<hook>.<suffix>.md` — модульный extension (несколько suffix-файлов на один hook, см. раздел [Несколько расширений одного hook](#несколько-расширений-одного-hook-конфликты-имён))
+
+Где:
+- `<protocol>` — имя протокола (`protocol-close`, `protocol-open`, `day-open`, `day-close`, `week-close`, `month-close`)
 - `<hook>` — точка вставки (`before`, `after`, `checks`)
+- `<suffix>` — произвольное имя модуля (например, `health`, `linear`, `slack`)
+
+**Loader native (с 0.29.9):** все skills/protocols вызывают `bash .claude/scripts/load-extensions.sh <protocol> <hook>` и итерируют по выводу. И manifest-, и suffix-стиль работают одинаково. Manifest вручную делегирующий в suffix-файлы больше не нужен (вызовет двойное выполнение).
 
 ### Поддерживаемые extension points
 
@@ -41,13 +48,17 @@ fi
 |----------|------|-------------------|
 | `protocol-close` | `checks` | **ДО** Step 1 (commit+push) — pre-commit gate (R4.3 fix, WP-273) |
 | `protocol-close` | `after` | После основного чеклиста, перед верификацией |
+| `protocol-open` | `after` | После ритуала согласования |
 | `day-open` | `before` | Перед шагом 1 (Вчера) — утренние ритуалы, подготовка |
 | `day-open` | `after` | После шага 6b (Требует внимания), перед записью DayPlan |
+| `day-open` | `checks` | После записи DayPlan, **ДО** git commit (БЛОКИРУЮЩЕЕ) |
+| `day-close` | `before` | Перед шагом 1 |
 | `day-close` | `checks` | После governance batch, перед архивацией |
 | `day-close` | `after` | После итогов дня, перед верификацией |
 | `week-close` | `before` | Перед ротацией уроков (шаг 1) |
 | `week-close` | `after` | После аудита memory (шаг 4), перед финализацией |
-| `protocol-open` | `after` | После ритуала согласования |
+| `month-close` | `before` | Перед сбором данных |
+| `month-close` | `after` | После итогов месяца, перед записью |
 
 ### Пример: рефлексия дня
 
@@ -79,9 +90,9 @@ fi
 
 | Параметр | Протокол | Что управляет |
 |----------|----------|---------------|
-| `video_check` | Day Close | Проверка видео за день (ша�� 6д) |
+| `video_check` | Day Close | Проверка видео за день (шаг 6д) |
 | `multiplier_enabled` | Day Close | Расчёт мультипликатора IWE (шаг 5) |
-| `reflection_enabled` | Day Close | Ре��лексия через `day-close.after.md` |
+| `reflection_enabled` | Day Close | Рефлексия через `day-close.after.md` |
 | `lesson_rotation` | Week Close | Ротация уроков в MEMORY.md (шаг 1) |
 | `auto_verify_code` | Quick Close | Автоверификация кода Haiku (шаг 4b) |
 | `verify_quick_close` | Quick Close | Верификация чеклиста Haiku (шаг 7) |
@@ -104,14 +115,19 @@ fi
 
 ## Несколько расширений одного hook (конфликты имён)
 
-Если нужно два расширения в одной точке — добавьте суффикс через точку:
+Если нужно несколько extensions в одной точке — используйте suffix через точку:
 
 ```
-extensions/day-close.after.md          # основное
-extensions/day-close.after.health.md   # дополнительное (например, от другого пакета)
+extensions/day-close.after.health.md      # модуль 1: health-check
+extensions/day-close.after.linear.md      # модуль 2: Linear sync
+extensions/day-close.after.telegram.md    # модуль 3: Telegram notification
 ```
 
-Загружаются в **алфавитном порядке** — конфликта нет, оба выполнятся.
+Loader (`.claude/scripts/load-extensions.sh day-close after`) возвращает все matching файлы в **алфавитном порядке** — все три выполнятся (`health` → `linear` → `telegram`). Конфликта имён нет.
+
+> **Порядок при смешивании manifest и suffix:** lexicographic sort даёт `<protocol>.<hook>.<suffix>.md` < `<protocol>.<hook>.md` (потому что `.h` < `.m` в точке-префикс сравнении). Manifest без suffix всегда выполнится **последним**. Если важен порядок — используй suffix-имена с явной нумерацией (`day-close.after.01-health.md`, `day-close.after.02-linear.md`).
+
+**Manifest без suffix не нужен** — пишите контент сразу в suffix-файлы. Если у вас есть `day-close.after.md` (manifest), который Read'ом подгружает suffix-файлы, **уберите его** — loader сам подхватит и manifest, и suffix → двойное выполнение.
 
 ## Установка чужого расширения (sharing)
 

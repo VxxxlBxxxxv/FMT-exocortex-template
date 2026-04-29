@@ -160,7 +160,26 @@ for entry in data.get('files', []):
 }
 )
 
-TOTAL_CHANGES=$(( ${#NEW_FILES[@]} + ${#UPDATED_FILES[@]} ))
+# === Step 2b: Deprecated files (устаревшие L1-файлы к удалению) ===
+DEPRECATED_FOUND=()
+DEPRECATED_REASONS=()
+
+while IFS='|' read -r fpath freason; do
+    [ -z "$fpath" ] && continue
+    if [ -f "$SCRIPT_DIR/$fpath" ]; then
+        DEPRECATED_FOUND+=("$fpath")
+        DEPRECATED_REASONS+=("${freason:-устарел}")
+    fi
+done < <(
+    python3 -c "
+import json, sys
+with open('$MANIFEST') as f:
+    data = json.load(f)
+for entry in data.get('deprecated_files', []):
+    print(entry.get('path','') + '|' + entry.get('reason',''))
+" 2>/dev/null || true)
+
+TOTAL_CHANGES=$(( ${#NEW_FILES[@]} + ${#UPDATED_FILES[@]} + ${#DEPRECATED_FOUND[@]} ))
 
 # === Step 3: Display results ===
 echo ""
@@ -194,6 +213,16 @@ if [ ${#UPDATED_FILES[@]} -gt 0 ]; then
         f="${UPDATED_FILES[$i]}"
         lines="${UPDATED_LINES[$i]}"
         printf "  ~ %-45s — %s строк изменено\n" "$f" "$lines"
+    done
+    echo ""
+fi
+
+if [ ${#DEPRECATED_FOUND[@]} -gt 0 ]; then
+    echo "Устаревшие файлы к удалению (${#DEPRECATED_FOUND[@]}):"
+    for i in "${!DEPRECATED_FOUND[@]}"; do
+        f="${DEPRECATED_FOUND[$i]}"
+        r="${DEPRECATED_REASONS[$i]}"
+        printf "  - %-45s — %s\n" "$f" "$r"
     done
     echo ""
 fi
@@ -236,6 +265,7 @@ echo ""
 echo "Применяю обновления..."
 
 APPLIED=0
+REMOVED=0
 
 for f in "${NEW_FILES[@]}"; do
     mkdir -p "$SCRIPT_DIR/$(dirname "$f")"
@@ -300,6 +330,36 @@ for f in "${UPDATED_FILES[@]}"; do
         echo "  ~ $f"
     fi
     APPLIED=$((APPLIED + 1))
+done
+
+# Remove deprecated files
+for i in "${!DEPRECATED_FOUND[@]}"; do
+    f="${DEPRECATED_FOUND[$i]}"
+    fpath="$SCRIPT_DIR/$f"
+    if [ -f "$fpath" ]; then
+        rm "$fpath"
+        echo "  - $f (удалён: устарел)"
+        REMOVED=$((REMOVED + 1))
+        # Also remove from workspace .claude/ (propagated L1 files)
+        case "$f" in .claude/*)
+            ws_path="$WORKSPACE_DIR/$f"
+            [ -f "$ws_path" ] && rm "$ws_path" && echo "    (также из workspace)"
+            ;;
+        esac
+        # Also remove from Claude memory dir (memory/* files)
+        case "$f" in memory/*.md)
+            mem_path="$CLAUDE_MEMORY_DIR/$(basename "$f")"
+            [ -f "$mem_path" ] && rm "$mem_path" && echo "    (также из memory/)"
+            ;;
+        esac
+    fi
+done
+# Clean up empty deprecated directories
+for i in "${!DEPRECATED_FOUND[@]}"; do
+    f="${DEPRECATED_FOUND[$i]}"
+    dir="$SCRIPT_DIR/$(dirname "$f")"
+    [ "$dir" = "$SCRIPT_DIR/." ] && continue
+    [ -d "$dir" ] && [ -z "$(ls -A "$dir" 2>/dev/null)" ] && rmdir "$dir" 2>/dev/null && echo "  - $(dirname "$f")/ (пустая директория удалена)"
 done
 
 # === Step 5b: Re-substitute placeholders + ensure .exocortex.env in workspace ===
@@ -751,7 +811,10 @@ fi
 # === Done ===
 echo ""
 echo "=========================================="
-echo "  Обновление завершено ($APPLIED файлов)"
+SUMMARY_MSG="  Обновление завершено ($APPLIED файлов"
+[ "$REMOVED" -gt 0 ] && SUMMARY_MSG="$SUMMARY_MSG, $REMOVED удалено"
+SUMMARY_MSG="$SUMMARY_MSG)"
+echo "$SUMMARY_MSG"
 echo "=========================================="
 echo ""
 echo "Перезапустите Claude Code для применения обновлений в memory/."

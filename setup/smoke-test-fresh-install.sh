@@ -10,6 +10,7 @@
 # Что ловит:
 #   — R5.1: runtime неполный для runners (PROMPTS_DIR, role.yaml, notify.sh)
 #   — R5.2: install.sh без env силеты копирует plist с literal {{IWE_RUNTIME}}
+#   — R5.5: load-extensions.sh контракт wildcard suffix (manifest + .suffix.md, alphabetic order)
 #   — Drift: build-runtime → diff (idempotency)
 #
 # Запускать:
@@ -21,7 +22,7 @@
 #   1 — некорректные аргументы / setup упал
 #   N>1 — N тестов FAIL
 #
-# WP-273 Этап 3 (Round 5 sub-agent assessment).
+# WP-273 Этап 3 (Round 5 sub-agent assessment) + R5.5 (28 апр — suffix extensions native).
 
 set -eu
 
@@ -229,7 +230,7 @@ else
 fi
 
 # === Test 6: install.sh С env проходит fail-fast check ===
-echo "[6/6] install.sh с env проходит fail-fast (positive case)..."
+echo "[6/7] install.sh с env проходит fail-fast (positive case)..."
 # Запускаем с правильным env. launchctl load может зафейлить (нет launchd на CI),
 # главное — НЕ упасть на fail-fast check.
 INSTALL_OK_OUT=$(IWE_RUNTIME="$TEST_WS/.iwe-runtime" IWE_WORKSPACE="$TEST_WS" \
@@ -239,6 +240,51 @@ if echo "$INSTALL_OK_OUT" | grep -qE 'содержит незаменённые 
 else
     pass "install.sh проходит fail-fast check с env"
 fi
+
+# === Test 7: load-extensions.sh wildcard suffix contract (R5.5) ===
+echo "[7/7] load-extensions.sh wildcard suffix contract..."
+LOAD_EXT="$TEMPLATE_DIR/.claude/scripts/load-extensions.sh"
+EXT_TEST_WS="$TEST_WS/ext-loader-test"
+mkdir -p "$EXT_TEST_WS/extensions"
+
+# 7a: manifest + 2 suffix → exit 0, alphabetic order
+# Lexicographic sort: '.health.md' < '.linear.md' < '.md'
+# (manifest без suffix идёт ПОСЛЕ всех suffix-файлов того же hook).
+echo "manifest" > "$EXT_TEST_WS/extensions/day-close.after.md"
+echo "health"   > "$EXT_TEST_WS/extensions/day-close.after.health.md"
+echo "linear"   > "$EXT_TEST_WS/extensions/day-close.after.linear.md"
+EXT_OUT=$(IWE_WORKSPACE="$EXT_TEST_WS" bash "$LOAD_EXT" day-close after 2>&1 || true)
+EXT_RC=$(IWE_WORKSPACE="$EXT_TEST_WS" bash "$LOAD_EXT" day-close after >/dev/null 2>&1 && echo 0 || echo $?)
+EXT_LINES=$(echo "$EXT_OUT" | wc -l | tr -d ' ')
+EXT_FIRST=$(echo "$EXT_OUT" | head -1)
+EXT_LAST=$(echo "$EXT_OUT" | tail -1)
+if [ "$EXT_RC" = "0" ] && [ "$EXT_LINES" = "3" ] && \
+   echo "$EXT_FIRST" | grep -q "day-close.after.health.md" && \
+   echo "$EXT_LAST" | grep -qE "day-close\.after\.md$"; then
+    pass "Test 7a: 3 файла alphabetic (health → linear → manifest)"
+else
+    fail "Test 7a: ожидалось health → linear → manifest, получено: rc=$EXT_RC lines=$EXT_LINES first=$EXT_FIRST last=$EXT_LAST"
+fi
+
+# 7b: hook без файлов → exit 1
+EXT_RC2=$(IWE_WORKSPACE="$EXT_TEST_WS" bash "$LOAD_EXT" day-close before >/dev/null 2>&1 && echo 0 || echo $?)
+if [ "$EXT_RC2" = "1" ]; then
+    pass "Test 7b: пустой hook → exit 1"
+else
+    fail "Test 7b: ожидался exit 1, получено exit $EXT_RC2"
+fi
+
+# 7c: только suffix без manifest → exit 0, suffix-файл в выводе
+rm "$EXT_TEST_WS/extensions/day-close.after.md" "$EXT_TEST_WS/extensions/day-close.after.linear.md"
+EXT_OUT3=$(IWE_WORKSPACE="$EXT_TEST_WS" bash "$LOAD_EXT" day-close after 2>&1 || true)
+EXT_RC3=$(IWE_WORKSPACE="$EXT_TEST_WS" bash "$LOAD_EXT" day-close after >/dev/null 2>&1 && echo 0 || echo $?)
+if [ "$EXT_RC3" = "0" ] && echo "$EXT_OUT3" | grep -q "day-close.after.health.md"; then
+    pass "Test 7c: только suffix без manifest → exit 0"
+else
+    fail "Test 7c: ожидался exit 0 + health в выводе, получено: rc=$EXT_RC3 out=$EXT_OUT3"
+fi
+
+rm -rf "$EXT_TEST_WS"
 
 echo ""
 echo "=========================================="
