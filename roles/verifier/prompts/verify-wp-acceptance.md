@@ -8,7 +8,7 @@
 
 ## Входы
 
-1. **WP context file:** `DS-strategy/inbox/WP-{N}-{slug}.md`
+1. **WP context file:** `{{GOVERNANCE_REPO}}/inbox/WP-{N}-{slug}.md`
 2. **Секция «Критерий готовности»** — чеклист из context file
 3. **Результат сессии** — что было сделано (коммиты, файлы)
 

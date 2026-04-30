@@ -142,14 +142,14 @@ $extra_args"
         git -C "$strategy_dir" add inbox/captures.md inbox/extraction-reports/ >> "$LOG_FILE" 2>&1 || true
         if ! git -C "$strategy_dir" diff --cached --quiet 2>/dev/null; then
             git -C "$strategy_dir" commit -m "inbox-check: extraction report $DATE" >> "$LOG_FILE" 2>&1 \
-                && log "Committed DS-strategy" \
+                && log "Committed $_gov_repo" \
                 || log "WARN: git commit failed"
         else
-            log "No new changes to commit in DS-strategy"
+            log "No new changes to commit in $_gov_repo"
         fi
 
         if ! git -C "$strategy_dir" diff --quiet origin/main..HEAD 2>/dev/null; then
-            git -C "$strategy_dir" push >> "$LOG_FILE" 2>&1 && log "Pushed DS-strategy" || log "WARN: git push failed"
+            git -C "$strategy_dir" push >> "$LOG_FILE" 2>&1 && log "Pushed $_gov_repo" || log "WARN: git push failed"
         fi
     fi
 

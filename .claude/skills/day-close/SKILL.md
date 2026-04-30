@@ -47,7 +47,7 @@ done
 
 **2e.** Governance-синхронизация: новые репо/сервисы за день? → REPOSITORY-REGISTRY, navigation.md, MAP.002.
 
-**EXTENSION POINT:** Проверить `extensions/day-close.checks.md`. Если существует → `Read` и выполнить.
+**EXTENSION POINT:** Загрузить: `bash .claude/scripts/load-extensions.sh day-close checks`. Exit 0 → `Read` каждый файл из вывода (alphabetic) → выполнить. Exit 1 → пропустить. Поддерживает `extensions/day-close.checks.md` И `extensions/day-close.checks.<suffix>.md`.
 
 ### 3. Архивация
 
@@ -133,7 +133,7 @@ SCRIPT="{{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/scripts/check-index-health.py"
 
 **г) Не забыто?**
 - Незакоммиченные изменения: `${IWE_SCRIPTS}/check-dirty-repos.sh` (сканирует ВСЕ репо в workspace, включая вложенные DS-* директории). Если есть грязные → закоммитить и запушить ДО продолжения.
-- **EXTENSION POINT:** Проверить `extensions/day-close.checks.md`. Если существует → `Read` и выполнить.
+- **EXTENSION POINT:** Загрузить: `bash .claude/scripts/load-extensions.sh day-close checks` (см. шаг 2e).
 - Незаписанные мысли? (спросить пользователя)
 - Обещания кому-то? (спросить пользователя)
 
@@ -160,6 +160,10 @@ SCRIPT="{{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/scripts/check-index-health.py"
 - Порядок: свежие итоги СВЕРХУ (обратная хронология)
 - Содержание: таблица коммитов по репо, закрытые РП, продвинутые РП, мультипликатор
 
+### 9c. Extensions (after)
+
+Загрузить: `bash .claude/scripts/load-extensions.sh day-close after`. Exit 0 → `Read` каждый файл из вывода (alphabetic) → выполнить. Exit 1 → пропустить. Поддерживает `extensions/day-close.after.md` И `extensions/day-close.after.<suffix>.md`.
+
 ### 10. Закоммитить {{GOVERNANCE_REPO}}
 
 ### 11. Верификация (Haiku R23)
@@ -168,7 +172,7 @@ SCRIPT="{{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/scripts/check-index-health.py"
 Передать: (1) чеклист Day Close, (2) черновик итогов, (3) список обновлённых файлов.
 По ❌ — исправить до показа пользователю.
 
-**EXTENSION POINT:** Проверить `extensions/day-close.checks.md`. Если существует → `Read` и выполнить.
+**EXTENSION POINT:** Загрузить: `bash .claude/scripts/load-extensions.sh day-close checks`. Exit 0 → `Read` каждый файл из вывода (alphabetic) → выполнить. Exit 1 → пропустить. Поддерживает `extensions/day-close.checks.md` И `extensions/day-close.checks.<suffix>.md`.
 
 ---
 

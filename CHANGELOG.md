@@ -5,6 +5,218 @@ All notable changes to FMT-exocortex-template will be documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/).
 
+## [0.29.20] — 2026-04-29
+
+### Fixed — protocol-close.md: pre-commit checks ambiguity (Eugene's report)
+
+`memory/protocol-close.md` шаг 1 был неоднозначен: checks и commit описывались в одном блоке, непонятно — checks до commit'а или после?
+
+- Шаг 1 разбит на два явных подшага:
+  - **1a. Pre-commit checks (БЛОКИРУЮЩЕЕ)** — load-extensions checks, при ❌ commit запрещён
+  - **1b. Commit + Push** — только после прохождения checks
+- Семантика идентична Day/Week Close (как описано в `run-protocol/SKILL.md` Шаг 1b)
+- Commit: `51b06a0` (прямой коммит в FMT, минуя broken template-sync pipeline)
+
+## [0.29.19] — 2026-04-29
+
+### Fixed (sub-agent post-release verify 0.29.18)
+
+**SA-8 — DRY-нарушение detector regex:**
+- `DETECTOR_07_REGEX` дублировался в `setup/integration-contract-validator.sh:238` и `setup/test-detectors.sh:35`. При правке regex в одном месте второе расходилось → ложный pass на регрессии.
+- Вынесен в `setup/detector-regex.sh` как shared source. Оба скрипта теперь `source` его. Изменение regex → автоматическая sync.
+
+### Added — Pack documentation (retro-fix IntegrationGate skip P10)
+
+После 0.29.13-0.29.18 был сделан 5-слойный verification protocol, но описание системы лежало только в CHANGELOG + коде. Это нарушение IntegrationGate (CLAUDE.md §2): прыжок в реализацию минуя (1) обещание → (2) сценарии → (3) роль → (4) реализация. Retro-fix:
+
+| Артефакт | Pack | Описывает |
+|----------|------|-----------|
+| `VR.SC.006-release-verification-protocol.md` | PACK-verification | Обещание: 5-слойная верификация при каждом release |
+| `VR.M.006-five-layer-post-release-verification.md` | PACK-verification | Метод: 8 detectors → smoke → upgrade → fixtures → adversarial |
+| `VR.R.002-auditor.md` (extension) | PACK-verification | + сценарий «Release FMT-шаблона» для существующего Аудитора |
+| `AR.203-release-verification-trigger.md` | PACK-agent-rules | Блокирующее правило: version bump → 5-слойный прогон обязателен |
+
+**Cross-references** добавлены в FMT файлы (`integration-contract-validator.sh`, `test-detectors.sh`, `validate-template.yml`, `post-release-audit.yml`) как `# see VR.SC.006, VR.M.006, AR.203`.
+
+### Verified
+
+`integration-contract-validator.sh` → ✅ PASS (8/8)
+`smoke-test-fresh-install.sh` → ✅ PASS (14/14)
+`test-detectors.sh` → ✅ PASS (1 fixture, через shared regex source)
+
+## [0.29.18] — 2026-04-29
+
+### Added — 5 уровней автоматизации проверок (закрывает функции, которые ранее держал Євгений вручную)
+
+После 0.29.16 валидаторы запускаются на pre-commit + CI, но Євгений всё равно может ловить классы регрессий, которые наши гейты не покрывают. Этот релиз закрывает 5 таких классов автоматизацией.
+
+**1. OS matrix в CI (item 2):**
+- `integration-contract` job теперь идёт на `[ubuntu-latest, macos-latest]`. macOS preinstall: `brew install jq`.
+- Ловит портабельность-баги, которые были в 0.28.12 (BUG-2..4 на Linux).
+
+**2. Upgrade-flow regression test в CI (item 1):**
+- Новый job `upgrade-test`: checkout previous version (по `git log update-manifest.json`) → smoke на ней → checkout HEAD → re-run validator + smoke. Симулирует upgrade-сценарий (а не fresh build).
+- Ловит класс 0.29.13 (template-sync перетёр стабильный код).
+
+**3. Detector regex regression tests (item 3):**
+- `setup/detector-fixtures/` — historical positive samples, которые detectors ДОЛЖНЫ ловить. Первый: `detector_07/positive_backtick_slash.md` (regression sample 0.29.14).
+- `setup/test-detectors.sh` — runner, прогоняет каждый detector regex на fixtures.
+- В `pre-commit` (если staged изменения в validator/fixtures) и в CI.
+- Ловит regex-gap регрессии в самих detector'ах (как 0.29.14 backtick+slash gap).
+
+**4. Scheduled adversarial audit workflow (item 4):**
+- `.github/workflows/post-release-audit.yml` — на каждый push изменяющий `update-manifest.json` (= релиз) auto-создаёт GitHub Issue с adversarial-промптом. Также `workflow_dispatch` для ручного триггера.
+- `setup/release-audit-prompt.md` — единый промпт-template для adversarial audit (10 классов проверок).
+- Автор/пилот прогоняет в Claude session, найденные классы → +detector в `integration-contract-validator.sh`.
+
+**5. UX walkthrough prompt template (item 5):**
+- `setup/ux-walkthrough-prompt.md` — symulator «новый пилот час 0» проходит онбординг буквально, фиксирует UX-провалы (broken links, скрытые prerequisites, jargon без расшифровки).
+- Запускается вручную через subagent (item 5 не покрывается автоматически — UX требует human-like reasoning).
+
+### Verified
+
+`integration-contract-validator.sh` → ✅ PASS (8/8)
+`smoke-test-fresh-install.sh` → ✅ PASS (14/14)
+`test-detectors.sh` → ✅ PASS (1 fixture)
+
+### Что осталось у Євгения после 0.29.18
+
+- Реальная установка на пилотской ОС/железе (не CI sandbox)
+- Тестирование long-tail сценариев накопленным use'ом
+- Различия mental models — другие blind spots чем у автора + sub-agent
+- Final UX-judge: «понятно ли реальному человеку»
+
+## [0.29.17] — 2026-04-29
+
+### Fixed (sub-agent post-release verify 0.29.16 — 2 minor)
+
+**SA-6 — `day-close after` orphan hook:**
+- `extensions/README.md` table декларировал `day-close.after.md` как extension point, но `.claude/skills/day-close/SKILL.md` не имел caller'а — пилот, создавший `extensions/day-close.after.md`, не получал вызова.
+- Добавлен шаг 9c `Extensions (after)` с `load-extensions.sh day-close after` (между шагами 9 «Запись итогов» и 10 «Закоммитить» — параллельно `week-close` структуре).
+- Detector #3 не ловил это, потому что mention `extensions/day-close.after.md` встречался в текстовых примерах README.
+
+**SA-7 — pre-commit scope filter не покрывал `seed/`:**
+- Detector #2 (`seed_references`) проверяет ссылки `seed/...` в `protocol-*.md`. Изменение в `seed/` не триггерило валидатор → drift возможен silently.
+- Расширен filter: `roles/|.claude/|setup/|memory/|extensions/|seed/|update-manifest.json`.
+
+### Verified
+
+`integration-contract-validator.sh` → ✅ PASS (8/8)
+`smoke-test-fresh-install.sh` → ✅ PASS (14/14)
+
+## [0.29.16] — 2026-04-29
+
+### Fixed (Євгений Round 3 + sub-agent broader audit)
+
+**EZ-1 — `day-close.checks` не использовал loader (Євгений 29 апр):**
+- `.claude/skills/day-close/SKILL.md` строки 50, 136, 171 читали exact `extensions/day-close.checks.md`. Suffix-расширения (`day-close.checks.beads.md`) не подхватывались.
+- Все 3 точки переведены на `bash .claude/scripts/load-extensions.sh day-close checks` (как day-close.before в 0.29.9 и week-close.before/after в 0.29.13).
+
+**SA-4 — `apply-captures` skill отсутствовал в FMT, но ссылки были:**
+- Skill упомянут в `CHANGELOG.md`, `.claude/skills/ke/SKILL.md`, `roles/strategist/prompts/session-prep.md` — но физически отсутствовал.
+- Промотирован из авторского IWE с заменой констант `DS-my-strategy` → `{{GOVERNANCE_REPO}}` и `~/IWE/` → `{{WORKSPACE_DIR}}/`.
+- Добавлен в `update-manifest.json` files.
+
+**SA-5 — Broken refs в memory:**
+- `memory/MEMORY.md:38-39` — ссылки на `claude-md-maintenance.md` и `wp-gate-lesson.md` (оба deprecated в 0.27, файлов нет). Удалены.
+- `memory/t-checklist.md:61` — ссылка на `memory/protocol-month-close.md` (нет такого файла, есть skill `.claude/skills/month-close/SKILL.md`). Ссылка на отсутствующий протокол убрана.
+
+### Added — meta-fix: интеграция валидаторов в release-gate
+
+**Корневая причина 0.29.13 регрессий:** `integration-contract-validator.sh` и `smoke-test-fresh-install.sh` существовали как ручные скрипты — Євгений запускал на fresh clone, мы при коммите не запускали. CHANGELOG записи «Verified: 8/8 PASS» писались руками. Каждое забывание = регрессия у пилота.
+
+**Pre-commit hook (`.githooks/pre-commit`):**
+- Новый блок `INTEGRATION-CONTRACT-VALIDATOR` запускает `setup/integration-contract-validator.sh` если staged файлы из scope (`roles/`, `.claude/`, `setup/`, `memory/`, `extensions/`, `update-manifest.json`).
+- FAIL → коммит блокируется. Escape: `git commit --no-verify`.
+
+**CI workflow (`.github/workflows/validate-template.yml`):**
+- Новый job `integration-contract` запускает оба скрипта на каждый push/PR в main.
+- Defense-in-depth для `--no-verify` пропусков pre-commit.
+
+После 0.29.16: регрессии класса 0.29.13 ловятся **до** push'а у автора, а не на fresh clone у пилота.
+
+### Verified
+
+`integration-contract-validator.sh` → ✅ PASS (8/8)
+`smoke-test-fresh-install.sh` → ✅ PASS (14/14)
+
+## [0.29.15] — 2026-04-29
+
+### Added — closure pre-existing WARN из validator #3
+
+`extensions/README.md` декларировал hooks `month-close.before` и `month-close.after`, но `month-close` SKILL отсутствовал в FMT (жил только в авторском IWE). Validator #3 выдавал 2 WARN (в обходных категориях, не FAIL) — pre-existing с момента добавления month-close в README (0.29.9).
+
+**Промоция month-close skill из авторского IWE → FMT:**
+- `.claude/skills/month-close/SKILL.md` создан (280 строк, заменены авторские константы `DS-my-strategy` → `{{GOVERNANCE_REPO}}`, `~/IWE/` → `{{WORKSPACE_DIR}}/`).
+- Содержит 2 EXTENSION POINT через `load-extensions.sh month-close before` (Шаг 0) и `load-extensions.sh month-close after` (Шаг 11).
+- Добавлен в `update-manifest.json` files (alphabetic order).
+
+### Verified
+
+`integration-contract-validator.sh` → ✅ PASS (8/8 + Detector #3 теперь без WARN)
+`smoke-test-fresh-install.sh` → ✅ PASS (14/14)
+
+## [0.29.14] — 2026-04-29
+
+### Fixed (sub-agent post-release audit 0.29.13 нашёл 3 дополнительных проблемы)
+
+**SA-1 — agential prompts auditor/verifier: hardcoded `DS-strategy/` (пропущено validator #7):**
+- `roles/auditor/prompts/audit-plan-consistency.md` строки 12-14 — 3 bare `DS-strategy/path` в backtick.
+- `roles/verifier/prompts/verify-wp-acceptance.md` строка 11 — bare `` `DS-strategy/inbox/...` ``.
+- Validator #7 regex `` '`DS-strategy`|/DS-strategy/| DS-strategy[ /]' `` не матчил паттерн `` `DS-strategy/ `` (backtick + slash без пробела). Расширен до `` '`DS-strategy[`/]|/DS-strategy/| DS-strategy[ /]' ``.
+- Оба файла исправлены: `DS-strategy` → `{{GOVERNANCE_REPO}}`.
+
+**SA-2 — extractor.sh строки 145/148/152: `DS-strategy` в log-сообщениях:**
+- Файл в substituted-списке — `DS-strategy` в текстах логов вводил в заблуждение при нестандартном GOVERNANCE_REPO.
+- Заменено на `$_gov_repo` (переменная уже определена в том же scope строкой 103).
+
+**SA-3 — validator regex gap:**
+- Detector #7 расширен: теперь ловит `` `DS-strategy/path` `` (backtick+slash) — паттерн из agential-промптов.
+
+### Verified
+
+`integration-contract-validator.sh` → ✅ PASS (8/8), `smoke-test-fresh-install.sh` → ✅ PASS (14/14).
+
+## [0.29.13] — 2026-04-29
+
+### Fixed (R6 Round 2 от Евгения — регрессия после template-sync 2026-04-28)
+
+Коммит `17102ae template-sync: propagate platform-space changes 2026-04-28` перезаписал файлы из авторского IWE, в котором лежала версия ДО фиксов 0.29.5/0.29.6/0.29.7. Результат: `integration-contract-validator.sh` → 8 violations, `smoke-test-fresh-install.sh` → 2 FAIL.
+
+**RT-1 — `strategist.sh` откат до pre-0.29.5 (3 регрессии одновременно):**
+- `WORKSPACE` стал хардкодом `$HOME/IWE/DS-strategy` (было `{{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}`).
+- `PROMPTS_DIR` стал `$REPO_DIR/prompts` без `$IWE_TEMPLATE`-fallback (antipattern R5.1).
+- `run_claude()` потерял sed-substitution GOVERNANCE_REPO/WORKSPACE_DIR/GITHUB_USER в промптах (добавлен в 0.29.5, escaped в 0.29.6).
+- Восстановлено до 0.29.7 (git `66f8566`).
+
+**RT-2 — `cleanup-processed-notes.py` откат до pre-0.29.5:**
+- `WORKSPACE = Path.home() / "IWE" / "DS-strategy"` — жёсткий хардкод вернулся.
+- `_resolve_workspace()` (читает `IWE_WORKSPACE` + `IWE_GOVERNANCE_REPO` из env + fallback через `.exocortex.env`) была потеряна.
+- Восстановлено до 0.29.7.
+
+**RT-3 — 6 prompt-файлов откатились до pre-0.29.5:**
+- `roles/strategist/prompts/{day-close,day-plan,note-review,session-prep,strategy-session,week-review}.md` — `DS-strategy` bare без `{{GOVERNANCE_REPO}}`.
+- Все 6 восстановлены до 0.29.7.
+
+**RT-4 — `dt-collect.sh` откатился (detector 7 не ловил .sh в roles/):**
+- `GOVERNANCE_DIR="${GOVERNANCE_DIR:-$WORKSPACE/DS-strategy}"` — хардкод.
+- `SESSION_LOG="$WORKSPACE/DS-strategy/inbox/..."` — хардкод.
+- Файл в `substituted:` списке overlay — build-runtime не мог подставить `{{GOVERNANCE_REPO}}`. Восстановлены плейсхолдеры.
+
+**RT-5 — `update-manifest.json` intersection `files ∩ deprecated_files`:**
+- 0.29.11 добавил в `deprecated_files` 8 файлов с reason `"strategist role removed"`, но эти файлы остались в `files` и физически в репо (роль не удалена). update.sh получил конфликт «доставить и удалить». Удалены 8 premature deprecated_files записей.
+
+**RT-6 — `week-close/SKILL.md` — before/after hooks не перешли на `load-extensions.sh`:**
+- После R5.5 (0.29.9) `day-close.before` перешёл на loader-native, но `week-close.before` и `week-close.after` остались с `ls extensions/week-close.*.md` (exact filename). Обновлены оба по образцу `day-close.before` (0.29.9).
+
+### Verified
+
+`integration-contract-validator.sh` → ✅ PASS (8/8), `smoke-test-fresh-install.sh` → ✅ PASS (14/14).
+
+### Root cause
+
+Файлы из авторского IWE (платформенное пространство) содержали pre-0.29.5 версии — template-sync не подтягивал фиксы, сделанные напрямую в FMT. Правильный flow: фикс в авторском IWE (source-of-truth) → template-sync → FMT. Нарушение в 0.29.4-0.29.7: часть фиксов писалась напрямую в FMT минуя author-space. При следующем template-sync FMT перезаписался старыми версиями.
+
 ## [0.29.12] — 2026-04-28
 
 ### Fixed

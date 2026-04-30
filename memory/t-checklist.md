@@ -58,7 +58,7 @@ valid_from: 2026-04-10
 
 ## Month Close (первый Пн месяца)
 
-> **Триггер:** скилл `/month-close` (см. `.claude/skills/month-close/SKILL.md`, протокол `memory/protocol-month-close.md`). T23-T25 выполняются как шаги 6-7 алгоритма Month Close.
+> **Триггер:** скилл `/month-close` (см. `.claude/skills/month-close/SKILL.md`). T23-T25 выполняются как шаги 6-7 алгоритма Month Close.
 
 | # | Действие | Owner | Trigger | Symptom-if-skipped |
 |---|----------|-------|---------|--------------------|

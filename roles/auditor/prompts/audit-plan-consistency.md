@@ -9,9 +9,9 @@
 ## Входы
 
 1. **MEMORY.md** → секция «РП текущей недели»
-2. **WeekPlan** → `DS-strategy/current/WeekPlan W{N}...`
-3. **WP-REGISTRY** → `DS-strategy/docs/WP-REGISTRY.md`
-4. **DayPlan** → `DS-strategy/current/DayPlan YYYY-MM-DD.md` (если есть)
+2. **WeekPlan** → `{{GOVERNANCE_REPO}}/current/WeekPlan W{N}...`
+3. **WP-REGISTRY** → `{{GOVERNANCE_REPO}}/docs/WP-REGISTRY.md`
+4. **DayPlan** → `{{GOVERNANCE_REPO}}/current/DayPlan YYYY-MM-DD.md` (если есть)
 
 ## Алгоритм
 

@@ -89,6 +89,45 @@ if [ -n "$STAGED_TEMPLATE" ] && [ -x "setup/validate-template.sh" ]; then
     rm -f /tmp/iwe-validate.$$
 fi
 
+# === Integration contract validator (Spec↔State drift detection) ===
+# Корень бага (29 апр, 0.29.13 регрессия): template-sync перезаписал FMT файлы
+# из авторского pre-0.29.5 IWE → 8 violations. Євгений нашёл на fresh clone, но
+# наш собственный валидатор НЕ запускался при коммите. Гейт: тот же скрипт что
+# Євгений, на наших же staged файлах. Escape hatch: `git commit --no-verify`.
+# Запускаем только если staged файлы из scope валидатора (roles/, .claude/, setup/,
+# memory/, extensions/, update-manifest.json).
+STAGED_VALIDATOR_SCOPE=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null \
+    | grep -E '^(roles/|\.claude/|setup/|memory/|extensions/|seed/|update-manifest\.json)' || true)
+if [ -n "$STAGED_VALIDATOR_SCOPE" ] && [ -x "setup/integration-contract-validator.sh" ]; then
+    if ! bash setup/integration-contract-validator.sh >/tmp/iwe-icv.$$ 2>&1; then
+        echo "INTEGRATION-CONTRACT-VALIDATOR: FAIL"
+        cat /tmp/iwe-icv.$$
+        rm -f /tmp/iwe-icv.$$
+        echo ""
+        echo "  Commit blocked. Fix detector violations above or override with: git commit --no-verify"
+        exit 1
+    fi
+    rm -f /tmp/iwe-icv.$$
+fi
+
+# === Detector regex regression tests (0.29.18) ===
+# Если staged изменения в integration-contract-validator.sh ИЛИ в detector-fixtures/
+# — прогнать test-detectors.sh. Ловит regex-gap регрессии в самих detector'ах.
+STAGED_DETECTOR_SCOPE=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null \
+    | grep -E '^setup/(integration-contract-validator\.sh|detector-fixtures/|test-detectors\.sh)' || true)
+if [ -n "$STAGED_DETECTOR_SCOPE" ] && [ -x "setup/test-detectors.sh" ]; then
+    if ! bash setup/test-detectors.sh >/tmp/iwe-detector-tests.$$ 2>&1; then
+        echo "DETECTOR-REGEX-TESTS: FAIL"
+        cat /tmp/iwe-detector-tests.$$
+        rm -f /tmp/iwe-detector-tests.$$
+        echo ""
+        echo "  Detector regex регрессировал — historical fixture больше не ловится."
+        echo "  Override: git commit --no-verify"
+        exit 1
+    fi
+    rm -f /tmp/iwe-detector-tests.$$
+fi
+
 # Get list of staged .sh files
 STAGED_SH=$(git diff --cached --name-only --diff-filter=ACM -- '*.sh' 2>/dev/null)
 [ -z "$STAGED_SH" ] && exit 0

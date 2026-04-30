@@ -19,7 +19,7 @@ Week Close = протокол. Исполнять ТОЛЬКО пошагово 
 ## Алгоритм
 
 ### 0. Extensions (before)
-Проверить: `ls extensions/week-close.before.md`. Если существует → `Read` → выполнить как первые шаги.
+Загрузить: `bash .claude/scripts/load-extensions.sh week-close before`. Exit 0 → `Read` каждый файл из вывода (alphabetic) → выполнить как первые шаги. Exit 1 → пропустить. Поддерживает `extensions/week-close.before.md` И `extensions/week-close.before.<suffix>.md`.
 
 ### 1. Сбор данных за 7 дней
 
@@ -89,7 +89,7 @@ ${IWE_SCRIPTS}/check-dirty-repos.sh
 
 ### 9. Extensions (after)
 
-Проверить: `ls extensions/week-close.after.md`. Если существует → `Read` → выполнить.
+Загрузить: `bash .claude/scripts/load-extensions.sh week-close after`. Exit 0 → `Read` каждый файл из вывода (alphabetic) → выполнить. Exit 1 → пропустить. Поддерживает `extensions/week-close.after.md` И `extensions/week-close.after.<suffix>.md`.
 
 ### 10. Закоммитить governance-репо
 
