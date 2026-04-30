@@ -17,7 +17,9 @@ set -euo pipefail
 # === КОНФИГУРАЦИЯ (настроить при установке) ===
 WORKSPACE_DIR="${WORKSPACE_DIR:-$HOME/IWE}"
 DS_STRATEGY="$WORKSPACE_DIR/DS-strategy"
-MEMORY_SRC="$HOME/.claude/projects/-Users-$(whoami)-IWE/memory"
+# Project dir в Claude Code = $HOME/IWE с заменой "/" на "-".
+# Linux: /home/natty/IWE → -home-natty-IWE. macOS: /Users/natty/IWE → -Users-natty-IWE.
+MEMORY_SRC="$HOME/.claude/projects/$(echo "$HOME/IWE" | sed 's|/|-|g')/memory"
 EXOCORTEX_DST="$DS_STRATEGY/exocortex"
 # MCP reindex — опциональный компонент (WP-187 iwe-knowledge Gateway заменяет локальный knowledge-mcp).
 # Переопределить путь можно через env IWE_SELECTIVE_REINDEX.
