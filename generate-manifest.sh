@@ -34,12 +34,12 @@ EXCLUDE_EXACT=(
     "README.md"
 )
 
-# Собираем файлы
+# Собираем файлы.
+# Используем `git ls-files`, а не `find`: gitignored/untracked файлы
+# (.exocortex.env, .claude.md.base, .claude/logs/) НЕ должны попадать в manifest —
+# integration-contract-validator (manifest_paths) падает при их наличии.
 FILES=()
-while IFS= read -r filepath; do
-    # Относительный путь
-    rel="${filepath#$SCRIPT_DIR/}"
-
+while IFS= read -r rel; do
     # Проверяем исключения
     skip=false
     for pattern in "${EXCLUDE_PATTERNS[@]}"; do
@@ -58,7 +58,7 @@ while IFS= read -r filepath; do
 
     $skip && continue
     FILES+=("$rel")
-done < <(find "$SCRIPT_DIR" -type f -not -path '*/.git/*' -not -name '.DS_Store' | sort)
+done < <(cd "$SCRIPT_DIR" && git ls-files | sort)
 
 # Генерируем JSON
 {
