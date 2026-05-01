@@ -52,7 +52,14 @@ done
 
 **1e. Decision log.** `{{GOVERNANCE_REPO}}/exocortex/decisions/decision-log-YYYY-MM.md` (WP-109 Ф7, реализация: один файл на месяц) — решения, принятые за месяц.
 
-**1f. Метрики файлов memory.** Какие файлы выросли за месяц? Кандидаты на сжатие.
+**1f. Метрики файлов memory (WP-217 Ф10.2).**
+
+```bash
+bash ${IWE_SCRIPTS}/memory-health.sh
+bash ${IWE_SCRIPTS}/memory-bleed.sh
+```
+
+HOT-лимит превышен → понизить horizon в frontmatter нужных файлов ДО дальнейших шагов. Кандидаты на понижение из bleed-отчёта → зафиксировать в `MonthClose YYYY-MM.md § T-чеклист T23`.
 
 **1g. Стабильные входы (PD.METHOD.008 стадия 7 входы 5+6).** Прочитать `{{GOVERNANCE_REPO}}/docs/Dissatisfactions.md` (список НЭП) + `{{GOVERNANCE_REPO}}/docs/Projects.md` (список проектов P1-P6). Без них ревизия проектов (Шаг 4) и промоция новых R (Шаг 9) не имеют контекста.
 

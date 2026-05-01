@@ -83,6 +83,15 @@ ${IWE_SCRIPTS}/check-dirty-repos.sh
 
 Если есть грязные репо → закоммитить и запушить ДО завершения Week Close.
 
+#### 7c. Memory Validate (T22b, WP-217 Ф10.2)
+
+```bash
+bash ${IWE_SCRIPTS}/memory-bleed.sh
+```
+
+**Нарушения** (HOT-лимит, orphans, superseded_by без ссылки) → исправить до коммита Week Close.
+**Кандидаты на понижение горизонта** → информативно, пользователь решает при следующем Month Close.
+
 ### 8. Запись итогов в WeekPlan
 
 Дописать секцию «Итоги W{N}» в текущий WeekPlan (структура — см. `roles/strategist/prompts/week-review.md`).
