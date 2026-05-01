@@ -2,7 +2,14 @@
 # Генерирует update-manifest.json из текущего содержимого репо.
 # Запускать перед релизом: bash generate-manifest.sh
 #
+# Режимы:
+#   bash generate-manifest.sh           — записывает в update-manifest.json
+#   bash generate-manifest.sh --check   — выводит ожидаемый JSON в stdout (без записи).
+#                                          Используется pre-commit hook'ом для drift-детекта.
 set -e
+
+CHECK_MODE=0
+[ "${1:-}" = "--check" ] && CHECK_MODE=1
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MANIFEST="$SCRIPT_DIR/update-manifest.json"
@@ -11,11 +18,11 @@ MANIFEST="$SCRIPT_DIR/update-manifest.json"
 VERSION=$(grep -m1 '^\#\# \[' "$SCRIPT_DIR/CHANGELOG.md" | sed 's/.*\[\(.*\)\].*/\1/')
 
 if [ -z "$VERSION" ]; then
-    echo "ERROR: Не удалось извлечь версию из CHANGELOG.md"
+    echo "ERROR: Не удалось извлечь версию из CHANGELOG.md" >&2
     exit 1
 fi
 
-echo "Генерация манифеста v$VERSION..."
+[ "$CHECK_MODE" -eq 0 ] && echo "Генерация манифеста v$VERSION..."
 
 # Файлы/директории, которые НЕ включаются в манифест обновлений
 # seed/ — только при setup, README.md — пользователь кастомизирует,
@@ -61,7 +68,7 @@ while IFS= read -r rel; do
 done < <(cd "$SCRIPT_DIR" && git ls-files | sort)
 
 # Генерируем JSON
-{
+generate_json() {
     echo '{'
     echo "  \"version\": \"$VERSION\","
     echo '  "description": "Манифест платформенных файлов FMT-exocortex-template. Используется update.sh для доставки обновлений.",'
@@ -77,11 +84,16 @@ done < <(cd "$SCRIPT_DIR" && git ls-files | sort)
 
     echo '  ]'
     echo '}'
-} > "$MANIFEST"
+}
 
-echo "Готово: $MANIFEST"
-echo "  Версия: $VERSION"
-echo "  Файлов: ${#FILES[@]}"
-echo ""
-echo "Проверьте diff и закоммитьте:"
-echo "  git diff update-manifest.json"
+if [ "$CHECK_MODE" -eq 1 ]; then
+    generate_json
+else
+    generate_json > "$MANIFEST"
+    echo "Готово: $MANIFEST"
+    echo "  Версия: $VERSION"
+    echo "  Файлов: ${#FILES[@]}"
+    echo ""
+    echo "Проверьте diff и закоммитьте:"
+    echo "  git diff update-manifest.json"
+fi
