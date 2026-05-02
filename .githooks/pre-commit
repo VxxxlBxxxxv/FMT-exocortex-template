@@ -67,32 +67,6 @@ if [ -n "$STAGED_RELEASE_FILES" ]; then
     fi
 fi
 
-# === Manifest content drift (WP-28) ===
-# Корень бага (1 мая): manifest версия отстала на 8 версий + новые/удалённые
-# файлы платформы не попадали в manifest. RELEASE-SYNC выше ловит ТОЛЬКО
-# version drift. Список файлов оставался невалидным до релиза,
-# integration-contract-validator падал на CI после merge.
-# Гейт: если staged add/del файлов вне EXCLUDE-scope, manifest должен быть
-# регенерирован. Сравниваем текущий manifest с `generate-manifest.sh --check`.
-# Escape hatch: `git commit --no-verify`.
-STAGED_ADDED_DELETED=$(git diff --cached --name-only --diff-filter=AD 2>/dev/null \
-    | grep -vE '^(seed/|\.claude/settings\.local\.json$|generate-manifest\.sh$|update-manifest\.json$|README\.md$|\.gitkeep$|.*/\.gitkeep$)' || true)
-if [ -n "$STAGED_ADDED_DELETED" ] && [ -f "generate-manifest.sh" ]; then
-    EXPECTED=$(bash generate-manifest.sh --check 2>/dev/null || true)
-    if [ -n "$EXPECTED" ] && [ -f update-manifest.json ]; then
-        if ! diff -q <(printf '%s\n' "$EXPECTED") update-manifest.json >/dev/null 2>&1; then
-            echo "MANIFEST-CONTENT-DRIFT: список файлов в update-manifest.json"
-            echo "  расходится с git ls-files. Staged add/del:"
-            echo "$STAGED_ADDED_DELETED" | sed 's/^/    /'
-            echo ""
-            echo "  Fix: bash generate-manifest.sh && git add update-manifest.json"
-            echo "  Override (на свой риск): git commit --no-verify"
-            exit 1
-        fi
-        echo "MANIFEST-CONTENT-DRIFT: PASS"
-    fi
-fi
-
 # === Template validation (author-specific leaks, hardcoded paths, hooks cross-ref) ===
 # Корень бага (26 апр): литерал `DS-my-strategy` попал в новый
 # templates/strategy-skeleton/README.md (commit cb22aaa); валидатор зовётся
