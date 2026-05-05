@@ -5,6 +5,40 @@ All notable changes to FMT-exocortex-template will be documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/).
 
+## [0.29.28] — 2026-05-05
+
+### Added — `scripts/template-sync.sh`: автосинхронизация авторского IWE → FMT
+
+- **`scripts/template-sync.sh`** (новый, ~50 строк): синхронизация `$IWE_WORKSPACE/CLAUDE.md` → `$IWE_TEMPLATE/CLAUDE.md` с placeholder-подстановкой ($HOME → {{HOME_DIR}}, $IWE_GOVERNANCE_REPO → DS-strategy) и strip §9 авторского. Режимы: без флагов = sync, `--dry-run` = показать diff, `--check` = проверить drift (exit 1). Требует `IWE_GOVERNANCE_REPO` через `${VAR:?msg}`. Закрывает gap: скрипт был удалён при архивировании `DS-exocortex-setup-agent` (2026-04-27), но §9 ссылался на него как на существующий → автор правил FMT напрямую с риском забыть placeholder.
+
+### Changed — `CLAUDE.md`: промотированы L1-правила из авторского runtime
+
+- **`CLAUDE.md` §2 Pre-action Gates**: добавлен **Routing Gate** (создание/размещение артефакта → DP.KR.001 §5).
+- **`CLAUDE.md` §2 IntegrationGate чеклист**: добавлены пункт 1 (Service Clause) и пункт 3 (Role) с детализацией.
+
+## [0.29.27] — 2026-05-05
+
+### Changed — Pull-on-Touch: расширение с write на read+write
+
+- **`CLAUDE.md` §2 п.4**: правило `Pull-on-Touch` расширено с «первого изменения» на «первое обращение» (любое — `ls`/`Read`/`find`/`grep`/Edit/commit). Применяется ко всем git-репо в `{{HOME_DIR}}/IWE/*`, один раз на репо за сессию (lazy). Добавлена обработка dirty state (stash или «potentially stale»), rebase conflict (стоп + отчёт), network fail (работать с локальной копией). Причина: 5 мая 2026 агент сделал `ls` в DS-my-strategy без pull, origin был на 3 коммита впереди → ложный диагноз «Day Open не выполнен», написан ложный баг-отчёт. Дыра: исходное правило покрывало только write-операции, read оставался без защиты.
+
+## [0.29.26] — 2026-05-05
+
+### Changed — Day Close: фильтрация шума в git log (шаг 1)
+
+- **`.claude/skills/day-close/SKILL.md`**: шаг 1 «Сбор данных» — добавлены два `grep -vE` для исключения служебных коммитов и путей. Фильтр убирает: (а) Conventional Commits префиксы `docs|chore|ci|style|perf|test`; (б) пути `memory/`, `.claude/rules/`, `template-sync`, `backup`, `reindex`. `|| true` гарантирует exit 0 при пустом результате. Эффект: сокращение объёма вывода git log на 40-60%, снижение токенов в Day Close. Edge case: пользователи, делающие предметную работу через `docs:`-коммиты, увидят неполный отчёт — кандидат на параметр `git_log_filter` в `params.yaml` при появлении запроса.
+
+Коммит: `fe0220c`
+
+## [0.29.25] — 2026-05-04
+
+### Added — WP-196 Ф13: цикл Month Close → Strategy Session
+
+- **`roles/strategist/prompts/strategy-session-weekly.md`**: добавлен Шаг 0 (БЛОКИРУЮЩЕЕ) — «Если первая сессия месяца — прочитать архив прошлого месяца» (4 подшага: найти `archive/MonthClose YYYY-MM.md`, прочитать ДО шага 1, прочитать `archive/multiplier-trend.md`, использовать как контекст для шагов 5-6). Закрывает разрыв ВДВ-каскада v9: стадия 7 (Month Close) → стадия 2 (Strategy Session).
+- **`memory/r-questionnaire.md`**: Month Close блок переработан — M1-M3+M6 заполняются агентом автоматически из данных (с указанием источника), M4-M5 — субъективные, спрашиваются у пользователя.
+
+Коммит: `f0e2add`
+
 ## [0.29.24] — 2026-05-02
 
 ### Fixed — Architecture A: IWE_GOVERNANCE_REPO env var in launchd plist templates
