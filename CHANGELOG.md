@@ -5,6 +5,24 @@ All notable changes to FMT-exocortex-template will be documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/).
 
+## [0.29.29] — 2026-05-06
+
+### Fixed — баг-репорт пилота 0.29.28 (Евгений) — 3 бага параметризации путей
+
+- **`roles/synchronizer/scripts/dt-collect.sh:234`** — `collect_sessions()` использовал hardcoded `$WORKSPACE/DS-strategy/inbox/open-sessions.log` вместо `$GOVERNANCE_DIR`. На fresh clone с `GOVERNANCE_REPO=DS-pilot-strategy` лог писался не туда. Исправлено: `$GOVERNANCE_DIR/inbox/open-sessions.log`.
+- **`update.sh:609`** — паттерн копирования `.claude/X/*` пропускал `.claude/scripts/`. На fresh install скиллы (`day-open`, `day-close`, `month-close` и др.) звали `bash .claude/scripts/load-extensions.sh` → `No such file or directory`. Добавлен `.claude/scripts/*` в паттерн (симметрично с `skills/hooks/rules/lib/config/detectors`).
+- **`setup/smoke-test-fresh-install.sh` Test 6** — install.sh запускался без `env -i HOME=$TEST_WS` (positive case), писал реальные plist в `~/Library/LaunchAgents/com.strategist.*` и звал `launchctl load`. Добавлен `env -i HOME="$TEST_WS" PATH=/usr/bin:/bin` (как Test 5).
+
+### Added — WP-293 Контракт параметризации путей IWE
+
+- **smoke `[6a]` расширен на template `roles/*/scripts/`** — раньше скан только `.iwe-runtime/roles/`, dt-collect.sh:234 пропускался (он используется напрямую cron'ом, не из runtime).
+- **smoke `[6d]` meta-detector** — все `.claude/X/` каталоги в FMT обязаны быть в паттерне `update.sh:609`. Исключения: `agents`, `projects`, `context-cache`, `logs` (workspace-local / runtime-only). Sanity-check: `load-extensions.sh` существует и `.claude/scripts/*` в паттерне.
+- **`validate-template.sh [8/8]` parameterization debt detector** — переиспользует `setup/detector-regex.sh::DETECTOR_07_REGEX`. Скан областей: `roles/`, `scripts/`, `setup.sh`, `update.sh`. Текущий debt: 21 hits (WARN, не FAIL — оставлено на forced-fix при касании файлов в будущих коммитах).
+
+### Deferred — параметризация остального debt'а (WP-293 «полный вариант», ~3-4h)
+
+Detector в `[8/8]` показывает 21 hardcode (`DS-strategy`, `$HOME/IWE/<repo>`) в `setup.sh`, `update.sh:238`, `roles/strategist/scripts/strategist.sh`, `roles/synchronizer/scripts/scheduler.sh`. Постепенная очистка через касание файлов в последующих коммитах.
+
 ## [0.29.28] — 2026-05-05
 
 ### Added — `scripts/template-sync.sh`: автосинхронизация авторского IWE → FMT

@@ -160,6 +160,16 @@ else
     pass "no literal /DS-strategy/ в runtime"
 fi
 
+# WP-293: расширение 6a — проверка template источников в roles/*/scripts/.
+# `dt-collect.sh` и аналоги не попадают в .iwe-runtime/ (используются напрямую cron'ом),
+# поэтому проверка только runtime-зоны выше пропускает hardcode'ы вроде dt-collect.sh:234.
+LITERAL_IN_TEMPLATE=$(grep -rE '/DS-strategy[/"]' "$TEMPLATE_DIR/roles/"*/scripts/ 2>/dev/null | grep -v ':#' || true)
+if [ -n "$LITERAL_IN_TEMPLATE" ]; then
+    fail "literal /DS-strategy/ в template roles/*/scripts/ (use \$GOVERNANCE_DIR): $LITERAL_IN_TEMPLATE"
+else
+    pass "no literal /DS-strategy/ в template roles/*/scripts/"
+fi
+
 # === Test 6b: REMAINING placeholder check sanity (R6.2 regression guard) ===
 echo "[6b] no leftover placeholders в .iwe-runtime/ после build-runtime..."
 LEFTOVER_COUNT=$(grep -rl '{{[A-Z_]*}}' "$TEST_WS/.iwe-runtime" 2>/dev/null | wc -l | tr -d ' ')
@@ -167,6 +177,37 @@ if [ "$LEFTOVER_COUNT" -eq 0 ]; then
     pass "0 leftover placeholders в runtime"
 else
     fail "$LEFTOVER_COUNT файлов в runtime содержат {{...}}"
+fi
+
+# === Test 6d: meta-detector — все .claude/*/ каталоги учтены в update.sh:609 (WP-293) ===
+echo "[6d] все .claude/*/ каталоги в update.sh:609 паттерне..."
+# Контракт: при добавлении нового подкаталога в .claude/X/ его обязаны добавить в паттерн
+# на строке `case "$f" in .claude/skills/*|...` в update.sh, иначе файлы X не попадут
+# в workspace при `update.sh` (баг 0.29.28: .claude/scripts/* пропущен).
+PATTERN_LINE=$(grep -E 'case "\$f" in \.claude/skills/' "$TEMPLATE_DIR/update.sh" 2>/dev/null | head -1)
+MISSING_DIRS=""
+for dir in "$TEMPLATE_DIR"/.claude/*/; do
+    [ -d "$dir" ] || continue
+    dirname=$(basename "$dir")
+    case "$dirname" in
+        agents|projects|context-cache|logs) continue ;; # workspace-local / runtime-only, не propagate
+    esac
+    if ! echo "$PATTERN_LINE" | grep -q "\.claude/$dirname/\*"; then
+        MISSING_DIRS="$MISSING_DIRS $dirname"
+    fi
+done
+if [ -z "$MISSING_DIRS" ]; then
+    pass "все .claude/*/ каталоги учтены в update.sh:609 паттерне"
+else
+    fail "не учтены в update.sh:609 (файлы не попадут в workspace):$MISSING_DIRS"
+fi
+# Sanity: load-extensions.sh существует и в .claude/scripts/ паттерн в update.sh:609.
+if [ ! -f "$TEMPLATE_DIR/.claude/scripts/load-extensions.sh" ]; then
+    fail ".claude/scripts/load-extensions.sh отсутствует в FMT"
+elif ! echo "$PATTERN_LINE" | grep -q '\.claude/scripts/\*'; then
+    fail ".claude/scripts/* отсутствует в update.sh:609 паттерне (баг 0.29.28)"
+else
+    pass ".claude/scripts/load-extensions.sh попадает в workspace при update.sh"
 fi
 
 # === Test 6c: prompts substituted РЕАЛЬНЫМ substituted runner'ом (R6.1** regression) ===
@@ -233,7 +274,10 @@ fi
 echo "[6/7] install.sh с env проходит fail-fast (positive case)..."
 # Запускаем с правильным env. launchctl load может зафейлить (нет launchd на CI),
 # главное — НЕ упасть на fail-fast check.
-INSTALL_OK_OUT=$(IWE_RUNTIME="$TEST_WS/.iwe-runtime" IWE_WORKSPACE="$TEST_WS" \
+# WP-293: HOME isolation обязателен — install.sh пишет plist в $HOME/Library/LaunchAgents
+# и делает launchctl load. Без env -i HOME=$TEST_WS test перезатрёт реальный launchd автора.
+INSTALL_OK_OUT=$(env -i HOME="$TEST_WS" PATH=/usr/bin:/bin \
+    IWE_RUNTIME="$TEST_WS/.iwe-runtime" IWE_WORKSPACE="$TEST_WS" \
     bash "$TEMPLATE_DIR/roles/strategist/install.sh" 2>&1 || true)
 if echo "$INSTALL_OK_OUT" | grep -qE 'содержит незаменённые плейсхолдеры'; then
     fail "install.sh даёт fail-fast С env (не должен): $INSTALL_OK_OUT"
