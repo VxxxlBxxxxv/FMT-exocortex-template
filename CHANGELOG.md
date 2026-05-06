@@ -5,6 +5,22 @@ All notable changes to FMT-exocortex-template will be documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/).
 
+## [0.29.30] — 2026-05-06
+
+### Added — WP-294 Sync-фаза WP Gate (актуализация контекста РП при упоминании номера)
+
+Системная актуализация контекста РП при упоминании номера в новой сессии. Гибрид (вариант D): детерминированный bundler собирает связанные РП + drift-сигналы; нетривиальные случаи делегируются sub-agent'у Sonnet 4.6 с context isolation.
+
+- **`memory/protocol-open.md`** — новый шаг 3 «Sync Gate» в § WP Gate перед «→ Ритуал». EXTENSION POINT: `bash .claude/scripts/load-extensions.sh protocol-open sync`. Цель: исключить дублирование работы и ложные блокеры. При обнаружении противоречия («PASS» в одном vs «FAIL» в другом по той же метрике) — НЕ применять автоматически, поднять в «Требует внимания» Ритуала.
+- **`.claude/scripts/wp-sync-bundle.sh`** — детерминированный bundler. Парсит YAML frontmatter без yq, извлекает `related:` блок + grep тела на WP-NNN, статус из REGISTRY, git log по WP-файлам за 14 дней. Drift-детектор: связанный РП закрыт + текущий имеет открытую фазу со ссылкой; значимые коммиты (LIVE/deployed/merged/DROPPED) после `spawned:` или `updated:`. Параметризовано через `$IWE_GOVERNANCE_REPO` (template-sync-friendly).
+- **`.claude/agents/wp-sync-actualizer.md`** — sub-agent (Sonnet 4.6) с context isolation. Возвращает unified diff в текстовом формате (`---ORIGINAL---`/`---REPLACEMENT---`); НЕ редактирует напрямую. Ограничения: ≤5 Read, не выходит за рамки одного WP-context файла, противоречия → раздел «Требует внимания».
+- **`update.sh:609`** — добавлен `.claude/agents/*` в паттерн копирования (sub-agent definitions = платформа, не workspace-local).
+- **`setup/smoke-test-fresh-install.sh:193`** — `agents` убран из исключений (теперь обязательно в паттерне `update.sh:609`).
+
+### Установка для существующих пользователей
+
+После `update.sh` поведение sync-step активируется автоматически в `memory/protocol-open.md`. EXTENSION POINT работает через generic loader (WP-273), для активации L3-кастомизации создайте `extensions/protocol-open.sync.md` (см. пример в авторском IWE).
+
 ## [0.29.29] — 2026-05-06
 
 ### Fixed — баг-репорт пилота 0.29.28 (Евгений) — 3 бага параметризации путей

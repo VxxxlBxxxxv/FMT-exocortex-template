@@ -190,7 +190,7 @@ for dir in "$TEMPLATE_DIR"/.claude/*/; do
     [ -d "$dir" ] || continue
     dirname=$(basename "$dir")
     case "$dirname" in
-        agents|projects|context-cache|logs) continue ;; # workspace-local / runtime-only, не propagate
+        projects|context-cache|logs) continue ;; # workspace-local / runtime-only, не propagate
     esac
     if ! echo "$PATTERN_LINE" | grep -q "\.claude/$dirname/\*"; then
         MISSING_DIRS="$MISSING_DIRS $dirname"

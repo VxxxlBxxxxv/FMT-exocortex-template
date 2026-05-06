@@ -1,5 +1,5 @@
 {
-  "version": "0.29.29",
+  "version": "0.29.30",
   "description": "Манифест платформенных файлов FMT-exocortex-template. Используется update.sh для доставки обновлений.",
   "files": [
     {
@@ -19,6 +19,9 @@
     },
     {
       "path": ".claude/detectors/detector_pattern_awareness.sh"
+    },
+    {
+      "path": ".claude/agents/wp-sync-actualizer.md"
     },
     {
       "path": ".claude/hooks/capture-bus.sh"
@@ -76,6 +79,9 @@
     },
     {
       "path": ".claude/scripts/load-extensions.sh"
+    },
+    {
+      "path": ".claude/scripts/wp-sync-bundle.sh"
     },
     {
       "path": ".claude/settings.json"
@@ -640,5 +646,5 @@
       "reason": "strategist-agent directory removed"
     }
   ],
-  "changelog": "CHANGELOG.md#0.29.26"
+  "changelog": "CHANGELOG.md#0.29.30"
 }
