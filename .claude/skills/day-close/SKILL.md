@@ -146,9 +146,16 @@ SCRIPT="{{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/scripts/check-index-health.py"
 
 **е) Draft-list:** Pack обогащён → предложить черновик?
 
-**ж) Задел на завтра:**
-- С чего начать утром
-- Незавершённые РП: что именно осталось (конкретный next action по каждому)
+**ж) Задел на завтра — 3 варианта плана (БЛОКИРУЮЩЕЕ, WP-196 Ф11 п5):**
+
+Сформулируй ТРИ альтернативных плана на завтра, между которыми пользователь выбирает на Day Open:
+1. **Вариант A — продолжение:** что начать первым по carry-over и текущим РП
+2. **Вариант B — переключение фокуса:** взять застрявший РП с другим типом работы (если сегодня была глубокая разработка → завтра контент или ритуал, и наоборот)
+3. **Вариант C — экстра:** если будет «свободный» час, что взять из backlog
+
+Каждый вариант: 1-2 предложения с конкретным next action. Без вариантов поле = неполный Day Close.
+
+Для каждого pending РП в табличке — конкретный next action (не «продолжить работу»).
 
 ### 8. Согласование
 
@@ -169,17 +176,26 @@ grep -l "Итоги дня" {{HOME_DIR}}/IWE/{{GOVERNANCE_REPO}}/archive/day-pla
 ```
 Результат `9a FAIL` → шаг НЕ помечать completed, вернуться к записи.
 
-**9b.** Дописать сводку итогов в WeekPlan:
+**9b.** Дописать сводку итогов в WeekReport (split, ОПТ-5 WP-297):
+- Файл: `<governance-repo>/current/WeekReport W{N} YYYY-MM-DD.md` (создаётся session-prep при формировании WeekPlan)
+- Если файла нет (старый цикл) — fallback в WeekPlan, пометить «требует split в session-prep следующей недели»
 - Формат: `<details><summary><b>Итоги {день} {дата}</b></summary>...</details>`
 - Порядок: свежие итоги СВЕРХУ (обратная хронология)
 - Содержание: таблица коммитов по репо, закрытые РП, продвинутые РП, мультипликатор
+
+**9b2. Записать сводку в session-log (WP-196 Ф11 п1):**
+- Файл: `<governance-repo>/sessions/YYYY-MM-DD.md` (создан утром в Day Open шаге 7a2)
+- Дописать секции «Сессии дня» (Quick Close сессии + ключевые рубежи) и «Day Close» (ссылка на архивный DayPlan + 3 варианта плана на завтра)
+- Если файла нет (Day Open пропущен) — создать с шапкой и заполнить только Day Close секцию
 
 **Postcondition 9b (машинная проверка — НЕ пропускать):**
 ```bash
 TODAY=$(date +%Y-%m-%d)
 DAY_NUM=$(date +%-d)
-grep -rl "Итоги.*${DAY_NUM}" {{HOME_DIR}}/IWE/{{GOVERNANCE_REPO}}/current/WeekPlan\ W*.md 2>/dev/null \
-  | grep -q . && echo "9b OK" || echo "9b FAIL: итоги не найдены в WeekPlan"
+# Сначала проверь WeekReport (split ОПТ-5), fallback на WeekPlan
+( grep -rl "Итоги.*${DAY_NUM}" {{HOME_DIR}}/IWE/{{GOVERNANCE_REPO}}/current/WeekReport\ W*.md 2>/dev/null \
+  || grep -rl "Итоги.*${DAY_NUM}" {{HOME_DIR}}/IWE/{{GOVERNANCE_REPO}}/current/WeekPlan\ W*.md 2>/dev/null ) \
+  | grep -q . && echo "9b OK" || echo "9b FAIL: итоги не найдены ни в WeekReport, ни в WeekPlan"
 ```
 Результат `9b FAIL` → шаг НЕ помечать completed, вернуться к записи.
 

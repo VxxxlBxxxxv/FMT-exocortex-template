@@ -135,9 +135,9 @@ if [ -n "$WEEKPLAN" ]; then
     WP_ERRORS+=("WeekPlan: несбалансированные <details> (открытий=$DETAILS_OPEN, закрытий=$DETAILS_CLOSE)")
   fi
 
-  # Детектор (в): обязательные секции WeekPlan (5 минимальных по templates-dayplan.md)
+  # Детектор (в): обязательные секции WeekPlan (по templates-dayplan.md)
+  # ОПТ-5 (WP-297, 8 май): «Итоги» переехали в WeekReport — больше не required в WeekPlan
   WP_REQUIRED=(
-    "Итоги"
     "Повестка"
     "Inbox Triage"
     "План на неделю"
@@ -148,6 +148,14 @@ if [ -n "$WEEKPLAN" ]; then
       WP_MISSING_LIST+=("$wp_section")
     fi
   done
+
+  # Детектор (г): WeekReport валидация (ОПТ-5 WP-297)
+  WEEKREPORT=$(ls "$GOV_PATH"/current/WeekReport\ *.md 2>/dev/null | sort | tail -1)
+  if [ -n "$WEEKREPORT" ]; then
+    if ! grep -q "Итоги" "$WEEKREPORT"; then
+      WP_MISSING_LIST+=("Итоги (в WeekReport)")
+    fi
+  fi
 
   if [ ${#WP_MISSING_LIST[@]} -gt 0 ] || [ ${#WP_ERRORS[@]} -gt 0 ]; then
     WP_MISSING_STR=$(IFS=', '; echo "${WP_MISSING_LIST[*]:-}")
