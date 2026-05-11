@@ -2,6 +2,7 @@
 
 > **Для кого:** у тебя уже установлены Git, Node.js, GitHub CLI и Claude Code CLI.
 > Если чего-то нет -- сначала пройди [Этап 0 из SETUP-GUIDE](SETUP-GUIDE.md).
+> Не на macOS или не Claude Code? → **[PORTABILITY.md](PORTABILITY.md)**
 
 ---
 

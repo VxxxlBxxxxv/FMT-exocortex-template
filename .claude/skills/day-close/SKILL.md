@@ -50,7 +50,15 @@ done
 
 **2e.** Governance-синхронизация: новые репо/сервисы за день? → REPOSITORY-REGISTRY, navigation.md, MAP.002.
 
-**EXTENSION POINT:** Загрузить: `bash .claude/scripts/load-extensions.sh day-close checks`. Exit 0 → `Read` каждый файл из вывода (alphabetic) → выполнить. Exit 1 → пропустить. Поддерживает `extensions/day-close.checks.md` И `extensions/day-close.checks.<suffix>.md`.
+**2f. WeekReport — ФАКТЫ ДНЯ (ОПТ-5):** Если есть WeekReport W{N} YYYY-MM-DD.md:
+  - Открыть `{{GOVERNANCE_REPO}}/current/WeekReport W{N} YYYY-MM-DD.md`
+  - Добавить новый раздел `<details><summary><b>Итоги {День} {Дата}</b></summary>` **перед** существующими `Итоги ...` (в обратном порядке дат: сегодня → старше). Проверять: вставлять сразу ниже `</details>` W18-summary, а не в конец файла.
+  - Содержимое: коммиты по репо, РП-статусы за день, мультипликатор
+  - **Правило ОПТ-5:** WeekPlan содержит ТОЛЬКО намерения, WeekReport содержит ТОЛЬКО факты
+  - **strategy_day (Пн без DayPlan):** Итоги пишутся как обычный день — только факты. Плановые строки (`strategy_day → план живёт в WeekPlan`) в WeekReport НЕ копировать. Позиция: Пн всегда в конец (самый старый день недели).
+  - Если файла нет (старый цикл) — fallback в WeekPlan, пометить «требует split при следующей strategy-session»
+
+**EXTENSION POINT (day-close checks):** `bash .claude/scripts/load-extensions.sh day-close checks` — exit 0 → `Read` каждый файл из вывода (alphabetic) → выполнить. Exit 1 → пропустить. Поддерживает `extensions/day-close.checks.md` И `extensions/day-close.checks.<suffix>.md`.
 
 ### 3. Архивация
 
@@ -120,7 +128,11 @@ SCRIPT="{{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/scripts/check-index-health.py"
 
 **Алгоритм:**
 
-1. **WakaTime** — физическое время за день (`wakatime --today`)
+1. **WakaTime** — физическое время за день:
+   - Сначала CLI: `wakatime --today`
+   - Если CLI недоступен → **fallback Neon**: `SELECT payload->>'human_readable', payload->>'total_seconds' FROM public.domain_event WHERE event_type='coding_time' AND account_id='{DT_USER_ID}' AND external_id='wakatime:{DT_USER_ID}:{YYYY-MM-DD}'` (БД `learning`)
+   - Если Neon тоже пуст (данные синхронизируются ночью) → пометить «pending Neon» и пересчитать при следующей сессии
+   - Поле: `payload->>'human_readable'` (напр. «9 hrs»); `total_seconds` для мультипликатора
 2. **Бюджет закрыт** — сумма бюджетов по ВСЕМ РП за день:
    - done → полный бюджет (или пропорционально фазам для зонтичных)
    - partial → % выполнения × бюджет
@@ -180,7 +192,7 @@ grep -l "Итоги дня" {{HOME_DIR}}/IWE/{{GOVERNANCE_REPO}}/archive/day-pla
 - Файл: `<governance-repo>/current/WeekReport W{N} YYYY-MM-DD.md` (создаётся session-prep при формировании WeekPlan)
 - Если файла нет (старый цикл) — fallback в WeekPlan, пометить «требует split в session-prep следующей недели»
 - Формат: `<details><summary><b>Итоги {день} {дата}</b></summary>...</details>`
-- Порядок: свежие итоги СВЕРХУ (обратная хронология)
+- Порядок: свежие итоги СВЕРХУ (обратная хронология). Проверять: вставлять сразу ниже `</details>` W18-summary, а не в конец файла.
 - Содержание: таблица коммитов по репо, закрытые РП, продвинутые РП, мультипликатор
 
 **9b2. Записать сводку в session-log (WP-196 Ф11 п1):**
@@ -239,7 +251,7 @@ DAY_NUM=$(date +%-d)
 - [ ] WakaTime + Мультипликатор: часы, бюджет, остаток недели
 - [ ] Итоги дня записаны в DayPlan **(postcondition 9a: grep подтверждён)**
 - [ ] Handoff-валидация: «Завтра начать с» содержит ВСЕ pending РП с конкретным next action
-- [ ] Сводка итогов записана в WeekPlan (`<details>`, обратная хронология) **(postcondition 9b: grep подтверждён)**
+- [ ] Сводка итогов записана в WeekReport (`<details>`, обратная хронология) **(postcondition 9b: grep подтверждён)**
 - [ ] Новое репо → MAPSTRATEGIC.md + Strategy.md
 
 Все ✅ → «День закрыт.» Иначе — указать что осталось.

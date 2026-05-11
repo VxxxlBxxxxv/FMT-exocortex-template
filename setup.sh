@@ -646,6 +646,35 @@ else
     fi
 fi
 
+# === 7. Clone Base repos (FPF + SPF) ===
+echo "[7/7] Installing Base repos (FPF, SPF)..."
+if $CORE_ONLY; then
+    echo "  пропущено (core mode)"
+elif ! command -v gh >/dev/null 2>&1; then
+    echo "  пропущено (gh CLI не найден)"
+else
+    clone_base_repo() {
+        local name="$1"
+        local gh_repo="$2"
+        local dest="$WORKSPACE_DIR/$name"
+        if [ -d "$dest/.git" ]; then
+            echo "  ✓ $name: уже установлен ($dest)"
+        elif $DRY_RUN; then
+            echo "  [DRY RUN] Would clone $gh_repo → $dest (--depth=1)"
+        else
+            if gh repo clone "$gh_repo" "$dest" -- --depth=1 --quiet 2>/dev/null; then
+                echo "  ✓ $name: клонирован ($dest)"
+            else
+                echo "  ⚠ $name: не удалось клонировать — проверьте сеть или доступ к $gh_repo"
+                echo "    Клонировать вручную: gh repo clone $gh_repo $dest -- --depth=1"
+            fi
+        fi
+    }
+
+    clone_base_repo "FPF" "ailev/FPF"
+    clone_base_repo "SPF" "TserenTserenov/SPF"
+fi
+
 # === Done ===
 echo ""
 if $DRY_RUN; then

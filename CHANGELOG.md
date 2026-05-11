@@ -5,6 +5,22 @@ All notable changes to FMT-exocortex-template will be documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/).
 
+## [0.30.0] — 2026-05-11
+
+### Added — WP-5 #12: промоция авторских скриптов как L1 (S-19/S-20/S-21)
+
+Перенесены из авторской зоны в шаблон три скрипта + сопроводительная документация:
+
+- `scripts/week-draft-init.sh` — создаёт пустой черновик недельного поста на Пн Day Close
+- `scripts/week-draft-append.sh` — обновляет строку метрик дня в черновике (WakaTime, коммиты, закрытые РП)
+- `scripts/check-script-collisions.sh` — детектор коллизий имён между авторскими и FMT-скриптами; запускать ПЕРЕД любой промоцией L3→L1
+- `docs/SCRIPT-PROMOTION.md` — 7-шаговый процесс промоции скрипта (DP.KR.001 §5.6)
+
+Параметризация через `params.yaml`:
+- `knowledge_repo` — путь к knowledge-index репо (относительно `WORKSPACE_DIR`). Пустая строка → накопительный черновик пропускается (фича опциональна).
+
+Скрипты безопасно деградируют при отсутствии параметров — выводят подсказку и `exit 0`.
+
 ## [0.29.32] — 2026-05-06
 
 ### Fixed — WP-294 race-guard, state-файл переживал сессию
