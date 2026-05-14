@@ -8,6 +8,13 @@ updated: 2026-04-18
 
 ---
 
+**Standard Word Rates Reported by…**
+<sub>14 май, 20:14</sub>
+
+Standard Word Rates Reported by Language Pair - Таблица ставок переводчиков по языкам
+
+---
+
 **записать в личный профиль: пн,…**
 <sub>13 май, 01:44</sub>
 
