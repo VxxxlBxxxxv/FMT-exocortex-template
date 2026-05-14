@@ -61,19 +61,27 @@ do_backup() {
 
   mkdir -p "$EXOCORTEX_DST"
 
-  local count=0
-  for f in "$MEMORY_SRC"/*.md "$MEMORY_SRC"/*.yaml "$MEMORY_SRC"/*.yml; do
-    [ -f "$f" ] || continue
-    cp "$f" "$EXOCORTEX_DST/"
-    count=$((count + 1))
-  done
+  # One-time cleanup: legacy nested directory left over from a deprecated recursive-backup prompt.
+  if [ -d "$EXOCORTEX_DST/memory" ]; then
+    warn "  Removing legacy nested directory: $EXOCORTEX_DST/memory"
+    rm -rf "$EXOCORTEX_DST/memory"
+  fi
+
+  # Mirror *.md/*.yaml/*.yml from auto-memory; --delete prunes files removed upstream.
+  # CLAUDE.md is excluded so the workspace copy below isn't deleted by --delete.
+  rsync -a --delete \
+    --exclude='CLAUDE.md' \
+    --include='*.md' --include='*.yaml' --include='*.yml' \
+    --exclude='*' \
+    "$MEMORY_SRC/" "$EXOCORTEX_DST/"
 
   if [ -f "$WORKSPACE_DIR/CLAUDE.md" ]; then
     cp "$WORKSPACE_DIR/CLAUDE.md" "$EXOCORTEX_DST/CLAUDE.md"
-    count=$((count + 1))
   fi
 
-  log "  Скопировано: $count файлов → $EXOCORTEX_DST/"
+  local count
+  count=$(find "$EXOCORTEX_DST" -maxdepth 1 -type f \( -name '*.md' -o -name '*.yaml' -o -name '*.yml' \) | wc -l | tr -d ' ')
+  log "  Синхронизировано: $count файлов → $EXOCORTEX_DST/"
 }
 
 # --- Шаг 2: Knowledge-MCP reindex ---
