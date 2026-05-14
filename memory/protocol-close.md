@@ -54,6 +54,17 @@ schema_version: 1
    - нет нового знания → пропустить молча (анонс не нужен)
    Анонс при маршрутизации: *«Capture: [что] → [куда]»*
 
+2.6. **Session-Close Feeder (WP-247 Ф-MULTI-SOURCE.1, авто >30мин / opt-in для коротких):**
+   Дополняет Шаг 2.5: вызывает R2 в feeder-режиме для автоматического захвата кандидатов из транскрипта сессии + git diff в `captures.md`.
+
+   **Триггер автозапуска:** длительность сессии >30 мин (по timestamps первого и последнего сообщения). Иначе — пропустить (юзер может вызвать вручную: `/ke session-close-feed`).
+
+   **Действие:** `bash {{IWE_RUNTIME}}/roles/extractor/scripts/extractor.sh session-close-feed`. Скрипт пишет ###-блоки с маркером `[feed:session-close YYYY-MM-DD]` в `captures.md`. Идемпотентно (не дублирует за тот же день).
+
+   **Что НЕ делает:** не создаёт extraction-report (это работа inbox-check), не показывает пользователю кандидатов сразу (увидит при следующем `/apply-captures`).
+
+   **Защита от дубля:** если за сессию уже был ручной `/ke` или `/apply-captures` — feeder пропустить (по маркерам в текущем `captures.md`).
+
 3. **MEMORY.md** — обновить статус РП (одна строка: `in_progress` / `done`)
 
 ### Формат «Осталось»
@@ -97,7 +108,36 @@ schema_version: 1
 - [ ] KE: «Что узнали» маршрутизировано (или «нет нового знания»)
 - [ ] MEMORY.md: статус РП обновлён
 - [ ] Decision log: прочитать записи сессии в `decisions/decision-log-YYYY-MM.md`, скорректировать если неточно
+- [ ] **Docs Gate (условный):** РП затрагивал поведение онбординга (skills, MCP-сервисы, бот `/start`)? → обновить онбординг-документацию в governance-репо + `/verify` обновлённый файл. Владелец: пользователь. Если не затрагивал → пропустить молча.
 
+
+## Week Close (Неделя)
+
+> **Роль:** R1 Стратег. **Бюджет:** ~20-30 мин. **Триггер:** «закрываю неделю» / `/week-close`.
+> Выполняется через `.claude/skills/week-close/SKILL.md` + платформенные шаги.
+
+### Шаги Week Close
+
+1. **Бэкап + грязные репо** — `backup-icloud.sh` + `check-dirty-repos.sh` (платформа)
+2. **Memory Validate** — `memory-bleed.sh` (HOT-лимит, orphans, superseded_by)
+3. **ТО памяти (T, SC.024.3)** — проверка здоровья статической нагрузки:
+   - `wc -l {{WORKSPACE_DIR}}/.claude/rules/distinctions.md` → **> 80 строк = drift-флаг** (по правилу DP.KR.001 §6: 1-3 строки на различение). Предложить аудит в WP-7.
+   - `wc -l ~/.claude/projects/{{CLAUDE_PROJECT_SLUG}}/memory/MEMORY.md` → **> 200 строк = флаг** (превышен лимит).
+   - Feedback/lessons файлы в `memory/` с `mtime > 14 дней` без обращения → предложить понизить `horizon: warm`.
+   - Флаги — информативно. Пользователь решает действие.
+4. **iwe-drift.sh** — полный drift-отчёт в Week Report (S)
+5. **STAGING.md** — есть `validated`? → предложить промоцию (S+T)
+6. **iwe-rules-review** — какие правила обходились? (S)
+7. **R-вопросник** (5-7 вопросов, `memory/r-questionnaire.md`) → ответы в Week Report
+8. **Архивация done-WP** → `archive/wp-contexts/` (T)
+9. **Обновить WeekPlan** — пометить итоги, создать carry-over секцию
+
+### Симптом пропуска Week Close
+
+- STAGING.md заморожен ≥2 недель с `validated`
+- distinctions.md > 80 строк без флага в Week Report
+- Week Report без R-ответов
+- MEMORY.md > 200 строк уже 2+ недели подряд
 
 ## Deferred (отложены до Day Close)
 

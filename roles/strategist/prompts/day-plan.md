@@ -80,7 +80,7 @@ git push
 - ❌ **НЕ останавливаться** если файл DayPlan уже существует — заполни PENDING секции (не пересоздавай)
 - ❌ **НЕ просить подтверждения** — все решения по алгоритму
 - ✅ Все решения принимай по skill /day-open (`{{WORKSPACE_DIR}}/.claude/skills/day-open/SKILL.md`)
-- ✅ Финал: SUCCESS + git push + Telegram (через notify.sh strategist day-plan)
+- ✅ Финал: SUCCESS + git push (Telegram-уведомление отправляет strategist.sh автоматически после завершения)
 
 ## Источники (на сервере tsekh-1)
 

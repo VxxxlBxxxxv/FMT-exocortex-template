@@ -29,6 +29,11 @@ set -eu
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 TEMPLATE_DIR="$(dirname "$SCRIPT_DIR")"
 TEST_WS="${SMOKE_WORKSPACE:-/tmp/iwe-smoke-test-$$}"
+# Базовое значение GOVERNANCE_REPO для Test 1-5. Test 6a остаётся жёстко на
+# DS-pilot-strategy (тестирует переключение). Параметр позволяет matrix-CI
+# гонять весь smoke с разными значениями: DS-strategy (legacy default),
+# DS-pilot-strategy и пр. Закрывает gap «hardcode виден только при non-default».
+SMOKE_GOVERNANCE_REPO="${SMOKE_GOVERNANCE_REPO:-DS-strategy}"
 
 # Cleanup при exit
 cleanup() {
@@ -50,6 +55,7 @@ echo "  Smoke Test: Fresh Install (WP-273 F)"
 echo "=========================================="
 echo "  Template: $TEMPLATE_DIR"
 echo "  Test workspace: $TEST_WS"
+echo "  GOVERNANCE_REPO: $SMOKE_GOVERNANCE_REPO"
 echo ""
 
 # === Setup test workspace ===
@@ -62,7 +68,7 @@ CLAUDE_PROJECT_SLUG=smoke-test
 TIMEZONE_HOUR=4
 TIMEZONE_DESC=4:00 UTC
 HOME_DIR=$TEST_WS
-GOVERNANCE_REPO=DS-strategy
+GOVERNANCE_REPO=$SMOKE_GOVERNANCE_REPO
 IWE_TEMPLATE=$TEMPLATE_DIR
 IWE_RUNTIME=$TEST_WS/.iwe-runtime
 EOF
@@ -160,6 +166,16 @@ else
     pass "no literal /DS-strategy/ в runtime"
 fi
 
+# WP-293: расширение 6a — проверка template источников в roles/*/scripts/.
+# `dt-collect.sh` и аналоги не попадают в .iwe-runtime/ (используются напрямую cron'ом),
+# поэтому проверка только runtime-зоны выше пропускает hardcode'ы вроде dt-collect.sh:234.
+LITERAL_IN_TEMPLATE=$(grep -rE '/DS-strategy[/"]' "$TEMPLATE_DIR/roles/"*/scripts/ 2>/dev/null | grep -v ':#' || true)
+if [ -n "$LITERAL_IN_TEMPLATE" ]; then
+    fail "literal /DS-strategy/ в template roles/*/scripts/ (use \$GOVERNANCE_DIR): $LITERAL_IN_TEMPLATE"
+else
+    pass "no literal /DS-strategy/ в template roles/*/scripts/"
+fi
+
 # === Test 6b: REMAINING placeholder check sanity (R6.2 regression guard) ===
 echo "[6b] no leftover placeholders в .iwe-runtime/ после build-runtime..."
 LEFTOVER_COUNT=$(grep -rl '{{[A-Z_]*}}' "$TEST_WS/.iwe-runtime" 2>/dev/null | wc -l | tr -d ' ')
@@ -167,6 +183,37 @@ if [ "$LEFTOVER_COUNT" -eq 0 ]; then
     pass "0 leftover placeholders в runtime"
 else
     fail "$LEFTOVER_COUNT файлов в runtime содержат {{...}}"
+fi
+
+# === Test 6d: meta-detector — все .claude/*/ каталоги учтены в update.sh:609 (WP-293) ===
+echo "[6d] все .claude/*/ каталоги в update.sh:609 паттерне..."
+# Контракт: при добавлении нового подкаталога в .claude/X/ его обязаны добавить в паттерн
+# на строке `case "$f" in .claude/skills/*|...` в update.sh, иначе файлы X не попадут
+# в workspace при `update.sh` (баг 0.29.28: .claude/scripts/* пропущен).
+PATTERN_LINE=$(grep -E 'case "\$f" in \.claude/skills/' "$TEMPLATE_DIR/update.sh" 2>/dev/null | head -1)
+MISSING_DIRS=""
+for dir in "$TEMPLATE_DIR"/.claude/*/; do
+    [ -d "$dir" ] || continue
+    dirname=$(basename "$dir")
+    case "$dirname" in
+        projects|context-cache|logs) continue ;; # workspace-local / runtime-only, не propagate
+    esac
+    if ! echo "$PATTERN_LINE" | grep -q "\.claude/$dirname/\*"; then
+        MISSING_DIRS="$MISSING_DIRS $dirname"
+    fi
+done
+if [ -z "$MISSING_DIRS" ]; then
+    pass "все .claude/*/ каталоги учтены в update.sh:609 паттерне"
+else
+    fail "не учтены в update.sh:609 (файлы не попадут в workspace):$MISSING_DIRS"
+fi
+# Sanity: load-extensions.sh существует и в .claude/scripts/ паттерн в update.sh:609.
+if [ ! -f "$TEMPLATE_DIR/.claude/scripts/load-extensions.sh" ]; then
+    fail ".claude/scripts/load-extensions.sh отсутствует в FMT"
+elif ! echo "$PATTERN_LINE" | grep -q '\.claude/scripts/\*'; then
+    fail ".claude/scripts/* отсутствует в update.sh:609 паттерне (баг 0.29.28)"
+else
+    pass ".claude/scripts/load-extensions.sh попадает в workspace при update.sh"
 fi
 
 # === Test 6c: prompts substituted РЕАЛЬНЫМ substituted runner'ом (R6.1** regression) ===
@@ -233,7 +280,10 @@ fi
 echo "[6/7] install.sh с env проходит fail-fast (positive case)..."
 # Запускаем с правильным env. launchctl load может зафейлить (нет launchd на CI),
 # главное — НЕ упасть на fail-fast check.
-INSTALL_OK_OUT=$(IWE_RUNTIME="$TEST_WS/.iwe-runtime" IWE_WORKSPACE="$TEST_WS" \
+# WP-293: HOME isolation обязателен — install.sh пишет plist в $HOME/Library/LaunchAgents
+# и делает launchctl load. Без env -i HOME=$TEST_WS test перезатрёт реальный launchd автора.
+INSTALL_OK_OUT=$(env -i HOME="$TEST_WS" PATH=/usr/bin:/bin \
+    IWE_RUNTIME="$TEST_WS/.iwe-runtime" IWE_WORKSPACE="$TEST_WS" \
     bash "$TEMPLATE_DIR/roles/strategist/install.sh" 2>&1 || true)
 if echo "$INSTALL_OK_OUT" | grep -qE 'содержит незаменённые плейсхолдеры'; then
     fail "install.sh даёт fail-fast С env (не должен): $INSTALL_OK_OUT"
@@ -285,6 +335,144 @@ else
 fi
 
 rm -rf "$EXT_TEST_WS"
+
+# === Test 9: e2e setup.sh delivery — реальный запуск + проверка workspace ===
+# Единственный тест, который ловит gap setup.sh→workspace так же как fresh-clone пилота.
+# Запускает setup.sh --core с SETUP_CI=1 в изолированный tmpdir, затем проверяет
+# что все обязательные файлы реально оказались в workspace.
+echo "[9] e2e setup.sh delivery (SETUP_CI=1 --core)..."
+E2E_WS="/tmp/iwe-smoke-e2e-$$"
+# HOME isolation обязательна — иначе install-iwe-paths.sh перезатрёт реальный $HOME/.iwe-paths
+# автора smoke-test путём /tmp/iwe-smoke-e2e-* (collateral pollution, баг 0.7.x).
+E2E_HOME="$E2E_WS/home"
+E2E_MEM="$E2E_HOME/.claude/projects/$(echo "$E2E_WS" | tr '/' '-')/memory"
+mkdir -p "$E2E_WS" "$E2E_HOME"
+E2E_RC=0
+E2E_OUT=$(HOME="$E2E_HOME" SETUP_CI=1 GITHUB_USER=smoke-e2e WORKSPACE_DIR="$E2E_WS" \
+    GIT_AUTHOR_NAME="smoke-e2e" GIT_AUTHOR_EMAIL="smoke@test.local" \
+    GIT_COMMITTER_NAME="smoke-e2e" GIT_COMMITTER_EMAIL="smoke@test.local" \
+    bash "$TEMPLATE_DIR/setup.sh" --core 2>&1) || E2E_RC=$?
+if [ "$E2E_RC" -ne 0 ]; then
+    fail "e2e setup.sh --core завершился с rc=$E2E_RC: $(echo "$E2E_OUT" | tail -5)"
+else
+    pass "e2e setup.sh --core exit 0"
+    # Проверяем обязательные файлы в workspace
+    for f in \
+        ".claude/scripts/load-extensions.sh" \
+        ".claude/agents" \
+        ".claude/skills" \
+        ".claude/hooks" \
+        ".claude/rules" \
+        "CLAUDE.md"; do
+        if [ -e "$E2E_WS/$f" ]; then
+            pass "e2e workspace: $f доставлен"
+        else
+            fail "e2e workspace: $f ОТСУТСТВУЕТ (delivery gap)"
+        fi
+    done
+    # Проверяем memory/*.yaml в claude projects dir
+    if [ -f "$E2E_MEM/day-rhythm-config.yaml" ]; then
+        pass "e2e memory: day-rhythm-config.yaml доставлен"
+    else
+        fail "e2e memory: day-rhythm-config.yaml ОТСУТСТВУЕТ в $E2E_MEM"
+    fi
+fi
+rm -rf "$E2E_WS" "$E2E_MEM" 2>/dev/null || true
+
+# === Test 10: setup.sh full mode — step [5/6] Installing roles не падает (WP-315 Ф5) ===
+# Test 9 использует --core → пропускает step 5. Этот тест — полный запуск на macOS
+# с изолированным HOME, чтобы роли установились в tmp LaunchAgents.
+echo "[10] e2e setup.sh full mode (no --core, SETUP_CI=1)..."
+E2E_WS10="/tmp/iwe-smoke-full-$$"
+E2E_HOME10="$E2E_WS10/home"
+mkdir -p "$E2E_WS10" "$E2E_HOME10"
+E2E10_RC=0
+E2E10_OUT=$(HOME="$E2E_HOME10" SETUP_CI=1 GITHUB_USER=smoke-full WORKSPACE_DIR="$E2E_WS10" \
+    GIT_AUTHOR_NAME="smoke-full" GIT_AUTHOR_EMAIL="smoke@test.local" \
+    GIT_COMMITTER_NAME="smoke-full" GIT_COMMITTER_EMAIL="smoke@test.local" \
+    bash "$TEMPLATE_DIR/setup.sh" 2>&1) || E2E10_RC=$?
+
+if [ "$E2E10_RC" -ne 0 ]; then
+    fail "e2e setup.sh full mode завершился с rc=$E2E10_RC: $(echo "$E2E10_OUT" | tail -5)"
+else
+    pass "e2e setup.sh full mode exit 0"
+    # Проверяем что [5/6] Installing roles... выполнялся (не пропущен)
+    if echo "$E2E10_OUT" | grep -q '\[5/6\] Installing roles'; then
+        pass "e2e full mode: step [5/6] Installing roles executed"
+    else
+        warn "e2e full mode: step [5/6] Installing roles NOT executed (launchctl missing or skipped)"
+    fi
+    # Проверяем что plist'ы не содержат {{плейсхолдеры}}
+    E2E_LAUNCHDIR="$E2E_HOME10/Library/LaunchAgents"
+    if [ -d "$E2E_LAUNCHDIR" ]; then
+        PLIST_BAD=$(grep -rl '{{[A-Z_]*}}' "$E2E_LAUNCHDIR" --include="*.plist" 2>/dev/null || true)
+        if [ -n "$PLIST_BAD" ]; then
+            fail "e2e full mode: plist'ы содержат незаменённые placeholders: $PLIST_BAD"
+        else
+            pass "e2e full mode: все plist'ы без placeholders"
+        fi
+    else
+        warn "e2e full mode: LaunchAgents dir не создан (возможно, ни одна auto-role не установлена)"
+    fi
+fi
+rm -rf "$E2E_WS10" "$E2E_HOME10" 2>/dev/null || true
+
+# === Test 8: setup.sh delivery completeness (meta-detector, баг 08e4803) ===
+# Евгений нашёл два delivery gap: .claude/scripts/ и memory/*.yaml не копировались при fresh install.
+# Этот тест — статический анализ setup.sh: проверяет что все .claude/*/ субдиректории
+# и memory/*.yaml перечислены в командах копирования step 4b и step 3.
+echo "[8a] setup.sh step 4b копирует все .claude/*/ субдиректории..."
+SETUP_SH="$TEMPLATE_DIR/setup.sh"
+SUBDIR_LINE=$(grep -E '^[[:space:]]*for subdir in ' "$SETUP_SH" | head -1)
+SETUP8A_MISS=""
+for dir in "$TEMPLATE_DIR"/.claude/*/; do
+    [ -d "$dir" ] || continue
+    dirname=$(basename "$dir")
+    case "$dirname" in
+        projects|context-cache|logs|settings.json) continue ;; # workspace-local / runtime-only
+    esac
+    if ! echo "$SUBDIR_LINE" | grep -qw "$dirname"; then
+        SETUP8A_MISS="$SETUP8A_MISS $dirname"
+    fi
+done
+if [ -z "$SETUP8A_MISS" ]; then
+    pass "setup.sh step 4b: все .claude/*/ субдиректории включены"
+else
+    fail "setup.sh step 4b: не включены в for-loop (не будут скопированы при fresh install):$SETUP8A_MISS"
+fi
+
+echo "[8b] setup.sh step 3 копирует memory/*.yaml и *.yml..."
+if grep -A5 'cp.*memory/.*\.md' "$SETUP_SH" | grep -qE '\.yaml|\.yml'; then
+    pass "setup.sh step 3: memory/*.yaml/.yml копируются"
+else
+    fail "setup.sh step 3: memory/*.yaml/.yml НЕ копируются (day-rhythm-config.yaml не доставляется)"
+fi
+
+# === Test 8c: setup.sh step 5 (роли) сорсит ~/.iwe-paths перед install.sh (баг 0.7.x) ===
+# Регрессия от 13 мая 2026: setup.sh запускал `bash $role_dir/install.sh` без
+# экспорта IWE_RUNTIME/IWE_WORKSPACE → install.sh падал в legacy fallback с {{плейсхолдерами}}.
+# Контракт: между объявлением "[5/6] Installing roles..." и вызовом install.sh
+# должен быть source ~/.iwe-paths (или эквивалентный exporting IWE_RUNTIME).
+echo "[8c] setup.sh step 5: source ~/.iwe-paths перед role install.sh..."
+# Берём блок между "Installing roles" и первым вызовом install.sh
+STEP5_BLOCK=$(awk '/\[5\/6\] Installing roles/{flag=1} flag; flag && /bash.*install\.sh/{exit}' "$SETUP_SH")
+if echo "$STEP5_BLOCK" | grep -qE '(\.|source)[[:space:]]+"?\$HOME/\.iwe-paths|export[[:space:]]+IWE_RUNTIME'; then
+    pass "setup.sh step 5: env для install.sh подготовлен (source .iwe-paths или export IWE_RUNTIME)"
+else
+    fail "setup.sh step 5: install.sh вызывается БЕЗ IWE_RUNTIME (legacy mode → fail-fast у пользователя)"
+fi
+
+# === Test 8d: setup.sh --validate ищет .exocortex.env в WORKSPACE_DIR (баг 0.7.x) ===
+# Регрессия: WP-273 Этап 2 переместил .exocortex.env из FMT в $WORKSPACE_DIR,
+# но --validate блок продолжал искать в $SCRIPT_DIR. Артем получил
+# ".exocortex.env не найден" хотя файл существовал в правильном месте.
+echo "[8d] setup.sh --validate проверяет WORKSPACE_DIR/.exocortex.env..."
+VALIDATE_BLOCK=$(awk '/VALIDATE_ONLY; then/,/exit "\$ERRORS"/' "$SETUP_SH")
+if echo "$VALIDATE_BLOCK" | grep -qE 'WORKSPACE.*\.exocortex\.env|dirname.*SCRIPT_DIR'; then
+    pass "setup.sh --validate: .exocortex.env ищется в WORKSPACE_DIR (WP-273)"
+else
+    fail "setup.sh --validate: .exocortex.env ищется только в SCRIPT_DIR (regression pre-WP-273)"
+fi
 
 echo ""
 echo "=========================================="

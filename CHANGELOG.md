@@ -5,6 +5,77 @@ All notable changes to FMT-exocortex-template will be documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/).
 
+## [0.30.0] — 2026-05-11
+
+### Added — WP-5 #12: промоция авторских скриптов как L1 (S-19/S-20/S-21)
+
+Перенесены из авторской зоны в шаблон три скрипта + сопроводительная документация:
+
+- `scripts/week-draft-init.sh` — создаёт пустой черновик недельного поста на Пн Day Close
+- `scripts/week-draft-append.sh` — обновляет строку метрик дня в черновике (WakaTime, коммиты, закрытые РП)
+- `scripts/check-script-collisions.sh` — детектор коллизий имён между авторскими и FMT-скриптами; запускать ПЕРЕД любой промоцией L3→L1
+- `docs/SCRIPT-PROMOTION.md` — 7-шаговый процесс промоции скрипта (DP.KR.001 §5.6)
+
+Параметризация через `params.yaml`:
+- `knowledge_repo` — путь к knowledge-index репо (относительно `WORKSPACE_DIR`). Пустая строка → накопительный черновик пропускается (фича опциональна).
+
+Скрипты безопасно деградируют при отсутствии параметров — выводят подсказку и `exit 0`.
+
+## [0.29.32] — 2026-05-06
+
+### Fixed — WP-294 race-guard, state-файл переживал сессию
+
+Верификатор 0.29.31: state-файл `.claude/state/wp-sync-<N>.done` создавался в шаге 3d, но нигде не очищался. На второй день sync для того же WP «тихо» пропускался (race-guard думал, что уже запускался). Симптом без диагностики.
+
+Фикс: race-guard проверяет mtime state-файла. Если моложе 8h — пропустить (та же сессия). Если старше — считать stale: `rm -f` и запустить заново. Проверка: `find .claude/state/wp-sync-<N>.done -mmin -480 2>/dev/null`.
+
+8h выбраны как граница «одна рабочая сессия / день». Без cron-очистки накопится ~10 файлов/день — пренебрежимо для FS, при следующем запуске любой stale-файл удаляется автоматически.
+
+## [0.29.31] — 2026-05-06
+
+### Changed — WP-294 Sync-фаза WP Gate (доводка)
+
+После 0.29.30 верификация показала: bundler + sub-agent поставлялись, но не использовались — шаг 3 в `protocol-open.md` отдавал на L3-extension, которого у пользователей нет. Дефолт перенесён внутрь шага 3, extension стал override-точкой.
+
+- **`memory/protocol-open.md` § Sync Gate переписан** — дефолтное поведение веток A (тривиально, main agent), B (≥2 related или drift → Task → `wp-sync-actualizer`), C (противоречие → «Требует внимания» Ритуала) теперь встроено в шаг 3, не требует extension. Bundler+sub-agent работают «из коробки» сразу после `update.sh`.
+- **Race-guard** — state-файл `.claude/state/wp-sync-<N>.done` предотвращает повторный sync для одного WP в одной сессии.
+- **Exit 2 в bundler** — `validate_frontmatter()` проверяет наличие двух `---` маркеров, иначе exit 2 + `[PARSE-ERROR]` в stderr. Ранее отсутствовало (контракт описан, не реализован).
+- **`extensions/protocol-open.sync.md`** (опционально, L3) — теперь чистая override-точка с шаблоном для замены sub-agent'а / порогов веток / сторонних обогащений bundle. По умолчанию не нужен.
+
+## [0.29.30] — 2026-05-06
+
+### Added — WP-294 Sync-фаза WP Gate (актуализация контекста РП при упоминании номера)
+
+Системная актуализация контекста РП при упоминании номера в новой сессии. Гибрид (вариант D): детерминированный bundler собирает связанные РП + drift-сигналы; нетривиальные случаи делегируются sub-agent'у Sonnet 4.6 с context isolation.
+
+- **`memory/protocol-open.md`** — новый шаг 3 «Sync Gate» в § WP Gate перед «→ Ритуал». EXTENSION POINT: `bash .claude/scripts/load-extensions.sh protocol-open sync`. Цель: исключить дублирование работы и ложные блокеры. При обнаружении противоречия («PASS» в одном vs «FAIL» в другом по той же метрике) — НЕ применять автоматически, поднять в «Требует внимания» Ритуала.
+- **`.claude/scripts/wp-sync-bundle.sh`** — детерминированный bundler. Парсит YAML frontmatter без yq, извлекает `related:` блок + grep тела на WP-NNN, статус из REGISTRY, git log по WP-файлам за 14 дней. Drift-детектор: связанный РП закрыт + текущий имеет открытую фазу со ссылкой; значимые коммиты (LIVE/deployed/merged/DROPPED) после `spawned:` или `updated:`. Параметризовано через `$IWE_GOVERNANCE_REPO` (template-sync-friendly).
+- **`.claude/agents/wp-sync-actualizer.md`** — sub-agent (Sonnet 4.6) с context isolation. Возвращает unified diff в текстовом формате (`---ORIGINAL---`/`---REPLACEMENT---`); НЕ редактирует напрямую. Ограничения: ≤5 Read, не выходит за рамки одного WP-context файла, противоречия → раздел «Требует внимания».
+- **`update.sh:609`** — добавлен `.claude/agents/*` в паттерн копирования (sub-agent definitions = платформа, не workspace-local).
+- **`setup/smoke-test-fresh-install.sh:193`** — `agents` убран из исключений (теперь обязательно в паттерне `update.sh:609`).
+
+### Установка для существующих пользователей
+
+После `update.sh` поведение sync-step активируется автоматически в `memory/protocol-open.md`. EXTENSION POINT работает через generic loader (WP-273), для активации L3-кастомизации создайте `extensions/protocol-open.sync.md` (см. пример в авторском IWE).
+
+## [0.29.29] — 2026-05-06
+
+### Fixed — баг-репорт пилота 0.29.28 (Евгений) — 3 бага параметризации путей
+
+- **`roles/synchronizer/scripts/dt-collect.sh:234`** — `collect_sessions()` использовал hardcoded `$WORKSPACE/DS-strategy/inbox/open-sessions.log` вместо `$GOVERNANCE_DIR`. На fresh clone с `GOVERNANCE_REPO=DS-pilot-strategy` лог писался не туда. Исправлено: `$GOVERNANCE_DIR/inbox/open-sessions.log`.
+- **`update.sh:609`** — паттерн копирования `.claude/X/*` пропускал `.claude/scripts/`. На fresh install скиллы (`day-open`, `day-close`, `month-close` и др.) звали `bash .claude/scripts/load-extensions.sh` → `No such file or directory`. Добавлен `.claude/scripts/*` в паттерн (симметрично с `skills/hooks/rules/lib/config/detectors`).
+- **`setup/smoke-test-fresh-install.sh` Test 6** — install.sh запускался без `env -i HOME=$TEST_WS` (positive case), писал реальные plist в `~/Library/LaunchAgents/com.strategist.*` и звал `launchctl load`. Добавлен `env -i HOME="$TEST_WS" PATH=/usr/bin:/bin` (как Test 5).
+
+### Added — WP-293 Контракт параметризации путей IWE
+
+- **smoke `[6a]` расширен на template `roles/*/scripts/`** — раньше скан только `.iwe-runtime/roles/`, dt-collect.sh:234 пропускался (он используется напрямую cron'ом, не из runtime).
+- **smoke `[6d]` meta-detector** — все `.claude/X/` каталоги в FMT обязаны быть в паттерне `update.sh:609`. Исключения: `agents`, `projects`, `context-cache`, `logs` (workspace-local / runtime-only). Sanity-check: `load-extensions.sh` существует и `.claude/scripts/*` в паттерне.
+- **`validate-template.sh [8/8]` parameterization debt detector** — переиспользует `setup/detector-regex.sh::DETECTOR_07_REGEX`. Скан областей: `roles/`, `scripts/`, `setup.sh`, `update.sh`. Текущий debt: 21 hits (WARN, не FAIL — оставлено на forced-fix при касании файлов в будущих коммитах).
+
+### Deferred — параметризация остального debt'а (WP-293 «полный вариант», ~3-4h)
+
+Detector в `[8/8]` показывает 21 hardcode (`DS-strategy`, `$HOME/IWE/<repo>`) в `setup.sh`, `update.sh:238`, `roles/strategist/scripts/strategist.sh`, `roles/synchronizer/scripts/scheduler.sh`. Постепенная очистка через касание файлов в последующих коммитах.
+
 ## [0.29.28] — 2026-05-05
 
 ### Added — `scripts/template-sync.sh`: автосинхронизация авторского IWE → FMT

@@ -8,7 +8,7 @@
 # докуменация говорит А, код делает Б — нужен автоматический детектор расхождений
 # до релиза.
 #
-# 8 детекторов:
+# 9 детекторов:
 #   1. manifest_paths    — пути из update-manifest.json существуют в дереве
 #   2. seed_references   — protocol-*.md ссылки на seed/ существуют в seed/
 #   3. extension_table   — extensions/README.md table ↔ реальное placement EXTENSION POINT в protocol-*/SKILL.md
@@ -17,6 +17,7 @@
 #   6. install_failfast  — install.sh имеют grep '{{' check на PLIST_SRC (R5.2, 0.29.3)
 #   7. prompts_python_coverage — нет hardcoded DS-strategy в prompts и .py (R6.1*, 0.29.5)
 #   8. sed_placeholder_escape — substituted runners НЕ имеют bare {{X}} в sed (R6.1**, 0.29.6)
+#   9. manifest_version  — update-manifest.json version == CHANGELOG.md version (prevent stale-manifest release)
 #
 # Usage:
 #   bash setup/integration-contract-validator.sh [--verbose]
@@ -59,7 +60,7 @@ log "=== Integration Contract Validator (WP-273 R4.8) ==="
 log ""
 
 # === Detector 1: manifest paths existence ===
-log "[1/8] manifest_paths — пути из update-manifest.json в дереве..."
+log "[1/9] manifest_paths — пути из update-manifest.json в дереве..."
 if [ -f update-manifest.json ] && command -v python3 >/dev/null 2>&1; then
     MISSING=$(python3 -c "
 import json, os
@@ -84,7 +85,7 @@ fi
 log ""
 
 # === Detector 2: seed references in protocols ===
-log "[2/8] seed_references — protocol-*.md ссылки на seed/ существуют..."
+log "[2/9] seed_references — protocol-*.md ссылки на seed/ существуют..."
 SEED_REFS_VIOLATIONS=0
 if [ -d seed ]; then
     while IFS= read -r ref; do
@@ -109,7 +110,7 @@ fi
 log ""
 
 # === Detector 3: extension table ↔ real EXTENSION POINT placement ===
-log "[3/8] extension_table — extensions/README.md table ↔ EXTENSION POINT в protocol-*.md/SKILL.md..."
+log "[3/9] extension_table — extensions/README.md table ↔ EXTENSION POINT в protocol-*.md/SKILL.md..."
 EXT_VIOLATIONS=0
 if [ -f extensions/README.md ]; then
     # Parse extension table from README.md: lines like "| protocol-close | checks | ..."
@@ -149,7 +150,7 @@ fi
 log ""
 
 # === Detector 4: hook trigger pattern (hooks-design.md принцип) ===
-log "[4/8] hook_artifact — hooks не грепают TOOL_INPUT (R4.5 антипаттерн)..."
+log "[4/9] hook_artifact — hooks не грепают TOOL_INPUT (R4.5 антипаттерн)..."
 HOOK_VIOLATIONS=0
 if [ -d .claude/hooks ]; then
     while IFS= read -r f; do
@@ -175,7 +176,7 @@ fi
 log ""
 
 # === Detector 5: runner read-only references resolve correctly (R5.1 regression) ===
-log "[5/8] runner_readonly — runners резолвят prompts/role.yaml/notify через \$IWE_TEMPLATE..."
+log "[5/9] runner_readonly — runners резолвят prompts/role.yaml/notify через \$IWE_TEMPLATE..."
 RUNNER_VIOLATIONS=0
 # Антипаттерн (Round 5 R5.1): PROMPTS_DIR="\$REPO_DIR/prompts" без fallback на \$IWE_TEMPLATE.
 # Runner работает только если все read-only данные дублированы в runtime.
@@ -202,7 +203,7 @@ fi
 log ""
 
 # === Detector 6: install.sh fail-fast при literal {{...}} в plist (R5.2 regression) ===
-log "[6/8] install_failfast — install.sh имеют grep '{{' check на PLIST_SRC..."
+log "[6/9] install_failfast — install.sh имеют grep '{{' check на PLIST_SRC..."
 FAILFAST_VIOLATIONS=0
 for install_sh in roles/strategist/install.sh roles/extractor/install.sh roles/synchronizer/install.sh; do
     [ -f "$install_sh" ] || continue
@@ -221,8 +222,8 @@ else
 fi
 log ""
 
-# === Detector 7: prompts + python coverage (R6.1* regression — мой smoke test пропустил) ===
-log "[7/8] prompts_python_coverage — нет hardcoded DS-strategy в prompts и .py..."
+# === Detector 7: prompts + python + shell coverage (R6.1* regression — мой smoke test пропустил) ===
+log "[7/9] prompts_python_shell_coverage — нет hardcoded DS-strategy в prompts/.py/.sh..."
 COVERAGE_VIOLATIONS=0
 # Python scripts: должны читать GOVERNANCE_REPO из env, не хардкодить
 while IFS= read -r py; do
@@ -236,6 +237,32 @@ while IFS= read -r py; do
         fi
     fi
 done < <(find roles -name '*.py' -type f 2>/dev/null)
+
+# Shell scripts (12 мая, WP-291 follow-up): дополнение к Python-проверке.
+# Bug 1 (b24639f) — в dt-collect.sh:238 был hardcode /DS-strategy/ который detector
+# не ловил, потому что .sh файлы не сканировались. SESSION_LOG="$WORKSPACE/DS-strategy/..."
+# игнорировал параметризованный $GOVERNANCE_DIR на line 34.
+#
+# Scope: roles/ + scripts/. Whitelist parameter-expansion fallback и комментарии.
+while IFS= read -r sh; do
+    [ -f "$sh" ] || continue
+    # Antipattern: `/DS-strategy/` или `"DS-strategy"` literal без use $GOVERNANCE_DIR
+    if grep -qE '"DS-strategy"|/DS-strategy[/"]' "$sh" 2>/dev/null; then
+        # Допустимо если читает GOVERNANCE_REPO из env (значит fallback default — паттерн Python detector выше)
+        if grep -qE 'IWE_GOVERNANCE_REPO|GOVERNANCE_REPO' "$sh" 2>/dev/null; then
+            continue
+        fi
+        # Фильтр fallback `${VAR:-...DS-strategy...}` (`:-` должен быть внутри parameter-expansion с DS-strategy)
+        # и комментариев (строка вида `path:NN:   # ...`).
+        HITS=$(grep -nE '"DS-strategy"|/DS-strategy[/"]' "$sh" 2>/dev/null \
+            | grep -vE '\$\{[^}]*:-[^}]*DS-strategy|^[^:]+:[[:space:]]*#' || true)
+        if [ -n "$HITS" ]; then
+            log "  ⚠ $sh: hardcoded DS-strategy без \$GOVERNANCE_DIR / GOVERNANCE_REPO env:"
+            echo "$HITS" | while IFS= read -r line; do log "      $line"; done
+            COVERAGE_VIOLATIONS=$((COVERAGE_VIOLATIONS + 1))
+        fi
+    fi
+done < <(find roles scripts -name '*.sh' -type f 2>/dev/null)
 
 # Prompts: не должны иметь bare DS-strategy/, должны использовать {{GOVERNANCE_REPO}}
 while IFS= read -r prompt; do
@@ -253,13 +280,13 @@ done < <(find roles -name 'prompts' -type d 2>/dev/null | xargs -I{} find {} -na
 if [ "$COVERAGE_VIOLATIONS" -eq 0 ]; then
     log "  ✅ PASS"
 else
-    log "  ❌ FAIL ($COVERAGE_VIOLATIONS prompts/.py с hardcoded DS-strategy)"
+    log "  ❌ FAIL ($COVERAGE_VIOLATIONS prompts/.py/.sh с hardcoded DS-strategy)"
     VIOLATIONS=$((VIOLATIONS + COVERAGE_VIOLATIONS))
 fi
 log ""
 
 # === Detector 8: bare {{...}} в sed-выражениях substituted-runners (R6.1**, 0.29.6) ===
-log "[8/8] sed_placeholder_escape — substituted runners НЕ имеют bare {{X}} в sed (build-runtime подменит)..."
+log "[8/9] sed_placeholder_escape — substituted runners НЕ имеют bare {{X}} в sed (build-runtime подменит)..."
 SED_VIOLATIONS=0
 # Парсим overlay-реестр: substituted-файлы из реестра проверяем на bare {{X}} в sed-выражениях.
 # Антипаттерн (R6.1**): sed -e "s|{{X}}|val|" в substituted runner'е → build-runtime подменит {{X}} → sed broken.
@@ -281,6 +308,24 @@ if [ "$SED_VIOLATIONS" -eq 0 ]; then
 else
     log "  ❌ FAIL ($SED_VIOLATIONS substituted runners с bare {{X}} sed)"
     VIOLATIONS=$((VIOLATIONS + SED_VIOLATIONS))
+fi
+log ""
+
+# === Detector 9: manifest version matches CHANGELOG ===
+log "[9/9] manifest_version — update-manifest.json version == CHANGELOG.md version..."
+if [ -f update-manifest.json ] && [ -f CHANGELOG.md ] && command -v python3 >/dev/null 2>&1; then
+    MANIFEST_VERSION=$(python3 -c "import json; print(json.load(open('update-manifest.json')).get('version',''))" 2>/dev/null || echo "")
+    CHANGELOG_VERSION=$(grep -m1 '^\#\# \[' CHANGELOG.md | sed 's/.*\[\(.*\)\].*/\1/' 2>/dev/null || echo "")
+    if [ -z "$MANIFEST_VERSION" ] || [ -z "$CHANGELOG_VERSION" ]; then
+        log "  ⊘ SKIP (не удалось прочитать версии)"
+    elif [ "$MANIFEST_VERSION" = "$CHANGELOG_VERSION" ]; then
+        log "  ✅ PASS (v$MANIFEST_VERSION)"
+    else
+        log "  ❌ FAIL: manifest=$MANIFEST_VERSION, CHANGELOG=$CHANGELOG_VERSION — запусти generate-manifest.sh"
+        VIOLATIONS=$((VIOLATIONS + 1))
+    fi
+else
+    log "  ⊘ SKIP (нет update-manifest.json, CHANGELOG.md или python3)"
 fi
 log ""
 
