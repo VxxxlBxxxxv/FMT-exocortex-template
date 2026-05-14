@@ -1,5 +1,5 @@
 {
-  "version": "0.29.22",
+  "version": "0.29.28",
   "description": "Манифест платформенных файлов FMT-exocortex-template. Используется update.sh для доставки обновлений.",
   "files": [
     {"path": ".claude/capture-config.sh.example"},
@@ -40,6 +40,8 @@
     {"path": ".claude/skills/iwe-update/SKILL.md"},
     {"path": ".claude/skills/ke/SKILL.md"},
     {"path": ".claude/skills/month-close/SKILL.md"},
+    {"path": ".claude/skills/personal-guide-render/SKILL.md"},
+    {"path": ".claude/skills/personal-guide-start/SKILL.md"},
     {"path": ".claude/skills/run-protocol/SKILL.md"},
     {"path": ".claude/skills/setup-wakatime/SKILL.md"},
     {"path": ".claude/skills/strategy-session/SKILL.md"},
@@ -173,6 +175,7 @@
     {"path": "scripts/iwe-drift.sh"},
     {"path": "scripts/migrate-initial-marker.sh"},
     {"path": "scripts/migrate-to-runtime-target.sh"},
+    {"path": "scripts/template-sync.sh"},
     {"path": "setup.sh"},
     {"path": "setup/build-runtime.sh"},
     {"path": "setup/detector-fixtures/README.md"},
