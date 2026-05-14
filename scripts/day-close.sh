@@ -16,7 +16,8 @@ set -euo pipefail
 
 # === КОНФИГУРАЦИЯ (настроить при установке) ===
 WORKSPACE_DIR="${WORKSPACE_DIR:-$HOME/IWE}"
-DS_STRATEGY="$WORKSPACE_DIR/DS-strategy"
+GOVERNANCE_REPO="${GOVERNANCE_REPO:-${IWE_GOVERNANCE_REPO:-DS-strategy}}"
+DS_STRATEGY="$WORKSPACE_DIR/$GOVERNANCE_REPO"
 # Slug = $HOME с '/' → '-' (macOS: /Users/x → -Users-x; Linux/WSL: /home/x → -home-x).
 # Переопределить можно через env IWE_MEMORY_SRC (например, для нестандартного $HOME).
 HOME_SLUG=$(echo "$HOME" | tr '/' '-')
