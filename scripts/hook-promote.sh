@@ -82,7 +82,7 @@ rm -rf "$tmp_dir"
 echo "✅ Промотирован: FMT/.claude/hooks/$fname"
 
 CHANGELOG_SCRIPT="$FMT_DIR/scripts/changelog-append.sh"
-[[ -f "$CHANGELOG_SCRIPT" ]] && bash "$CHANGELOG_SCRIPT" || true
+if [[ -f "$CHANGELOG_SCRIPT" ]]; then bash "$CHANGELOG_SCRIPT"; fi
 
 echo "Следующий шаг:"
 echo "  cd $FMT_DIR && git add .claude/hooks/$fname CHANGELOG.md && git commit -m 'feat: promote $fname to platform'"

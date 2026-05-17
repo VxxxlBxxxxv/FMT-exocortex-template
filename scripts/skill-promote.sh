@@ -76,7 +76,7 @@ done
 echo "✅ Промотирован: FMT/.claude/skills/$skill_name/"
 
 CHANGELOG_SCRIPT="$FMT_DIR/scripts/changelog-append.sh"
-[[ -f "$CHANGELOG_SCRIPT" ]] && bash "$CHANGELOG_SCRIPT" || true
+if [[ -f "$CHANGELOG_SCRIPT" ]]; then bash "$CHANGELOG_SCRIPT"; fi
 
 echo "Следующий шаг:"
 echo "  cd $FMT_DIR && git add .claude/skills/$skill_name CHANGELOG.md && git commit -m 'feat: promote skill $skill_name to platform'"

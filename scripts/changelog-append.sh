@@ -8,7 +8,7 @@
 #   bash changelog-append.sh [--dry-run]
 #
 # Для фиксации версии (Unreleased → X.Y.Z):
-#   bash changelog-flush.sh --version 0.31.0
+#   bash changelog-flush.sh --version 0.32.0
 
 set -uo pipefail
 
@@ -27,14 +27,18 @@ if [[ ! -f "$CHANGELOG" ]]; then
 fi
 
 # Найти дату последней именованной версии (пропускаем [Unreleased])
-last_date=$(grep '## \[[0-9]' "$CHANGELOG" | head -1 | grep -o '[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}' || echo "")
+last_date=$(grep '## \[[0-9]' "$CHANGELOG" | head -1 | grep -o '[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}' || true)
 if [[ -z "$last_date" ]]; then
     echo "⚠️  Не нашёл дату последней версии в CHANGELOG — собираю все коммиты." >&2
     last_date="1970-01-01"
 fi
 
-# Собрать коммиты с той даты
-commits=$(cd "$FMT_DIR" && git log --after="$last_date" --format="%h %s" 2>/dev/null || echo "")
+# Б2: --after exclusive — вычитаем 1 день чтобы не потерять коммиты дня выпуска
+# Б4: git -C вместо cd, чтобы не зависеть от cwd при ошибке IWE_TEMPLATE
+since_date=$(date -d "$last_date - 1 day" +%Y-%m-%d 2>/dev/null \
+    || date -v-1d -j -f "%Y-%m-%d" "$last_date" +%Y-%m-%d 2>/dev/null \
+    || echo "$last_date")
+commits=$(git -C "$FMT_DIR" log --after="$since_date" --format="%h %s" 2>/dev/null || true)
 
 if [[ -z "$commits" ]]; then
     echo "ℹ️  Нет новых коммитов с $last_date — [Unreleased] не нужен."
@@ -52,12 +56,18 @@ while IFS= read -r line; do
     msg="${line#* }"
     case "$msg" in
         feat*|feat\(*) added+="- \`$hash\` $msg"$'\n' ;;
-        fix*|fix\(*)  fixed+="- \`$hash\` $msg"$'\n' ;;
-        test*|docs*)  changed+="- \`$hash\` $msg"$'\n' ;;
-        template-sync*) ;; # авто-коммиты template-sync — пропускаем
-        *)            changed+="- \`$hash\` $msg"$'\n' ;;
+        fix*|fix\(*)   fixed+="- \`$hash\` $msg"$'\n' ;;
+        test*|docs*)   changed+="- \`$hash\` $msg"$'\n' ;;
+        template-sync*) ;;  # авто-коммиты template-sync — пропускаем
+        *)             changed+="- \`$hash\` $msg"$'\n' ;;
     esac
 done <<< "$commits"
+
+# Если все коммиты были пропущены (template-sync) — ничего не делать
+if [[ -z "$added" && -z "$fixed" && -z "$changed" ]]; then
+    echo "ℹ️  Только авто-коммиты template-sync — [Unreleased] не нужен."
+    exit 0
+fi
 
 # Собрать блок [Unreleased]
 today=$(date +%Y-%m-%d)
@@ -77,15 +87,15 @@ fi
 tmp=$(mktemp)
 awk '
     /^## \[Unreleased\]/ { skip=1; next }
-    skip && /^## \[/ { skip=0 }
-    !skip { print }
+    skip && /^## \[/     { skip=0 }
+    !skip                { print }
 ' "$CHANGELOG" > "$tmp"
 
 # Препендить новый блок после заголовка (до первой строки ## [)
 header_end=$(grep -n '^## \[' "$tmp" | head -1 | cut -d: -f1)
 if [[ -z "$header_end" ]]; then
-    # CHANGELOG пустой — просто добавить
-    printf '%s\n' "$(cat "$tmp")"$'\n'"$new_block" > "$CHANGELOG"
+    # Б1: CHANGELOG без именованных версий — корректная запись
+    { cat "$tmp"; echo; printf '%s\n' "$new_block"; } > "$CHANGELOG"
 else
     head_lines=$((header_end - 1))
     { head -n "$head_lines" "$tmp"; echo; printf '%s\n' "$new_block"; tail -n +"$header_end" "$tmp"; } > "$CHANGELOG"

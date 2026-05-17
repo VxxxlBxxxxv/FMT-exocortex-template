@@ -40,8 +40,9 @@ if $dry_run; then
     exit 0
 fi
 
-# Кросс-платформенный sed -i (macOS vs Linux)
-if sed --version >/dev/null 2>&1; then
+# Кросс-платформенный wrapper (docs/PLATFORM-COMPAT.md)
+# macOS BSD sed: exit 0 но без "GNU" в выводе
+if sed --version 2>&1 | grep -q GNU; then
     sed_inplace() { sed -i "$@"; }
 else
     sed_inplace() { sed -i '' "$@"; }
