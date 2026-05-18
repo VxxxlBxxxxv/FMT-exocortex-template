@@ -5,6 +5,66 @@ All notable changes to FMT-exocortex-template will be documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/).
 
+
+## [0.32.0] — 2026-05-17
+
+### Added
+
+- **Agent Inbox pack-templates (WP-324, новое):** `pack-templates/digital-platform/08-service-clauses/DP.SC.NNN-agent-inbox.md` + `pack-templates/digital-platform/02-domain-entities/DP.ROLE.NNN-dispatcher.md` — переносные версии обещания и роли с placeholders ({{GOVERNANCE_REPO}}) и комментариями адаптации; новый пилот клонирует и подставляет свои номера DP.SC/DP.ROLE.
+- **`extensions/agent-inbox/scripts/iwe-agent-dispatcher.py`** — диспетчер на headless `claude -p`. Не зависит от RemoteTrigger v1→v2 API issue. Pure-Python stdlib + минимальный YAML frontmatter parser (без зависимостей). Поддерживает env vars для конфигурации (IWE_DISPATCHER_REPO_URL, IWE_DISPATCHER_AUTHOR_EMAIL, etc). Запуск через cron / systemd / launchd / GitHub Actions.
+- **Headless `claude -p` как референсный канал dispatcher** (DP.ROLE.NNN §4 + §7 + SPEC.md §2): не зависит от RemoteTrigger v1→v2 API issue, работает на любой машине с установленным claude CLI; покрывает 80% задач (одна машина = один канал).
+
+### Changed
+
+- `extensions/agent-inbox/SPEC.md` §2 — добавлена таблица каналов запуска (claude CLI / RemoteTrigger / systemd / launchd) с рекомендацией headless CLI как референсной реализации.
+- S-45 (Agent Inbox) остаётся `testing` после расширения объёма: фундамент + script + pack-templates готовы, полная end-to-end automation smoke (4 реальные task по расписанию) deferred — требует Nix systemd unit или cron на исполняющей машине.
+
+### Из накопленных коммитов
+
+- `223fb5f` feat(WP-324): promote S-45 Agent Inbox — extensions/agent-inbox/
+- `63aa96c` feat: changelog automation — changelog-append.sh + changelog-flush.sh + v0.31.0
+- `4002819` feat: promote S-44 to L1 — Telegram reminders as platform rule (rule 8)
+- `0c40b8f` feat: promote S-43 — напоминания через Telegram
+- `9d96a63` fix(changelog): 5 багов из code review субагента
+- `4db37fd` fix: rename S-43→S-44 (Telegram reminders) to avoid numbering conflict with Agent Fault Profile
+
+## [0.31.0] — 2026-05-17
+
+### Added
+
+- Полный набор promote-скриптов: `script-promote.sh`, `hook-promote.sh`, `skill-promote.sh` + `validate-fmt-scripts.sh` с автовалидацией в `template-sync.sh` (WP-5 L1-flow)
+- Smoke-тест в promote-скриптах — изолированный env с шаблонными переменными
+- `changelog-append.sh` + `changelog-flush.sh` — автоматическое ведение CHANGELOG при каждой промоции
+- S-44: Telegram-напоминания как платформенное правило (правило 8 в CLAUDE.md, WP-5)
+- S-33 (Hooks/Scripts Bypass Gate) промотирован в L1 §2 платформенных правил
+- Knowledge Routing Gate (WP-216 Ф4): `routing-vocab.md` fast-path + DP.SC.036
+- Флаг `--related` и секция «Связки с РП» в шаблоне WP-context + шаг 3.5 в Ритуале
+- cross-platform path leaks detector (WP-5/WP-7 Stability-4)
+- Secret Drift Detector: `iwe-grep-secret.sh` MVP + Railway GraphQL v2 cloud scan (WP-315)
+- Sync-фаза WP Gate resilience — pre-flight + graceful degradation (WP-294)
+- `reflection-template` + Шаги 6.7-6.8 в `personal-guide-render` (WP-309 Ф3)
+- EC-триггер для конфликтов НЭП в `strategy-session`
+- News Lens: шаг 6a Day Open — Haiku subagent синтез новостей
+- q-шкала качества недели в Week Close + якоря q=2 и q=4 (WP-310 Gap-А)
+- Agent Fault Profile: процесс учёта косяков агента + скрипты `agent_fault_remind.py`, `sync_feedback_to_memory.py`
+- S-45 Agent Inbox (WP-324): `extensions/agent-inbox/` структура (tasks/results/scout/templates/archive) + SPEC.md + README.md + 5 шаблонов промптов (analyze-section, scout-daily, evolution-cron, soak-verify, _template); реализация DP.SC.135 + DP.ROLE.045 в PACK-digital-platform; status: testing (CCR-автоматизация ждёт RemoteTrigger v2 API spec)
+- Явный L1-flow для всех артефактов в CLAUDE.md (scripts + hooks + skills + CLAUDE.md)
+- WP-283 Ф-H: отказ от WORKPLAN.md hub-and-spoke (антипаттерн, OwnerIntegrity)
+- matrix-CI по `GOVERNANCE_REPO` + detector `.sh` scope + 2 hardcoded fix
+
+### Fixed
+
+- `day-close`: wakatime path `~/.wakatime/wakatime-cli` (CLI не в PATH)
+- hardcoded `DS-strategy` в `dt-collect.sh` + repair-pass в `update.sh`
+- routing slow-path для FMT пользователей: `repo-type-rules.md` вместо `DP.KR.001` (недоступен без Pack)
+- WP-7: guard stale repair против нечитаемого dst под `set -e` + hash-check для stale propagated L1 files
+- `update.sh`: progress counter в step [2] + manifest version sync после apply
+- WP-315: два `set -e` бага в `iwe-grep-secret.sh` + E2E arithmetic zero-eval paths (`|| true`)
+- `load-extensions`: robust workspace resolution + BASH_SOURCE fallback
+- `setup.sh`: `source ~/.iwe-paths` before role install + validate `WORKSPACE_DIR`
+- `wp-sync-bundle`: self-test не зависит от hardcoded WP-294
+- S-44: переименование S-43→S-44 (конфликт нумерации с Agent Fault Profile)
+
 ## [0.30.0] — 2026-05-11
 
 ### Added — WP-5 #12: промоция авторских скриптов как L1 (S-19/S-20/S-21)

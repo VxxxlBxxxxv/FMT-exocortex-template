@@ -70,15 +70,9 @@ dir_newest_mtime_days_ago() {
         return
     fi
     local newest
-    if stat -f %m "$dir" >/dev/null 2>&1; then
-        newest=$(find "$dir" -type f -not -path '*/.git/*' -print0 2>/dev/null \
-            | xargs -0 stat -f %m 2>/dev/null \
-            | sort -nr | head -1)
-    else
-        newest=$(find "$dir" -type f -not -path '*/.git/*' -print0 2>/dev/null \
-            | xargs -0 stat -c %Y 2>/dev/null \
-            | sort -nr | head -1)
-    fi
+    newest=$(find "$dir" -type f -not -path '*/.git/*' -print0 2>/dev/null \
+        | xargs -0 stat -f %m 2>/dev/null \
+        | sort -nr | head -1)
     if [ -z "${newest:-}" ]; then
         echo "-1"
         return

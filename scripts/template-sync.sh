@@ -10,10 +10,33 @@
 
 set -euo pipefail
 
+# Guard: валидация IWE_TEMPLATE и IWE_WORKSPACE (не должны быть временными директориями)
+if [[ "${IWE_TEMPLATE:-}" =~ ^/tmp/iwe-smoke ]]; then
+    echo "[ERROR] IWE_TEMPLATE указывает на удалённую smoke-тестовую директорию: $IWE_TEMPLATE" >&2
+    echo "Используется fallback: \$HOME/IWE/FMT-exocortex-template" >&2
+    unset IWE_TEMPLATE
+fi
+if [[ "${IWE_WORKSPACE:-}" =~ ^/tmp/iwe-smoke ]]; then
+    echo "[ERROR] IWE_WORKSPACE указывает на удалённую smoke-тестовую директорию: $IWE_WORKSPACE" >&2
+    echo "Используется fallback: \$HOME/IWE" >&2
+    unset IWE_WORKSPACE
+fi
+
 IWE="${IWE_WORKSPACE:-$HOME/IWE}"
 FMT_DIR="${IWE_TEMPLATE:-$IWE/FMT-exocortex-template}"
 SRC="$IWE/CLAUDE.md"
 FMT="$FMT_DIR/CLAUDE.md"
+
+# Валидация файлов
+if [ ! -f "$SRC" ]; then
+    echo "[ERROR] Исходный файл не найден: $SRC" >&2
+    exit 1
+fi
+
+if [ ! -f "$FMT" ]; then
+    echo "[ERROR] Файл шаблона не найден: $FMT" >&2
+    exit 1
+fi
 
 # Авторское имя governance-репо (из env, обязательно) → template default
 GOV_REPO_AUTHOR="${IWE_GOVERNANCE_REPO:?IWE_GOVERNANCE_REPO must be set (your governance repo name, e.g. DS-strategy)}"
@@ -65,5 +88,19 @@ fi
 
 printf '%s\n' "$result" > "$FMT"
 echo "✅ Синхронизировано: CLAUDE.md → FMT/CLAUDE.md"
+
+# 5. Валидация FMT/scripts/ на личные хардкоды
+VALIDATOR="$FMT_DIR/scripts/validate-fmt-scripts.sh"
+if [ -f "$VALIDATOR" ]; then
+    echo ""
+    bash "$VALIDATOR" "$FMT_DIR/scripts" || {
+        echo "⚠️  Личные хардкоды в FMT/scripts/ — исправить до коммита" >&2
+    }
+fi
+
+CHANGELOG_SCRIPT="$FMT_DIR/scripts/changelog-append.sh"
+[[ -f "$CHANGELOG_SCRIPT" ]] && bash "$CHANGELOG_SCRIPT" || true
+
+echo ""
 echo "Следующий шаг:"
-echo "  cd $FMT_DIR && git diff CLAUDE.md && git add CLAUDE.md && git commit"
+echo "  cd $FMT_DIR && git diff CLAUDE.md && git add CLAUDE.md CHANGELOG.md && git commit"
