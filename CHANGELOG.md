@@ -6,6 +6,29 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/).
 
 
+
+
+
+## [0.33.0] — 2026-05-18
+
+### Added
+
+- `de23341` feat(strategy-session): добавить шаги 1b (KE-кандидаты) и 1c (Мир) в открытие недели
+- `8a72b50` feat(WP-295): agent-trace-recorder writer hooks (Ф1 шаг 5)
+- `6970050` feat(WP-324): Agent Inbox 0.32.0 — pack-templates + dispatcher script
+- `223fb5f` feat(WP-324): promote S-45 Agent Inbox — extensions/agent-inbox/
+- `63aa96c` feat: changelog automation — changelog-append.sh + changelog-flush.sh + v0.31.0
+- `4002819` feat: promote S-44 to L1 — Telegram reminders as platform rule (rule 8)
+- `0c40b8f` feat: promote S-43 — напоминания через Telegram
+
+### Fixed
+
+- `767ad46` fix(dt-collect+templates): fix weekly multiplier parser + format note
+- `d13af21` fix(WP-295): pretty=format → tformat для produced_artifact_ids
+- `9d96a63` fix(changelog): 5 багов из code review субагента
+- `4db37fd` fix: rename S-43→S-44 (Telegram reminders) to avoid numbering conflict with Agent Fault Profile
+
+
 ## [0.32.0] — 2026-05-17
 
 ### Added
@@ -1321,7 +1344,7 @@ Commits: 150be24 (I1+I2 sync из DS-ai-systems), 731471f (I3 sweep 11 точе�
 
 ### Added
 - **[update-manifest.json](update-manifest.json)** — манифест всех платформенных файлов (100+ записей) с описаниями. Используется update.sh для доставки обновлений
-- **[DP.SC.019](../PACK-digital-platform/pack/digital-platform/08-service-clauses/DP.SC.019-template-update.md)** — сценарий «Обновление экзокортекса» + сервис S50 Template Update в MAP.002
+- **[DP.SC.019](../PACK-digital-platform/pack/digital-platform/08-service-clauses/DP.SC.043-template-update.md)** — сценарий «Обновление экзокортекса» + сервис S50 Template Update в MAP.002
 - **Инструкция «настрой календарь»** в CLAUDE.md — при запросе пользователя Claude запускает `setup-calendar.sh`
 
 ## [0.10.0] — 2026-03-19

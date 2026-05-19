@@ -316,6 +316,8 @@ def commit_and_push(repo_dir: Path, message: str, files: list[Path]) -> None:
     rel_files = [str(f.relative_to(repo_dir)) for f in files]
     run(["git", "add", *rel_files], cwd=repo_dir)
     run(["git", "commit", "-m", message], cwd=repo_dir)
+    run(["git", "fetch", "origin", GOV_BRANCH], cwd=repo_dir, timeout=30)
+    run(["git", "rebase", f"origin/{GOV_BRANCH}"], cwd=repo_dir, timeout=30)
     run(["git", "push", "origin", GOV_BRANCH], cwd=repo_dir, timeout=60)
 
 

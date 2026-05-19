@@ -167,12 +167,22 @@ Source-of-truth для домена: {название}.
 
 `00-pack-manifest.md` — взять шаблон из `SPF/pack-template/00-pack-manifest.md`, заполнить `pack_id` и `pack_name`.
 
-Затем инициализировать репо:
+Затем инициализировать репо и установить CI guard:
 ```bash
 cd ~/IWE/PACK-{slug}
-git init && git add -A
-git commit -m "feat: initial scaffold PACK-{slug} (SPF/pack-template)"
+git init
+
+# Установить CI guard (ID collision detector)
+IWE_TEMPLATE="${IWE_TEMPLATE:-$HOME/IWE/FMT-exocortex-template}"
+if [ -d "$IWE_TEMPLATE/pack-templates/.github" ]; then
+  cp -r "$IWE_TEMPLATE/pack-templates/.github" .
+fi
+
+git add -A
+git commit -m "feat: initial scaffold PACK-{slug} (SPF/pack-template) + CI guard R4"
 ```
+
+CI guard — GitHub Action, который при каждом push/PR проверяет уникальность ID (DP.M.NNN, AR.NNN и т.д.) и блокирует слияние при коллизии.
 
 Опционально — создать на GitHub:
 ```bash
