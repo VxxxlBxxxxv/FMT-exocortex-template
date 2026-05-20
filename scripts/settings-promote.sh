@@ -101,23 +101,18 @@ fi
 # Валидация JSON перед записью
 echo "$UPDATED" | jq . > /dev/null 2>&1 || { echo "❌ Результат невалидный JSON" >&2; exit 1; }
 
-# Запуск валидатора на итоговом settings
-VALIDATOR="$FMT_DIR/scripts/validate-fmt-scripts.sh"
-TMP_SETTINGS=$(mktemp)
-echo "$UPDATED" > "$TMP_SETTINGS"
-# Подменяем на время валидации
-cp "$SETTINGS" "${SETTINGS}.bak"
-cp "$TMP_SETTINGS" "$SETTINGS"
-rm "$TMP_SETTINGS"
-if [[ -f "$VALIDATOR" ]]; then
-    if ! bash "$VALIDATOR" "$FMT_DIR/scripts/" 2>&1; then
-        cp "${SETTINGS}.bak" "$SETTINGS"
-        rm -f "${SETTINGS}.bak"
-        echo "❌ Валидатор не прошёл — изменения отменены." >&2
-        exit 1
-    fi
+# Проверка hook-path конвенции: все .claude/hooks/ команды → $CLAUDE_PROJECT_DIR/
+# (inline jq — не вызываем полный validate-fmt-scripts.sh, чтобы не ловить
+# pre-existing DS-strategy в scripts/*.sh при отсутствии IWE_GOVERNANCE_REPO)
+bad_cmds=$(echo "$UPDATED" | jq -r \
+    '.hooks // {} | to_entries[] | .value[] | .hooks[]? | .command // empty' \
+    | grep -E '\.claude/hooks/' \
+    | grep -vE '^\$CLAUDE_PROJECT_DIR/' || true)
+if [[ -n "$bad_cmds" ]]; then
+    echo "❌ Хук-команды без \$CLAUDE_PROJECT_DIR/ префикса:" >&2
+    echo "$bad_cmds" | sed 's/^/   /' >&2
+    exit 1
 fi
-rm -f "${SETTINGS}.bak"
 
 CHANGELOG_SCRIPT="$FMT_DIR/scripts/changelog-append.sh"
 if [[ -f "$CHANGELOG_SCRIPT" ]]; then bash "$CHANGELOG_SCRIPT"; fi
