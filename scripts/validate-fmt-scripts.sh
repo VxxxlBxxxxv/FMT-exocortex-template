@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
-# validate-fmt-scripts.sh — проверка FMT/scripts/ на личные хардкоды
+# validate-fmt-scripts.sh — проверка FMT на личные хардкоды и нарушения конвенций
 # Запускается автоматически из template-sync.sh и вручную при подозрении.
 #
 # Использование:
 #   bash validate-fmt-scripts.sh [scripts-dir]
 #
 # Что проверяет:
-#   1. Абсолютный домашний путь пользователя (/Users/<name> или /home/<name>)
-#   2. Голое имя авторского governance-репо без ${VAR:-default} защиты
+#   1. *.sh/*.py: абсолютный домашний путь пользователя (/Users/<name> или /home/<name>)
+#   2. *.sh/*.py: голое имя авторского governance-репо без ${VAR:-default} защиты
+#   3. .claude/settings.json: хук-команды на .claude/hooks/X.sh должны иметь префикс
+#      $CLAUDE_PROJECT_DIR/ (иначе ломаются при сдвиге cwd: subagent/worktree/MCP)
 
 set -uo pipefail
 
 SCRIPTS_DIR="${1:-$(dirname "$0")}"
+FMT_ROOT="$(cd "$SCRIPTS_DIR/.." && pwd)"
 AUTHOR_HOME="${HOME}"
 AUTHOR_GOV_REPO="${IWE_GOVERNANCE_REPO:-DS-strategy}"
 
@@ -50,13 +53,32 @@ done
 
 if [[ $checked -eq 0 ]]; then
     echo "validate-fmt-scripts: нет файлов для проверки в $SCRIPTS_DIR"
-    exit 0
+fi
+
+# Проверка 3: .claude/settings.json — хук-команды должны идти с префиксом $CLAUDE_PROJECT_DIR/
+SETTINGS_JSON="$FMT_ROOT/.claude/settings.json"
+if [[ -f "$SETTINGS_JSON" ]]; then
+    if command -v jq >/dev/null 2>&1; then
+        # Достаём все .hooks.*[].hooks[].command, ищем те, что упоминают .claude/hooks/
+        bad_cmds=$(jq -r '.hooks // {} | to_entries[] | .value[] | .hooks[]? | .command // empty' "$SETTINGS_JSON" \
+            | grep -E '\.claude/hooks/' \
+            | grep -vE '^\$CLAUDE_PROJECT_DIR/' || true)
+        if [[ -n "$bad_cmds" ]]; then
+            echo "  ❌ .claude/settings.json: хук-команды без префикса \$CLAUDE_PROJECT_DIR/" >&2
+            echo "$bad_cmds" | sed 's/^/     /' >&2
+            echo "     → Замени на \$CLAUDE_PROJECT_DIR/.claude/hooks/<имя>.sh" >&2
+            echo "     → Док: https://code.claude.com/docs/en/hooks#reference-scripts-by-path" >&2
+            errors=$((errors + 1))
+        fi
+    else
+        echo "  ⚠ jq не найден, пропускаю проверку .claude/settings.json" >&2
+    fi
 fi
 
 if [[ $errors -eq 0 ]]; then
-    echo "✅ validate-fmt-scripts: $checked файлов проверено, личных хардкодов нет"
+    echo "✅ validate-fmt-scripts: $checked файлов + settings.json проверено, нарушений нет"
     exit 0
 else
-    echo "❌ validate-fmt-scripts: $errors нарушений в $checked файлах — исправить до коммита в FMT" >&2
+    echo "❌ validate-fmt-scripts: $errors нарушений — исправить до коммита в FMT" >&2
     exit 1
 fi

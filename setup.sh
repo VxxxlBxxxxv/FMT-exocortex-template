@@ -204,9 +204,11 @@ else
         if gh auth status >/dev/null 2>&1; then
             echo "  ✓ GitHub CLI: authenticated"
         else
-            echo "  ✗ GitHub CLI: not authenticated"
-            echo "    Run: gh auth login"
-            PREREQ_FAIL=1
+            echo "  ⚠ GitHub CLI: not authenticated"
+            if [ -z "${SETUP_CI:-}" ]; then
+                echo "    Run: gh auth login"
+                PREREQ_FAIL=1
+            fi
         fi
     fi
 fi
@@ -737,9 +739,9 @@ else
         echo "  validate-режим setup.sh проверит: env-конфиг, обязательные файлы,"
         echo "  extensions, доступность MCP, структурные инварианты."
         echo ""
-        read -p "Запустить проверку сейчас? (y/n) " -n 1 -r
+        read -p "Запустить проверку сейчас? (y/n) " -n 1 -r || true
         echo ""
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
+        if [[ ${REPLY:-} =~ ^[Yy]$ ]]; then
             echo ""
             bash "$TEMPLATE_DIR/setup.sh" --validate
         else

@@ -196,7 +196,7 @@ for dir in "$TEMPLATE_DIR"/.claude/*/; do
     [ -d "$dir" ] || continue
     dirname=$(basename "$dir")
     case "$dirname" in
-        projects|context-cache|logs) continue ;; # workspace-local / runtime-only, не propagate
+        projects|context-cache|logs|worktrees) continue ;; # workspace-local / runtime-only, не propagate
     esac
     if ! echo "$PATTERN_LINE" | grep -q "\.claude/$dirname/\*"; then
         MISSING_DIRS="$MISSING_DIRS $dirname"
@@ -429,7 +429,7 @@ for dir in "$TEMPLATE_DIR"/.claude/*/; do
     [ -d "$dir" ] || continue
     dirname=$(basename "$dir")
     case "$dirname" in
-        projects|context-cache|logs|settings.json) continue ;; # workspace-local / runtime-only
+        projects|context-cache|logs|settings.json|worktrees) continue ;; # workspace-local / runtime-only
     esac
     if ! echo "$SUBDIR_LINE" | grep -qw "$dirname"; then
         SETUP8A_MISS="$SETUP8A_MISS $dirname"

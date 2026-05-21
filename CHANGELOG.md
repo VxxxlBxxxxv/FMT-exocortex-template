@@ -9,6 +9,42 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 
 
+
+## [Unreleased]
+
+
+## [0.34.1] — 2026-05-21
+
+### Fixed
+
+- `8a231a3` fix(CI): закрыть 3 реальных блокера Validate Template — regex detector #9, hardcoded DS-strategy, smoke-test gh auth, install.sh portability
+
+
+## [0.34.0] — 2026-05-20
+
+### Added
+
+- `4c7bf32` feat(calendar): promote day-open + week-close skills — meeting/task split, week mode, bot QA restored
+- `6df8f7a` feat(calendar): server-calendar.sh v2 — L3 template sync
+- `ea9d683` feat(WP-295): CLI iwe trace show/search/upload (Ф1 Шаг 6)
+- `c277672` feat(pack-ci): auto-install CI guard via pack-new + pack-ci-install.sh
+- `117da91` feat(pack-templates): CI guard для новых Pack-репо (.github/workflows/pack-lint.yml)
+- `c180e6a` feat(WP-316 Ф6): promote Agent Fault Profile v0.33.0 — scripts + extensions
+- `de23341` feat(strategy-session): добавить шаги 1b (KE-кандидаты) и 1c (Мир) в открытие недели
+- `8a72b50` feat(WP-295): agent-trace-recorder writer hooks (Ф1 шаг 5)
+- `72f7572` fix(WP-7): hook paths — $CLAUDE_PROJECT_DIR/ convention for all hook commands
+- `2136141` feat(WP-7): settings-promote.sh + pre-commit HOOK-PATH-CONVENTION gate
+- `b00ef4c` fix(settings-promote): inline jq check вместо полного validate-fmt-scripts.sh
+
+### Fixed
+
+- `d451166` fix(memory-active-wp-update): fallback to exocortex when runtime memory is read-only
+- `0263a5a` fix(agent-inbox): add fetch+rebase before push in commit_and_push
+- `c715f5e` fix(WP-7 Ф-id-collisions): обновление slug-ссылок DP.SC.019→043, PD.SOTA.001→007
+- `767ad46` fix(dt-collect+templates): fix weekly multiplier parser + format note
+- `d13af21` fix(WP-295): pretty=format → tformat для produced_artifact_ids
+
+
 ## [0.33.0] — 2026-05-18
 
 ### Added

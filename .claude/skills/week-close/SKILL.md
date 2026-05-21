@@ -32,7 +32,13 @@ for repo in $(ls {{WORKSPACE_DIR}}/); do
 done
 ```
 
-Сопоставить коммиты с РП в WeekPlan → определить статусы (done/partial/not started).
+**Календарь недели:**
+```bash
+bash {{WORKSPACE_DIR}}/scripts/server-calendar.sh --week $(date -v-mon +%Y-%m-%d 2>/dev/null || date -d "last monday" +%Y-%m-%d)
+```
+Сверить запланированные встречи/задачи с фактом: что состоялось, что перенеслось, что отменилось. Для задач с отчётами (🔧 backup stress-test и т.п.) — проверить наличие артефакта.
+
+Сопоставить коммиты и календарь с РП в WeekPlan → определить статусы (done/partial/not started).
 
 ### 2. Headless week-review (если включён launchd Пн 00:00)
 

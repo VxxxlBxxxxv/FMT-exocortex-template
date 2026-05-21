@@ -315,7 +315,7 @@ log ""
 log "[9/9] manifest_version — update-manifest.json version == CHANGELOG.md version..."
 if [ -f update-manifest.json ] && [ -f CHANGELOG.md ] && command -v python3 >/dev/null 2>&1; then
     MANIFEST_VERSION=$(python3 -c "import json; print(json.load(open('update-manifest.json')).get('version',''))" 2>/dev/null || echo "")
-    CHANGELOG_VERSION=$(grep -m1 '^\#\# \[' CHANGELOG.md | sed 's/.*\[\(.*\)\].*/\1/' 2>/dev/null || echo "")
+    CHANGELOG_VERSION=$(grep -m1 -oE '^## \[[0-9]+\.[0-9]+\.[0-9]+\]' CHANGELOG.md | sed 's/^## \[//;s/\]$//' 2>/dev/null || echo "")
     if [ -z "$MANIFEST_VERSION" ] || [ -z "$CHANGELOG_VERSION" ]; then
         log "  ⊘ SKIP (не удалось прочитать версии)"
     elif [ "$MANIFEST_VERSION" = "$CHANGELOG_VERSION" ]; then

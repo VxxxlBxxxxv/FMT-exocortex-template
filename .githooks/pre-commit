@@ -67,6 +67,25 @@ if [ -n "$STAGED_RELEASE_FILES" ]; then
     fi
 fi
 
+# === Hook paths convention (.claude/settings.json) ===
+# Корень бага (20 мая 2026): settings.json вручную скопирован в FMT с относительными
+# путями .claude/hooks/X.sh. При сдвиге cwd (subagent/worktree/MCP) хук не находится.
+# Конвенция: все хук-команды должны начинаться с $CLAUDE_PROJECT_DIR/.
+STAGED_SETTINGS=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null \
+    | grep -E '^\.claude/settings\.json$' || true)
+if [ -n "$STAGED_SETTINGS" ] && [ -x "scripts/validate-fmt-scripts.sh" ]; then
+    if ! bash scripts/validate-fmt-scripts.sh scripts/ >/tmp/iwe-settings-validate.$$ 2>&1; then
+        echo "HOOK-PATH-CONVENTION: FAIL"
+        cat /tmp/iwe-settings-validate.$$
+        rm -f /tmp/iwe-settings-validate.$$
+        echo ""
+        echo "  Используй settings-promote.sh для регистрации новых хуков."
+        echo "  Override: git commit --no-verify"
+        exit 1
+    fi
+    rm -f /tmp/iwe-settings-validate.$$
+fi
+
 # === Template validation (author-specific leaks, hardcoded paths, hooks cross-ref) ===
 # Корень бага (26 апр): литерал `DS-my-strategy` попал в новый
 # templates/strategy-skeleton/README.md (commit cb22aaa); валидатор зовётся
