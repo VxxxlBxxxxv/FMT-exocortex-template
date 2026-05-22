@@ -10,7 +10,33 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 
 
-## [Unreleased]
+
+## [Unreleased] — обновлено 2026-05-21
+
+### Added
+
+- `e165020` feat(Ж-Ф4): headless-runner.sh — точка входа headless-адаптера DP.IWE.011
+- `78698f2` feat(WP-348): Ф6 — session-record extension point
+- `101bd44` feat(WP-348): Ф5 — skill-promote.sh v2 + skills-pull.sh (pull pipeline)
+- `cecf52d` feat(WP-348): Ф4 — create-skill.sh + validate-skill.sh
+- `d4e3db2` feat(WP-348): Ф3 — SKILL.md v2 шаблон + генератор каталога + мигратор
+- `2136141` feat: settings-promote.sh + pre-commit HOOK-PATH-CONVENTION gate
+- `333c83d` feat(strategist): complete runner migration — run_skill() for day-open/day-close/week-close/strategy-session
+
+### Changed
+
+- `c370fe9` docs: уточнить различение Скилл ≠ SKILL.md (WP-348 post-close)
+- `e77406c` chore: release 0.34.1
+- `5b43a38` chore: release 0.34.0
+
+### Fixed
+
+- `16b468a` fix(ci): setup.sh SETUP_CI=1 не требует claude/node/npm как prerequisites
+- `7f3fba0` fix(WP-348): SIGPIPE-баг в migrate-skills-to-v2.sh has_field()
+- `8a231a3` fix(CI): закрыть 3 реальных блокера Validate Template
+- `b00ef4c` fix(settings-promote): inline jq check вместо полного validate-fmt-scripts.sh
+- `72f7572` fix: hook paths — $CLAUDE_PROJECT_DIR/ convention for all hook commands
+- `e337183` fix(manifest): remove strategist prompts from deprecated_files — runner still uses them
 
 
 ## [0.34.1] — 2026-05-21

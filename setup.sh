@@ -194,10 +194,14 @@ if $CORE_ONLY; then
     echo "  Режим --core: проверяются только обязательные зависимости (git)."
     echo "  GitHub CLI, Node.js, Claude Code — не требуются."
 else
-    check_command "gh" "GitHub CLI" "brew install gh"
-    check_command "node" "Node.js" "brew install node (or https://nodejs.org)"
-    check_command "npm" "npm" "Comes with Node.js"
-    check_command "claude" "Claude Code" "npm install -g @anthropic-ai/claude-code"
+    # В CI-режиме (SETUP_CI=1) node/npm/claude — необязательны: Test 10 проверяет delivery
+    # и role-installation, а не наличие runtime-инструментов на машине.
+    # Паттерн уже установлен для gh auth ниже (строка с SETUP_CI).
+    _TOOL_REQUIRED="${SETUP_CI:+false}"; _TOOL_REQUIRED="${_TOOL_REQUIRED:-true}"
+    check_command "gh" "GitHub CLI" "brew install gh" "$_TOOL_REQUIRED"
+    check_command "node" "Node.js" "brew install node (or https://nodejs.org)" "$_TOOL_REQUIRED"
+    check_command "npm" "npm" "Comes with Node.js" "$_TOOL_REQUIRED"
+    check_command "claude" "Claude Code" "npm install -g @anthropic-ai/claude-code" "$_TOOL_REQUIRED"
 
     # Check gh auth
     if command -v gh >/dev/null 2>&1; then
