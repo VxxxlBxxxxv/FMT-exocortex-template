@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# routing: utility  deterministic=true
+# see DP.SC.159, DP.ROLE.059
 # Устанавливает CI guard (ID collision detector) во все Pack-репо в ~/IWE/
 # Использование: bash pack-ci-install.sh [--dry-run]
 # Источник: WP-5 F-pack-ci-auto-setup (18 мая 2026)

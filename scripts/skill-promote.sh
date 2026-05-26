@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# routing: utility  deterministic=true
+# see DP.SC.159, DP.ROLE.059
 # skill-promote.sh — промоция скилла в платформенный шаблон IWE (v2)
 # see DP.SC.153, DP.ROLE.056
 #

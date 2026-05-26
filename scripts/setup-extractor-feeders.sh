@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# routing: utility  deterministic=true
+# see DP.SC.159, DP.ROLE.059
 # setup-extractor-feeders.sh — Onboarding скрипт для активации feeder-системы
 # (WP-247 Ф-MULTI-SOURCE).
 #

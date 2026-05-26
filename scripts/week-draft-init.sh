@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# routing: helper  skill=week-close  called-by=sonnet
+# see DP.SC.159, DP.ROLE.059
 # week-draft-init.sh — создать пустой черновик недельного поста для новой недели.
 #
 # Использование:
@@ -69,6 +71,15 @@ SUN_DATE=$(date -v+$((7-$(date +%u)))d +%Y-%m-%d 2>/dev/null || date -d "sunday 
 MON_DAY=$(date -j -f %Y-%m-%d "$MON_DATE" +%d 2>/dev/null | sed 's/^0//')
 SUN_DAY=$(date -j -f %Y-%m-%d "$SUN_DATE" +%d 2>/dev/null | sed 's/^0//')
 MONTH_FOR_DATES="${MONTH_NAME:0:3}"
+
+# Генерируем строки таблицы метрик с датами Пн-Вс (WD1 fix: совместимость с week-draft-append.sh)
+DOW_RU=("Пн" "Вт" "Ср" "Чт" "Пт" "Сб" "Вс")
+TABLE_ROWS=""
+for i in 0 1 2 3 4 5 6; do
+  day_date=$(date -v+${i}d -j -f %Y-%m-%d "$MON_DATE" +%Y-%m-%d 2>/dev/null || date -d "$MON_DATE + $i days" +%Y-%m-%d)
+  day_num=$(date -j -f %Y-%m-%d "$day_date" +%d 2>/dev/null | sed 's/^0//' || date -d "$day_date" +%d | sed 's/^0//')
+  TABLE_ROWS="${TABLE_ROWS}| ${DOW_RU[$i]} ${day_num} | | | | | |"$'\n'
+done
 
 cat > "$DRAFT_FILE" <<EOF
 ---
@@ -155,14 +166,7 @@ created: $(date +%Y-%m-%d)
 
 | День | WakaTime | Коммиты | Закрыто РП | Бюджет закрыт | Прогресс месяца |
 |------|----------|---------|------------|---------------|-----------------|
-| Пн | | | | | |
-| Вт | | | | | |
-| Ср | | | | | |
-| Чт | | | | | |
-| Пт | | | | | |
-| Сб | | | | | |
-| Вс | | | | | |
-| **Итого W${WEEK}** | | | | | |
+${TABLE_ROWS}| **Итого W${WEEK}** | | | | | |
 
 ---
 

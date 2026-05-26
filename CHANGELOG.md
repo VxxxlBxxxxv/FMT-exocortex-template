@@ -11,10 +11,30 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 
 
-## [Unreleased] — обновлено 2026-05-21
+
+
+
+
+## [Unreleased] — обновлено 2026-05-25
 
 ### Added
 
+- `cd2a295` feat(WP-350): routing-заголовки в 21 FMT хелпер-скрипт
+- `c571c55` feat(WP-350 Ф13): Маршрутизатор + Артефактор в Session Open
+- `7599ae5` feat(WP-350 Ф12): route-task.sh — Маршрутизатор задач IWE
+- `ceca611` feat(WP-350 Ф10): routing-заголовки в 20 скриптов + script_path в 3 SKILL.md
+- `6142f6a` feat(WP-350 Ф9): routing: секция в 21 скилл шаблона
+- `0ba2168` feat(WP-352/Ф3): add HD numbers to 4 FPF distinctions in distinctions.md
+- `b05a35b` feat(WP-352 Ф2): 4 FPF различения в distinctions.md
+- `016833a` feat(week-close): add step 7a iwe-backup-check.sh before backup
+- `836997c` feat: promote iwe-backup-check.sh to platform scripts
+- `a4260e7` feat(day-open): scaffold PENDING markers + protocol-close WP archiving step
+- `02bfe7d` feat: guard в script-promote.sh — блокирует перезапись фиксов FMT
+- `75d15f0` feat(WP-347 Ф3+Ф4): docs/RELEASE-PROCESS.md + правило валидатора в SCRIPT-PROMOTION.md
+- `95817fa` feat(WP-347 Ф2): CI-конвейер: B2 manifest CI + B8 set-e детектор + гранулярные флаги
+- `ce15f52` feat(rules): wp-scope — guard для umbrella РП
+- `40521e9` feat: WP-247 промоция — apply-captures + protocol-close.checks + inter-agent-handoff
+- `609eaa0` feat: promote iwe-agent-dispatcher.py to platform (WP-337 Ж-Ф4)
 - `e165020` feat(Ж-Ф4): headless-runner.sh — точка входа headless-адаптера DP.IWE.011
 - `78698f2` feat(WP-348): Ф6 — session-record extension point
 - `101bd44` feat(WP-348): Ф5 — skill-promote.sh v2 + skills-pull.sh (pull pipeline)
@@ -25,12 +45,27 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- `89ea560` refactor(WP-350 Ф5): R29 Артефактор → Декомпозитор, /artifactor → /decompose
+- `a5b9aa8` docs(changelog): add 2c92438 warn() fix to Unreleased
+- `f721eb0` chore(audit-installation): add SKILL.md frontmatter (version, layer, status, triggers)
+- `af829fe` chore: sync headless-runner.sh
 - `c370fe9` docs: уточнить различение Скилл ≠ SKILL.md (WP-348 post-close)
 - `e77406c` chore: release 0.34.1
 - `5b43a38` chore: release 0.34.0
 
 ### Fixed
 
+- `457950b` fix(manifest): B2 coverage gap — add 3 orphan scripts to update-manifest.json
+- `0bc537f` fix(script-promote): робастный hint + аргументы в любом порядке
+- `dde3e7f` fix: регрессии после sync + 2 новых дополнения
+- `9dfbfaa` fix: минимальный frontmatter в guard-else вместо touch
+- `0fe32f5` fix(WP-347): RELEASE-PROCESS.md — 3 правки по Kimi-ревью
+- `81e5727` fix: scaffold guard + D11 upgrade to FAIL
+- `8d316f4` fix: три замечания Евгения — manifest/day-plan/detector-11
+- `af3b15c` fix: remove stale deprecated entries + add detector 10 for runner/manifest cross-check
+- `0321fcf` fix(WP-247): исправить путь REPORTS_DIR в protocol-close.checks.md
+- `2c92438` fix(smoke-test): define warn() — undefined function broke Validate Template CI
+- `ea7ead8` fix(dispatcher): race-condition after claude -p — git reset --hard before status commit
 - `16b468a` fix(ci): setup.sh SETUP_CI=1 не требует claude/node/npm как prerequisites
 - `7f3fba0` fix(WP-348): SIGPIPE-баг в migrate-skills-to-v2.sh has_field()
 - `8a231a3` fix(CI): закрыть 3 реальных блокера Validate Template

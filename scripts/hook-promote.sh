@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# routing: utility  deterministic=true
+# see DP.SC.159, DP.ROLE.059
 # hook-promote.sh — промоция личного хука в платформенный шаблон IWE
 #
 # Поток: личная папка/<hook>.sh → подстановки → FMT/.claude/hooks/<hook>.sh

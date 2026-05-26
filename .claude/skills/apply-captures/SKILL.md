@@ -2,6 +2,15 @@
 name: apply-captures
 description: Разбор extraction-reports со status pending-review — решение R15 (accept/reject/defer), запись в Pack, обновление статуса, коммит. Вызывать при Close при наличии N>0 pending-review отчётов.
 argument-hint: "[путь к конкретному отчёту | пусто = все pending-review]"
+version: 1.0.0
+layer: L1
+status: active
+triggers:
+  slash: [/apply-captures]
+  phrases: []
+routing:
+  executor: sonnet
+  deterministic: false
 ---
 
 # /apply-captures — разбор кандидатов экстрактора
@@ -43,7 +52,7 @@ argument-hint: "[путь к конкретному отчёту | пусто = 
   Обновить status отчёта по итогам.
 Выход:
   - Обновлённый Pack (новые файлы сущностей).
-  - Обновлённый {{GOVERNANCE_REPO}}/inbox/feedback-log.md (reject-паттерны).
+  - Обновлённый `{{GOVERNANCE_REPO}}/inbox/feedback-log.md` (reject-паттерны).
   - Отчёт со финальным status (applied / partially-applied / rejected / deferred).
   - Коммит в PACK-* (при accept).
 ```
@@ -69,7 +78,7 @@ defer_until: "после WP-245 Ф22"
 ## Шаг 1. Найти pending-review отчёты
 
 ```bash
-find {{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/inbox/extraction-reports -name "*.md" \
+find "${IWE_WORKSPACE:-$HOME/IWE}/{{GOVERNANCE_REPO}}/inbox/extraction-reports" -name "*.md" \
   -exec grep -l "^status: pending-review" {} \; | sort
 ```
 
@@ -107,7 +116,7 @@ find {{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/inbox/extraction-reports -name "*.md"
 ### 4б. Уникальность ID
 
 ```bash
-grep -r "^id: <ID>" {{WORKSPACE_DIR}}/PACK-* | head -5
+grep -r "^id: <ID>" ~/IWE/PACK-* | head -5
 ```
 
 Если совпадение найдено → вернуть R15 на reject: паттерн `«ID уже занят: <путь>»`.
@@ -119,7 +128,7 @@ grep -r "^id: <ID>" {{WORKSPACE_DIR}}/PACK-* | head -5
 - `DP.METHOD.*` → `.../03-methods/`
 - `DP.ROLE.*` → `.../02-domain-entities/` или `.../roles/`
 - `DP.SOTA.*` → `.../06-sota/`
-- `PD.*` → аналогичная структура в `PACK-personal/` или другом доменном Pack-репо
+- `PD.*` → аналогичная структура в `PACK-personal/` или доменном Pack'е
 
 При сомнении — проверить соседние файлы в целевой директории.
 
@@ -193,8 +202,18 @@ git add <target_path> [MAP если был] && git commit -m "feat(KE apply): <i
 | `rejected` | Удалять через 7 дней |
 | `no-pending` | Удалять через 7 дней |
 
-## Close-интеграция (Ф4 WP-247, pending)
+## Интеграция в рабочий процесс
 
-После обкатки этого скилла в `extensions/protocol-close.checks.md` будет добавлен warning:
-«N extraction-reports со status pending-review — запустить /apply-captures перед закрытием сессии.»
-До реализации Ф4: предупреждение выдаётся вручную в protocol-close.md.
+**DayPlan (ежедневный обзор):** Шаблон DayPlan содержит секцию «Наработки ИИ → Экстрактор» с обзором:
+- N pending-review отчётов
+- Дата самого старого отчёта
+- SLA-статус (✅ в норме / ⚠️ истёк)
+- Напоминание: разбор в отдельной сессии `/apply-captures`
+
+**Close Gate:** `extensions/protocol-close.checks.md` — при N > 0 pending-review выдаёт предупреждение ⚠️ и SLA-напоминание (DP.SC.004 §Hard gate). Soft gate — не блокирует Close, но требует решения ≤24ч.
+
+**Полный цикл:**
+1. Cron / `extractor.sh` → создаёт `extraction-reports/*.md` (status: `pending-review`)
+2. Day Open → секция «Наработки ИИ → Экстрактор» в DayPlan показывает N ожидающих
+3. Close → `protocol-close.checks.md` напоминает о SLA
+4. Пользователь запускает `/apply-captures` в отдельной сессии → R15 разбор → запись в Pack

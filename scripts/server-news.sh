@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# routing: server  deterministic=true
+# see DP.SC.159, DP.ROLE.059
 # server-news.sh — кросс-платформенная замена WebSearch для server-mode
 # see WP-283 (DS-strategy/inbox/WP-283-server-day-open-crossplatform.md)
 #

@@ -1,4 +1,6 @@
 #!/bin/bash
+# routing: utility  deterministic=true
+# see DP.SC.159, DP.ROLE.059
 # template-sync.sh — синхронизация CLAUDE.md из авторского IWE в FMT-exocortex-template
 #
 # Flow: $IWE_WORKSPACE/CLAUDE.md → placeholder sub → strip §9 авторское → FMT/CLAUDE.md

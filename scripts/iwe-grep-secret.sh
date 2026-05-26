@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# routing: utility  deterministic=true
+# see DP.SC.159, DP.ROLE.059
 #
 # iwe-grep-secret.sh — Secret Drift Detector (WP-315)
 #
@@ -153,7 +155,7 @@ scan_layer_env() {
       c1=$(ssh -o ConnectTimeout=5 tsekh-1 "grep -cF '$SECRET_VALUE' /etc/iwe/env 2>/dev/null || echo 0" 2>/dev/null || echo 0)
       if [[ "$c1" -gt 0 ]]; then
         printf "  %-20s %-40s %s\n" "Layer 1" "tsekh-1:/etc/iwe/env" "${RED}${c1} hits${NC}"
-        ((ssh_hits += c1))
+        ((ssh_hits += c1)) || true
       fi
 
       # systemd unit files
@@ -161,7 +163,7 @@ scan_layer_env() {
       c2=$(ssh -o ConnectTimeout=5 tsekh-1 "grep -rcF '$SECRET_VALUE' /etc/systemd/system/ 2>/dev/null | awk -F: '{s+=\$2} END {print s+0}'" 2>/dev/null || echo 0)
       if [[ "$c2" -gt 0 ]]; then
         printf "  %-20s %-40s %s\n" "Layer 1" "tsekh-1:/etc/systemd/system/" "${RED}${c2} hits${NC}"
-        ((ssh_hits += c2))
+        ((ssh_hits += c2)) || true
       fi
 
       # IWE .env на tsekh-1
@@ -169,7 +171,7 @@ scan_layer_env() {
       c3=$(ssh -o ConnectTimeout=5 tsekh-1 "find ~/IWE -type f \( -name '.env*' -o -name 'secrets*' \) ! -path '*/node_modules/*' -print0 2>/dev/null | xargs -0 grep -cF '$SECRET_VALUE' 2>/dev/null | awk -F: '{s+=\$2} END {print s+0}'" 2>/dev/null || echo 0)
       if [[ "$c3" -gt 0 ]]; then
         printf "  %-20s %-40s %s\n" "Layer 1" "tsekh-1:~/IWE/**/.env" "${RED}${c3} hits${NC}"
-        ((ssh_hits += c3))
+        ((ssh_hits += c3)) || true
       fi
     else
       warn "tsekh-1 недоступен по ssh (Layer 1 incomplete)"
@@ -282,7 +284,7 @@ scan_layer_cloud() {
                   | grep -cF "$SECRET_VALUE" 2>/dev/null || true)
                 if [[ "${c:-0}" -gt 0 ]]; then
                   printf "  %-20s %-40s %s\n" "Layer 2" "Railway ${proj_name}/${svc_name}[${env_name}]" "${RED}${c} hits${NC}"
-                  ((railway_hits += c))
+                  ((railway_hits += c)) || true
                 fi
               done
             done

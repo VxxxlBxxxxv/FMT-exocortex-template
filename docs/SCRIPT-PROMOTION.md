@@ -103,6 +103,22 @@ git push
 `git revert` коммита промоции + следующий `update.sh` у пилотов вернёт прежнее
 состояние. Параметр в `params.yaml` остаётся (без вреда, неиспользуем).
 
+## Золотое правило валидатора
+
+> **«Зависишь от валидатора → проверь его на реальных данных в `env -i` перед коммитом»**
+
+Корень B4-класса багов (clean-env blind spots, 20 мая 2026): скрипт работает у автора
+(авторский `IWE_GOVERNANCE_REPO` перекрывает дефолт), но ломается у пользователя в чистом env.
+Если изменяешь `validate-fmt-scripts.sh` или `integration-contract-validator.sh` — проверь:
+
+```bash
+env -i HOME="$HOME" PATH="$PATH" \
+    bash scripts/validate-fmt-scripts.sh scripts/
+```
+
+`hook-promote.sh` и `script-promote.sh` уже содержат такую проверку при промоции.
+При прямом `git commit` — твоя ответственность запустить её вручную.
+
 ## Связь с правилами
 
 - **DP.KR.001 §5.6** — классификация скриптов как исполнителей ролей
@@ -110,3 +126,4 @@ git push
 - **DP.D.049** — Log ≠ Incident ≠ State file (артефакты исполнения)
 - **§9 CLAUDE.md** — авторский режим (`params.yaml: author_mode: true`)
 - **Extensions Gate** — пользовательская кастомизация только через `extensions/`
+- **RELEASE-PROCESS.md** — чеклист выпуска + конвенция `deprecated_files`

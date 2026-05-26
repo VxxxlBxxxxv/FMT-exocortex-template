@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# routing: utility  deterministic=true
+# see DP.SC.159, DP.ROLE.059
 #
 # check-setup-update-parity.sh — статический анализ парных скриптов
 # Проверяет что setup.sh ↔ update.sh ↔ migrate-*.sh содержат ключевые паттерны.
@@ -152,7 +154,7 @@ for pair_dir in "$TMPDIR/pairs/"*; do
 
   if [[ ! -s "$script_file" ]]; then
     echo -e "  ${YELLOW}WARN:${NC} no scripts defined"
-    ((WARNINGS++))
+    ((WARNINGS++)) || true
     continue
   fi
 
@@ -164,7 +166,7 @@ for pair_dir in "$TMPDIR/pairs/"*; do
 
   if [[ ${#scripts[@]} -lt 2 ]]; then
     echo -e "  ${YELLOW}WARN:${NC} less than 2 scripts, skipping"
-    ((WARNINGS++))
+    ((WARNINGS++)) || true
     continue
   fi
 
@@ -180,7 +182,7 @@ for pair_dir in "$TMPDIR/pairs/"*; do
 
     if [[ ! -f "$regex_file" ]]; then
       echo -e "  ${YELLOW}WARN:${NC} pattern '$pattern_id' has no regex"
-      ((WARNINGS++))
+      ((WARNINGS++)) || true || true
       continue
     fi
 
@@ -195,7 +197,7 @@ for pair_dir in "$TMPDIR/pairs/"*; do
       script_path="$REPO_ROOT/$script_rel"
       if [[ ! -f "$script_path" ]]; then
         echo -e "  ${YELLOW}WARN:${NC} $script_rel not found"
-        ((WARNINGS++))
+        ((WARNINGS++)) || true || true || true
         all_match=false
         continue
       fi
@@ -213,14 +215,14 @@ for pair_dir in "$TMPDIR/pairs/"*; do
         echo -e "  ${GREEN}OK:${NC}  [$pattern_id] all scripts match"
       else
         echo -e "  ${RED}FAIL:${NC} [$pattern_id] missing in:$missing_scripts"
-        ((ERRORS++))
+        ((ERRORS++)) || true
       fi
     else
       if $all_match || ! $any_match; then
         echo -e "  ${GREEN}OK:${NC}  [$pattern_id] (optional) consistent"
       else
         echo -e "  ${YELLOW}WARN:${NC} [$pattern_id] partial match (optional but inconsistent)"
-        ((WARNINGS++))
+        ((WARNINGS++)) || true || true || true
       fi
     fi
   done

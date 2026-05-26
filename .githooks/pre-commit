@@ -147,6 +147,26 @@ if [ -n "$STAGED_DETECTOR_SCOPE" ] && [ -x "setup/test-detectors.sh" ]; then
     rm -f /tmp/iwe-detector-tests.$$
 fi
 
+# === Manifest coverage check (MG5) ===
+# Корень бага (25 мая): orphan-скрипты (day-open-scaffold.sh, iwe-backup-check.sh,
+# route-task.sh) попали в git, но не в update-manifest.json → partial delivery.
+# Shift-left: ловим ДО коммита, а не в CI.
+STAGED_MANIFEST_SCOPE=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null \
+    | grep -E '^(scripts/|\.claude/|roles/|update-manifest\.json)' || true)
+if [ -n "$STAGED_MANIFEST_SCOPE" ] && [ -x "scripts/check-manifest-coverage.py" ]; then
+    if ! git ls-files | python3 scripts/check-manifest-coverage.py update-manifest.json >/tmp/iwe-manifest.$$ 2>&1; then
+        echo "MANIFEST-COVERAGE: FAIL"
+        cat /tmp/iwe-manifest.$$
+        rm -f /tmp/iwe-manifest.$$
+        echo ""
+        echo "  Commit blocked. Добавь orphan-файл(ы) в update-manifest.json"
+        echo "  или в excluded_paths, если намеренно исключён."
+        echo "  Override: git commit --no-verify"
+        exit 1
+    fi
+    rm -f /tmp/iwe-manifest.$$
+fi
+
 # Get list of staged .sh files
 STAGED_SH=$(git diff --cached --name-only --diff-filter=ACM -- '*.sh' 2>/dev/null)
 [ -z "$STAGED_SH" ] && exit 0

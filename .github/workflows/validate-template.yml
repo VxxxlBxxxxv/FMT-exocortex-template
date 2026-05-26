@@ -159,6 +159,14 @@ jobs:
       - name: Run local validator (source-of-truth)
         run: bash setup/validate-template.sh "$PWD"
 
+      # validate-fmt-scripts: проверка на личные хардкоды и нарушения конвенций.
+      # Корень бага (май 2026): detector ловил legitimate uses (template identity,
+      # python fallback, env override) как false positives. Исправлено в validate-fmt-scripts.sh.
+      # Гейт: прогоняем в CI, чтобы не полагаться только на pre-commit (который зовётся
+      # только при staged .claude/settings.json) и ручной запуск.
+      - name: Run validate-fmt-scripts (author-specific hardcodes & conventions)
+        run: bash scripts/validate-fmt-scripts.sh
+
       # CI-only check: MCP — серверы подключаются через claude.ai/settings/connectors
       - name: Check MCP documentation
         run: |
@@ -238,6 +246,13 @@ jobs:
 
           rm -rf "$TMP"
           exit $FAIL
+
+      # B2 gap closure: проверяем что все файлы репо покрыты update-manifest.json.
+      # Новый файл без записи в manifest = обновление не доедет до пользователей.
+      # Исправление: добавить в manifest["files"] или manifest["excluded_paths"].
+      - name: Check manifest completeness (B2)
+        run: |
+          git ls-files | python3 scripts/check-manifest-coverage.py update-manifest.json
 
       # 7. Только допустимые placeholders
       - name: Check placeholders are valid

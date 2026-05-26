@@ -49,6 +49,7 @@ FAIL_COUNT=0
 PASS_COUNT=0
 fail() { echo "  ❌ FAIL: $*" >&2; FAIL_COUNT=$((FAIL_COUNT + 1)); }
 pass() { echo "  ✅ PASS: $*"; PASS_COUNT=$((PASS_COUNT + 1)); }
+warn() { echo "  ⚠️  WARN: $*" >&2; }
 
 echo "=========================================="
 echo "  Smoke Test: Fresh Install (WP-273 F)"

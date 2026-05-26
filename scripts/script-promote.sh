@@ -1,24 +1,37 @@
 #!/usr/bin/env bash
+# routing: utility  deterministic=true
+# see DP.SC.159, DP.ROLE.059
 # script-promote.sh — промоция личного скрипта в платформенный шаблон IWE
 #
 # Поток: личная папка/<script> → подстановки → FMT/scripts/<script>
 # Личные константы заменяются на параметры среды (env vars).
 #
 # Использование:
-#   bash script-promote.sh <путь-к-скрипту> [--dry-run]
+#   bash script-promote.sh <путь-к-скрипту> [--dry-run] [--force]
 #
 # Примеры:
 #   bash script-promote.sh ~/IWE/DS-strategy/scripts/my-tool.sh --dry-run
 #   bash script-promote.sh ~/IWE/DS-strategy/scripts/my-tool.sh
+#   bash script-promote.sh ~/IWE/DS-strategy/scripts/my-tool.sh --force
+#
+# --force: пропустить guard сравнения с FMT HEAD (если FMT отличается намеренно)
 
 set -uo pipefail
 
-SRC="${1:-}"
+SRC=""
 dry_run=false
-[[ "${2:-}" == "--dry-run" ]] && dry_run=true
+force=false
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run) dry_run=true ;;
+        --force)   force=true ;;
+        --*)       echo "Неизвестный флаг: $arg" >&2; exit 1 ;;
+        *)         if [[ -z "$SRC" ]]; then SRC="$arg"; else echo "Слишком много аргументов" >&2; exit 1; fi ;;
+    esac
+done
 
 if [[ -z "$SRC" || ! -f "$SRC" ]]; then
-    echo "Использование: $0 <путь-к-скрипту> [--dry-run]" >&2
+    echo "Использование: $0 <путь-к-скрипту> [--dry-run] [--force]" >&2
     echo "Пример: $0 ~/IWE/\$GOV_REPO/scripts/my-tool.sh" >&2
     exit 1
 fi
@@ -50,6 +63,30 @@ if $dry_run; then
     printf '%s\n' "$result"
     echo "--- конец ---"
     exit 0
+fi
+
+# Guard: FMT HEAD содержит более свежую версию?
+# Сравниваем $result (после подстановок) с HEAD:scripts/$fname — не с working tree.
+# Цель: поймать случай когда runtime-копия stale и перетирает фиксы, уже залитые в FMT.
+# Новый файл (нет в HEAD) → guard молчит. FMT не git-репо → guard молчит.
+if ! $force && git -C "$FMT_DIR" rev-parse HEAD >/dev/null 2>&1; then
+    head_version=$(git -C "$FMT_DIR" show "HEAD:scripts/$fname" 2>/dev/null || true)
+    if [[ -n "$head_version" ]]; then
+        if ! diff -q <(printf '%s\n' "$result") <(printf '%s\n' "$head_version") >/dev/null 2>&1; then
+            echo "⚠️  СТОП: FMT HEAD содержит другую версию $fname" >&2
+            echo "   Вероятно, в FMT уже есть фиксы, которых нет в вашей копии." >&2
+            echo "   Промоция перетрёт эти изменения." >&2
+            echo "" >&2
+            echo "   Текущая версия в FMT HEAD:" >&2
+            echo "     git -C \"$FMT_DIR\" show HEAD:scripts/$fname" >&2
+            echo "   Что будет промотировано (после подстановок):" >&2
+            echo "     bash \"$0\" \"$SRC\" --dry-run" >&2
+            echo "" >&2
+            echo "   Продолжить (если разница намеренная):" >&2
+            echo "     $0 \"$SRC\" --force" >&2
+            exit 1
+        fi
+    fi
 fi
 
 # Валидация результата через временный файл
