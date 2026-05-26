@@ -20,7 +20,9 @@ set -euo pipefail
 WORKSPACE_DIR="${WORKSPACE_DIR:-$HOME/IWE}"
 GOVERNANCE_REPO="${GOVERNANCE_REPO:-${IWE_GOVERNANCE_REPO:-DS-strategy}}"
 DS_STRATEGY="$WORKSPACE_DIR/$GOVERNANCE_REPO"
-MEMORY_SRC="$HOME/.claude/projects/-Users-$(whoami)-IWE/memory"
+# HOME_SLUG: $HOME → slug формат Claude projects (/home/natty → -home-natty, /Users/x → -Users-x)
+HOME_SLUG=$(echo "$HOME" | tr '/' '-')
+MEMORY_SRC="$HOME/.claude/projects/${HOME_SLUG}-IWE/memory"
 EXOCORTEX_DST="$DS_STRATEGY/exocortex"
 # MCP reindex — опциональный компонент (WP-187 iwe-knowledge Gateway заменяет локальный knowledge-mcp).
 # Переопределить путь можно через env IWE_SELECTIVE_REINDEX.
@@ -60,19 +62,20 @@ do_backup() {
 
   mkdir -p "$EXOCORTEX_DST"
 
-  local count=0
-  for f in "$MEMORY_SRC"/*.md "$MEMORY_SRC"/*.yaml "$MEMORY_SRC"/*.yml; do
-    [ -f "$f" ] || continue
-    cp "$f" "$EXOCORTEX_DST/"
-    count=$((count + 1))
-  done
+  # rsync --delete: копирует *.md/*.yaml/*.yml + удаляет zombie файлы из destination,
+  # которых больше нет в source. CLAUDE.md excluded (копируется отдельно из WORKSPACE_DIR).
+  rsync -a --delete \
+    --include='*.md' --include='*.yaml' --include='*.yml' \
+    --exclude='CLAUDE.md' --exclude='*' \
+    "$MEMORY_SRC/" "$EXOCORTEX_DST/"
 
   if [ -f "$WORKSPACE_DIR/CLAUDE.md" ]; then
     cp "$WORKSPACE_DIR/CLAUDE.md" "$EXOCORTEX_DST/CLAUDE.md"
-    count=$((count + 1))
   fi
 
-  log "  Скопировано: $count файлов → $EXOCORTEX_DST/"
+  local count
+  count=$(find "$EXOCORTEX_DST" -maxdepth 1 -type f \( -name '*.md' -o -name '*.yaml' -o -name '*.yml' \) | wc -l | tr -d ' ')
+  log "  Скопировано: $count файлов → $EXOCORTEX_DST/ (rsync --delete: zombie файлы удалены)"
 }
 
 # --- Шаг 2: Knowledge-MCP reindex ---
