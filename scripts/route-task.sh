@@ -190,8 +190,8 @@ run_script() {
     fi
     local script_exit=0
     if [[ -n "$args" ]]; then
-        # shellcheck disable=SC2086
-        "$interpreter" "$script_path" $args || script_exit=$?
+        read -r -a ARGS_ARRAY <<< "$args"
+        "$interpreter" "$script_path" "${ARGS_ARRAY[@]}" || script_exit=$?
     else
         "$interpreter" "$script_path" || script_exit=$?
     fi

@@ -197,7 +197,7 @@ if [ -d "$DS_DIR" ]; then
     fi
 else
     CRITICAL_MISSING=$((CRITICAL_MISSING + 1))
-    printf "| \`%s\` | %s | %s |\n" "$GOV_REPO/" "❌" "директория не найдена"
+    printf "| \`%s\` | %s | %s |\n" "DS-strategy/" "❌" "директория не найдена"
 fi
 
 echo ""
@@ -236,11 +236,11 @@ echo ""
 
 # ---------- Раздел 3: DS-strategy ----------
 
-echo "## 3. $GOV_REPO"
+echo "## 3. DS-strategy"
 echo ""
 
 if [ ! -d "$DS_DIR/.git" ]; then
-    echo "❌ \`$GOV_REPO\` не git-репо (или директория отсутствует)"
+    echo "❌ \`DS-strategy\` не git-репо (или директория отсутствует)"
 else
     set +e
     DS_STATUS=$(git -C "$DS_DIR" status --short 2>&1)

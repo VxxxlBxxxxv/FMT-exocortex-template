@@ -247,10 +247,6 @@ SETTINGS_FILES=()
 [ -f "$TEMPLATE_DIR/.claude/settings.json" ] && SETTINGS_FILES+=("$TEMPLATE_DIR/.claude/settings.json")
 [ -f "$TEMPLATE_DIR/.claude/settings.local.json" ] && SETTINGS_FILES+=("$TEMPLATE_DIR/.claude/settings.local.json")
 
-# Hooks legitimately called directly (not registered in settings.json)
-# e.g. wakatime-heartbeat.sh is copied to ~/.claude/hooks/ by setup-wakatime skill
-DIRECT_CALL_HOOKS="wakatime-heartbeat.sh agent-trace-recorder.sh agent-trace-uploader.sh"
-
 if [ ${#SETTINGS_FILES[@]} -eq 0 ] || [ ! -d "$HOOKS_DIR" ]; then
     echo "SKIP (no settings.json or hooks/ dir)"
 else
@@ -269,9 +265,6 @@ else
         [ -f "$hook" ] || continue
         name=$(basename "$hook")
         if ! grep -q "\.claude/hooks/$name" "${SETTINGS_FILES[@]}" 2>/dev/null; then
-            if echo "$DIRECT_CALL_HOOKS" | grep -qw "$name"; then
-                continue
-            fi
             if [ "$ORPHAN_WARN" -eq 0 ]; then
                 [ "$CHECK7_FAIL" -eq 0 ] && echo "PASS (with warnings)"
                 ORPHAN_WARN=1

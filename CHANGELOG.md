@@ -15,10 +15,25 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 
 
-## [Unreleased] — обновлено 2026-05-25
+
+
+
+
+
+
+
+
+
+
+## [Unreleased] — обновлено 2026-05-26
 
 ### Added
 
+- `1e32045` feat(manifest): MG5 — pre-commit hook для manifest coverage + 4 orphan-файла в манифест
+- `2136de9` feat(WP-350): JSON output, routing-path-distribution audit, routing-errors.log
+- `766eb3d` feat(WP-350): agent-fault skill для AGENT_FAULT routing
+- `33cc31d` feat(WP-350): strict/flex routing + test suite (8 cases)
+- `0b6afe1` feat(WP-350): промоция generate-executor-catalog.py + generate-helper-catalog.py
 - `cd2a295` feat(WP-350): routing-заголовки в 21 FMT хелпер-скрипт
 - `c571c55` feat(WP-350 Ф13): Маршрутизатор + Артефактор в Session Open
 - `7599ae5` feat(WP-350 Ф12): route-task.sh — Маршрутизатор задач IWE
@@ -45,6 +60,8 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- `74d5b67` sync(wp-new): синхронизация с user-level — active-wp пересборка + блокирующее правило
+- `c098042` ci(validate-template): add validate-fmt-scripts.sh to CI pipeline
 - `89ea560` refactor(WP-350 Ф5): R29 Артефактор → Декомпозитор, /artifactor → /decompose
 - `a5b9aa8` docs(changelog): add 2c92438 warn() fix to Unreleased
 - `f721eb0` chore(audit-installation): add SKILL.md frontmatter (version, layer, status, triggers)
@@ -55,6 +72,17 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `beb7f15` fix(week-draft): WD1 — заполнять даты Пн-Вс в таблице метрик для совместимости с append
+- `8676d68` fix(setup): auto-enable core.hooksPath for repos with .githooks/
+- `ed67968` fix(validate): whitelist direct-call hooks + parametrize DS-strategy literal in iwe-audit
+- `89367b4` fix(router): interpreter auto-detection + T13 agent-fault args
+- `8bea701` fix(WP-350): Шаг 0 Маршрутизатор — безусловный, loop-guard, AGENT_FAULT
+- `03515f0` fix(WP-350): explicit return 0 in all dispatch branches
+- `4dd7cf2` fix(WP-350): llm_tokens field, 10 test cases, return consistency
+- `8a3fa5d` fix(WP-350): audit-log on script failure, return exit code
+- `8d51a01` fix(WP-350): audit-log calls, yaml check, args quoting, test rename
+- `63503aa` fix(test-route-task): add || true to ((VAR++)) under set -e
+- `27fecea` fix(validate-fmt-scripts): safe-pattern exclusions for detector false positives
 - `457950b` fix(manifest): B2 coverage gap — add 3 orphan scripts to update-manifest.json
 - `0bc537f` fix(script-promote): робастный hint + аргументы в любом порядке
 - `dde3e7f` fix: регрессии после sync + 2 новых дополнения

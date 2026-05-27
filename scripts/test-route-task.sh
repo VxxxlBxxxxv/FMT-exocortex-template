@@ -103,6 +103,25 @@ run_test "T12: --json --tag unknown (flex → OK, exit 0)" 0 --json --tag unknow
 # 13. AGENT_FAULT routing
 run_test "T13: --skill agent-fault (script, no LLM)" 0 --skill agent-fault --args "record --severity major --fault=test"
 
+# 14. Path-resolution via IWE_DIR
+echo "=== T14: IWE_DIR path-resolution ==="
+TMP_IWE=$(mktemp -d)
+mkdir -p "$TMP_IWE/scripts"
+cp "$HOME/IWE/scripts/iwe-consent.sh" "$TMP_IWE/scripts/"
+set +e
+IWE_DIR="$TMP_IWE" IWE_EXECUTOR_CATALOG="$HOME/IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/scripts/executor-catalog.yaml" bash "$SCRIPT" --skill consent --args "status" >/dev/null 2>&1
+actual=$?
+set -e
+rm -rf "$TMP_IWE"
+if [[ "$actual" -eq 2 ]]; then
+    echo "PASS (exit $actual — script found via IWE_DIR, failed on env as expected)"
+    ((PASS++)) || true
+else
+    echo "FAIL: expected exit 2 (script found, env missing), got $actual"
+    ((FAIL++)) || true
+fi
+echo ""
+
 echo "========================"
 echo "PASS: $PASS  FAIL: $FAIL"
 exit $FAIL
