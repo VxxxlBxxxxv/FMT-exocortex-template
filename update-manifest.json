@@ -894,5 +894,15 @@
       "path": "strategist-agent/scripts/strategist.sh",
       "reason": "strategist-agent directory removed"
     }
+  ],
+  "excluded_paths": [
+    ".secrets/",
+    ".secrets/gcp-oauth.keys.json",
+    "inbox/",
+    "inbox/captures.md",
+    "inbox/fleeting-notes.md",
+    "roles/strategist/WORKPLAN.md",
+    "roles/strategist/scripts/__pycache__/",
+    "roles/strategist/scripts/__pycache__/cleanup-processed-notes.cpython-312.pyc"
   ]
 }
