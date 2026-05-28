@@ -12,8 +12,6 @@ routing:
 
 ## Шаг 1. Определить режим
 
-**EXTENSION POINT (strategy-session sync):** `bash .claude/scripts/load-extensions.sh strategy-session sync` — exit 0 → `Read` файлы (alphabetic), они могут переопределить режим или добавить проверки. Exit 1 → continue.
-
 Проверь:
 
 1. **Skeleton-marker:** есть ли `<!-- IWE-INITIAL-NEEDED -->` в `{{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/docs/Strategy.md`? Маркер ставится seed-шаблоном при первом setup и удаляется после initial-сессии. Его наличие = Strategy.md ещё не наполнена реальным содержимым.
@@ -79,5 +77,3 @@ routing:
 ## Шаг 3. Weekly flow
 
 Если режим = weekly: загрузи `{{IWE_TEMPLATE}}/roles/strategist/prompts/strategy-session-weekly.md` и следуй ему.
-
-**EXTENSION POINT (strategy-session after):** `bash .claude/scripts/load-extensions.sh strategy-session after` — exit 0 → `Read` каждый файл из вывода (alphabetic) → выполнить. Exit 1 → пропустить. Поддерживает `extensions/strategy-session.after.md` И `extensions/strategy-session.after.<suffix>.md`.
