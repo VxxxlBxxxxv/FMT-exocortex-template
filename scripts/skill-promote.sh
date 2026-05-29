@@ -113,6 +113,11 @@ if [[ -f "$CATALOG_SCRIPT" ]]; then
     bash "$CATALOG_SCRIPT" \
         --skills-dir "$FMT_DIR/.claude/skills" \
         --output "$FMT_DIR/.claude/skills-catalog.yaml" 2>&1
+    # Нормализация: убрать абсолютный skills_dir (validate-template ловит /Users/<author>/)
+    if [[ -f "$FMT_DIR/.claude/skills-catalog.yaml" ]]; then
+        sed -i.bak "s|^skills_dir: .*|skills_dir: .claude/skills|" "$FMT_DIR/.claude/skills-catalog.yaml"
+        rm -f "$FMT_DIR/.claude/skills-catalog.yaml.bak"
+    fi
 fi
 
 CHANGELOG_SCRIPT="$FMT_DIR/scripts/changelog-append.sh"
