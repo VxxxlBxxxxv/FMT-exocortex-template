@@ -448,12 +448,18 @@ def build_prompt(task_path: Path, repo_dir: Path) -> str:
     return full_prompt
 
 
-def invoke_claude(prompt: str, model: str) -> tuple[bool, str]:
-    """Возвращает (ok, output)."""
+def invoke_claude(prompt: str, model: str, cwd: Path) -> tuple[bool, str]:
+    """Возвращает (ok, output).
+
+    cwd = одноразовый клон (изоляция). RC5: без cwd агент наследовал cwd процесса
+    и мог дотянуться до рабочего репо и закоммитить туда мимо «диспетчер — sole
+    writer». Запуск в throwaway-клоне: даже если агент закоммитит, последующий
+    reset --hard это сотрёт, а рабочий репо не трогается.
+    """
     cmd = ["claude", "-p", prompt, "--model", model, "--output-format", "text"]
     try:
         r = subprocess.run(
-            cmd, capture_output=True, text=True,
+            cmd, cwd=cwd, capture_output=True, text=True,
             timeout=CLAUDE_TIMEOUT_SEC,
         )
         return (r.returncode == 0), r.stdout + ("\n" + r.stderr if r.stderr else "")
@@ -568,8 +574,8 @@ def process_task(task_path: Path, repo_dir: Path, dry_run: bool) -> bool:
         f"dispatch(WP-324): {task_id} pending→assigned via claude-cli-headless",
         [task_path])
 
-    # Invoke claude
-    ok, output = invoke_claude(prompt, model)
+    # Invoke claude (в одноразовом клоне — изоляция от рабочего репо, RC5)
+    ok, output = invoke_claude(prompt, model, repo_dir)
     finished_at = now_utc()
     log(f"claude done ok={ok} duration={(finished_at - started_at).total_seconds():.0f}s")
 
