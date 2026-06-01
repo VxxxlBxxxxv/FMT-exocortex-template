@@ -41,7 +41,7 @@ table_to_list() {
         | while IFS='|' read -r _ num rp budget priority status _rest; do
             num=$(echo "$num" | xargs)
             rp=$(echo "$rp" | xargs | sed 's/\*\*//g')
-            budget=$(echo "$budget" | xargs)
+            budget=$(echo "$budget" | xargs | sed 's/\*\*//g')
             status=$(echo "$status" | xargs)
 
             local icon="⬜"

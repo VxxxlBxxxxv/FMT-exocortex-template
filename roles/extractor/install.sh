@@ -47,6 +47,14 @@ if [ -f "$SCRIPT_TARGET" ]; then
     chmod +x "$SCRIPT_TARGET"
 fi
 
+# Skip on non-macOS or headless CI without launchctl
+if ! command -v launchctl >/dev/null 2>&1; then
+    echo "  ⊠ launchctl not available (non-macOS), skipping $ROLE_NAME install"
+    exit 0
+fi
+
+mkdir -p "$(dirname "$PLIST_DST")"
+
 # Выгружаем старый агент (если есть)
 launchctl unload "$PLIST_DST" 2>/dev/null || true
 

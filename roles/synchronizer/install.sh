@@ -47,6 +47,14 @@ if [ -d "$SCRIPTS_DIR_RUNTIME" ]; then
     chmod +x "$SCRIPTS_DIR_RUNTIME/templates/"*.sh 2>/dev/null || true
 fi
 
+# Skip on non-macOS or headless CI without launchctl
+if ! command -v launchctl >/dev/null 2>&1; then
+    echo "  ⊠ launchctl not available (non-macOS), skipping $ROLE_NAME install"
+    exit 0
+fi
+
+mkdir -p "$(dirname "$PLIST_DST")"
+
 # Выгружаем старые агенты
 launchctl unload "$PLIST_DST" 2>/dev/null || true
 # Выгружаем также legacy Стратег-агенты (если были)

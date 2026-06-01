@@ -134,6 +134,8 @@ IWE — для тех, кто хочет это изменить:
 
 **Полная установка** от чистого компьютера: **[SETUP-GUIDE.md](docs/SETUP-GUIDE.md)** -- 30-60 минут с установкой всех зависимостей.
 
+**Не на macOS или не Claude Code?** Читай **[PORTABILITY.md](docs/PORTABILITY.md)** — что нужно адаптировать, а что универсально.
+
 ```bash
 mkdir -p ~/IWE && cd ~/IWE
 gh repo fork TserenTserenov/FMT-exocortex-template --clone

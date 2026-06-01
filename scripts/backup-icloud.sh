@@ -1,4 +1,6 @@
 #!/bin/bash
+# routing: utility  deterministic=true
+# see DP.SC.159, DP.ROLE.059
 # backup-icloud.sh — Бэкап IWE в iCloud Drive (без .git, node_modules, .venv)
 # Использование: ./scripts/backup-icloud.sh
 # Хранит последние 4 архива, удаляет старые.

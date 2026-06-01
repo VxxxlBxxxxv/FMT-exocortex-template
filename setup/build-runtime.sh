@@ -242,8 +242,8 @@ build_substituted_file() {
         sed_inplace "${sed_args[@]}" "$dst"
     fi
 
-    # Preserve executable bit
-    if [ -x "$src" ]; then
+    # Preserve executable bit (.sh files always get +x — git may track 100644 after updates)
+    if [ -x "$src" ] || [[ "$rel" == *.sh ]]; then
         chmod +x "$dst"
     fi
 

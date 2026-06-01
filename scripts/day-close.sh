@@ -1,4 +1,6 @@
 #!/bin/bash
+# routing: helper  skill=day-close  called-by=haiku
+# see DP.SC.159, DP.ROLE.059
 # day-close.sh — Автоматические шаги Day Close (backup + reindex + linear sync)
 #
 # Вызывается Claude из протокола Day Close (protocol-close.md § День, шаг 4).
@@ -16,8 +18,12 @@ set -euo pipefail
 
 # === КОНФИГУРАЦИЯ (настроить при установке) ===
 WORKSPACE_DIR="${WORKSPACE_DIR:-$HOME/IWE}"
-DS_STRATEGY="$WORKSPACE_DIR/DS-strategy"
-MEMORY_SRC="$HOME/.claude/projects/-Users-$(whoami)-IWE/memory"
+GOVERNANCE_REPO="${GOVERNANCE_REPO:-${IWE_GOVERNANCE_REPO:-DS-strategy}}"
+DS_STRATEGY="$WORKSPACE_DIR/$GOVERNANCE_REPO"
+# Slug = $HOME с '/' → '-' (macOS: /Users/x → -Users-x; Linux/WSL: /home/x → -home-x).
+# Переопределить можно через env IWE_MEMORY_SRC (например, для нестандартного $HOME).
+HOME_SLUG=$(echo "$HOME" | tr '/' '-')
+MEMORY_SRC="${IWE_MEMORY_SRC:-$HOME/.claude/projects/${HOME_SLUG}-IWE/memory}"
 EXOCORTEX_DST="$DS_STRATEGY/exocortex"
 # MCP reindex — опциональный компонент (WP-187 iwe-knowledge Gateway заменяет локальный knowledge-mcp).
 # Переопределить путь можно через env IWE_SELECTIVE_REINDEX.
@@ -57,19 +63,27 @@ do_backup() {
 
   mkdir -p "$EXOCORTEX_DST"
 
-  local count=0
-  for f in "$MEMORY_SRC"/*.md "$MEMORY_SRC"/*.yaml "$MEMORY_SRC"/*.yml; do
-    [ -f "$f" ] || continue
-    cp "$f" "$EXOCORTEX_DST/"
-    count=$((count + 1))
-  done
+  # One-time cleanup: legacy nested directory left over from a deprecated recursive-backup prompt.
+  if [ -d "$EXOCORTEX_DST/memory" ]; then
+    warn "  Removing legacy nested directory: $EXOCORTEX_DST/memory"
+    rm -rf "$EXOCORTEX_DST/memory"
+  fi
+
+  # Mirror *.md/*.yaml/*.yml from auto-memory; --delete prunes files removed upstream.
+  # CLAUDE.md is excluded so the workspace copy below isn't deleted by --delete.
+  rsync -a --delete \
+    --exclude='CLAUDE.md' \
+    --include='*.md' --include='*.yaml' --include='*.yml' \
+    --exclude='*' \
+    "$MEMORY_SRC/" "$EXOCORTEX_DST/"
 
   if [ -f "$WORKSPACE_DIR/CLAUDE.md" ]; then
     cp "$WORKSPACE_DIR/CLAUDE.md" "$EXOCORTEX_DST/CLAUDE.md"
-    count=$((count + 1))
   fi
 
-  log "  Скопировано: $count файлов → $EXOCORTEX_DST/"
+  local count
+  count=$(find "$EXOCORTEX_DST" -maxdepth 1 -type f \( -name '*.md' -o -name '*.yaml' -o -name '*.yml' \) | wc -l | tr -d ' ')
+  log "  Синхронизировано: $count файлов → $EXOCORTEX_DST/"
 }
 
 # --- Шаг 2: Knowledge-MCP reindex ---
