@@ -85,3 +85,14 @@ else
 ZSHENV_EOF
     $QUIET || echo "  ✓ $ZSHENV_FILE → sources \$HOME/.iwe-paths"
 fi
+
+# Auto-enable pre-commit hooks for IWE repos that have .githooks/
+# (Claude peer-review, 2026-05-26 — BFS3)
+for repo_dir in "$WORKSPACE_DIR"/* "$WORKSPACE_DIR"/*/*; do
+    [ -d "$repo_dir/.git" ] || continue
+    [ -d "$repo_dir/.githooks" ] || continue
+    if [ "$(git -C "$repo_dir" config --local core.hooksPath 2>/dev/null)" != ".githooks" ]; then
+        git -C "$repo_dir" config --local core.hooksPath .githooks
+        $QUIET || echo "  ✓ $repo_dir → core.hooksPath=.githooks"
+    fi
+done

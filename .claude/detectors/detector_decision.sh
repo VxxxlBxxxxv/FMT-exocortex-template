@@ -1,6 +1,6 @@
 #!/bin/bash
 # detector_decision.sh
-# see DP.SC.025 (capture-bus service clause), DP.ROLE.001#R29 (Детектор)
+# see DP.SC.025 (capture-bus service clause), DP.ROLE.001#R47 (Детектор)
 # event_type: decision_user
 # cost_class: free (rule-based, regex на транскрипт)
 # runtime: shell

@@ -41,6 +41,14 @@ for plist_check in "$LAUNCHD_DIR/com.strategist.morning.plist" "$LAUNCHD_DIR/com
     fi
 done
 
+# Skip on non-macOS or headless CI without launchctl
+if ! command -v launchctl >/dev/null 2>&1; then
+    echo "  ⊠ launchctl not available (non-macOS), skipping $ROLE_NAME install"
+    exit 0
+fi
+
+mkdir -p "$TARGET_DIR"
+
 # Unload old agents if present
 launchctl unload "$TARGET_DIR/com.strategist.morning.plist" 2>/dev/null || true
 launchctl unload "$TARGET_DIR/com.strategist.weekreview.plist" 2>/dev/null || true

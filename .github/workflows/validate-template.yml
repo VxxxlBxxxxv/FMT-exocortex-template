@@ -15,7 +15,7 @@ jobs:
   release-sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Check CHANGELOG/manifest version sync
         run: |
           if [ ! -f "CHANGELOG.md" ] || [ ! -f "update-manifest.json" ]; then
@@ -48,13 +48,22 @@ jobs:
   integration-contract:
     # OS matrix (0.29.18): пилоты на macOS И Linux. CI на ubuntu-latest пропускал
     # портабельность-баги (0.28.12 BUG-2..4 на Linux). Прогон на обеих ОС.
+    # GOVERNANCE_REPO matrix (12 мая, после Bug 1 b24639f): smoke прогоняется с
+    # разными значениями GOVERNANCE_REPO, чтобы поймать hardcoded /DS-strategy/
+    # пути которые проходят при дефолтном значении.
+    # NB: validator+test-detectors дублируются 2× по gov_repo (4 прогона вместо 2)
+    # — не зависят от gov_repo, но изоляция в отдельный job усложнила бы yml.
+    # Trade-off приемлемый: оба скрипта быстрые (<10 сек суммарно).
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
+        gov_repo: [DS-strategy, DS-pilot-strategy]
     runs-on: ${{ matrix.os }}
+    env:
+      SMOKE_GOVERNANCE_REPO: ${{ matrix.gov_repo }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y python3 jq
@@ -63,7 +72,7 @@ jobs:
         run: brew install jq  # python3 preinstalled
       - name: Run integration-contract-validator (8 detectors)
         run: bash setup/integration-contract-validator.sh
-      - name: Run smoke-test-fresh-install (14 checks)
+      - name: Run smoke-test-fresh-install (GOVERNANCE_REPO=${{ matrix.gov_repo }})
         run: bash setup/smoke-test-fresh-install.sh
       - name: Run detector regression fixtures (regex gap guard)
         run: bash setup/test-detectors.sh
@@ -76,7 +85,7 @@ jobs:
   upgrade-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0  # full history для git log
       - name: Install dependencies
@@ -118,7 +127,7 @@ jobs:
   shellcheck:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install ShellCheck
         run: sudo apt-get install -y shellcheck
@@ -140,7 +149,7 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # C1 fix (0.28.6): CI source-of-truth = local validator (setup/validate-template.sh).
       # Раньше CI имел собственный inline blacklist, который расходился с local — например,
@@ -149,6 +158,14 @@ jobs:
       # hooks-cross-ref в local validator; CI-only остаются: smoke-test, MCP doc, placeholders.
       - name: Run local validator (source-of-truth)
         run: bash setup/validate-template.sh "$PWD"
+
+      # validate-fmt-scripts: проверка на личные хардкоды и нарушения конвенций.
+      # Корень бага (май 2026): detector ловил legitimate uses (template identity,
+      # python fallback, env override) как false positives. Исправлено в validate-fmt-scripts.sh.
+      # Гейт: прогоняем в CI, чтобы не полагаться только на pre-commit (который зовётся
+      # только при staged .claude/settings.json) и ручной запуск.
+      - name: Run validate-fmt-scripts (author-specific hardcodes & conventions)
+        run: bash scripts/validate-fmt-scripts.sh
 
       # CI-only check: MCP — серверы подключаются через claude.ai/settings/connectors
       - name: Check MCP documentation
@@ -229,6 +246,13 @@ jobs:
 
           rm -rf "$TMP"
           exit $FAIL
+
+      # B2 gap closure: проверяем что все файлы репо покрыты update-manifest.json.
+      # Новый файл без записи в manifest = обновление не доедет до пользователей.
+      # Исправление: добавить в manifest["files"] или manifest["excluded_paths"].
+      - name: Check manifest completeness (B2)
+        run: |
+          git ls-files | python3 scripts/check-manifest-coverage.py update-manifest.json
 
       # 7. Только допустимые placeholders
       - name: Check placeholders are valid
