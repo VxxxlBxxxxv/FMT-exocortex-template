@@ -5,6 +5,12 @@ argument-hint: "[необязательно: override домена — knowledge
 experimental: true
 sunset: "после DONE WP-222 (Портной, ~июнь 2026) и WP-149 Ф6 (книга ЛР v3)"
 related: [WP-245, WP-222, WP-149, PD.FORM.089, PD.CAT.003, personal-guide-start]
+version: 1.0.0
+layer: L1
+status: active
+triggers:
+  slash: [/personal-guide-render]
+  phrases: []
 routing:
   executor: sonnet
   deterministic: false
@@ -133,6 +139,8 @@ stage_raw = min(W.baseline, M1.baseline, M2.baseline, M4.baseline)
 
 Из «Блок → worldview.md» ступенной заготовки. Подставь `{phase}`. В конце +1 строка: «Мемы в работе на этой неделе: [dissatisfactions]».
 
+**В начало файла, до блока ступенной заготовки** — вставить открывающий нарратив 4 уровней превращения (источник: [PD.FORM.137 §2](`PACK-personal/pack/personal-development/02-domain-entities/formalizations/PD.FORM.137-narrative-4-levels.md`), таблица 4 уровней). Цитировать через включение таблицы с маркером `<!-- source: PD.FORM.137 §2 -->` (не копировать verbatim §2 целиком, только таблицу 4 уровней + 1-предложенческое определение). Это outcome-frame для входящего пилота; основной блок worldview.md (stage-frame) — для пилота уже внутри программы. На ступенях 1-2 без явного запроса не разворачивать §3 (двойственная роль) — это потолок Создателя, преждевременный для Случайного/Практикующего.
+
 ### 6.4. `methods.md`
 
 Из «Блок → methods.md» ступенной заготовки для конкретного bottleneck (выбери ветку). + таблица «Типы работ, в которые встраиваются методы» из доменной вставки.
@@ -199,6 +207,8 @@ personal_write(
 - В Шаге 1 следующего render — после `dt_read_digital_twin` дополнительно выполнить `personal_search(source: "personal-guide", path: "history/", pattern: "*-reflection.md")` за последние 7 дней.
 - Ответ на «Что узнал» (раздел 3) → сигнал для PD.FORM.087 фазового перехода (Шаг 2 проверки ступени).
 - Ответ на «Что завтра» (раздел 5) → input для пересборки `daily/<завтра>.md` (Шаг 6.6).
+
+**Failure mode:** если `history/reflection-template.md` не записался — `daily/`, `weekly/` всё равно создаются. Не блокер.
 
 ## Шаг 7. Подтверждение пилоту
 

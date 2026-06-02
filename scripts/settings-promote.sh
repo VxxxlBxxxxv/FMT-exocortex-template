@@ -57,10 +57,16 @@ fi
 echo "📌 Регистрация хука: $HOOK_NAME → $EVENT${MATCHER:+ [matcher: $MATCHER]}"
 
 # Проверка: хук-файл существует в FMT?
+# В режиме --dry-run отсутствие — warning (skip side-effect check, контракт dry-run).
+# Без dry-run — fail: реальная регистрация хука без тела бессмысленна.
 if [[ ! -f "$HOOK_FILE" ]]; then
-    echo "⚠ Файл хука не найден в FMT: $HOOK_FILE" >&2
-    echo "  Сначала промотируй тело хука через hook-promote.sh" >&2
-    exit 1
+    if $DRY_RUN; then
+        echo "ℹ️  dry-run: файл хука $HOOK_FILE отсутствует (warning, проверка пропущена)"
+    else
+        echo "⚠ Файл хука не найден в FMT: $HOOK_FILE" >&2
+        echo "  Сначала промотируй тело хука через hook-promote.sh" >&2
+        exit 1
+    fi
 fi
 
 # Идемпотентность: уже зарегистрирован?

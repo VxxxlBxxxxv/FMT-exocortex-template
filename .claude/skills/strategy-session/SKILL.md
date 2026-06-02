@@ -1,6 +1,12 @@
 ---
 name: strategy-session
-description: Стратегическая сессия — диспетчер. День-0 (skeleton-marker в Strategy.md ИЛИ явный intent «первая/initial/c нуля» ИЛИ нет файлов) → initial flow (цели, неудовлетворённости, первый WeekPlan). День-1+ → weekly flow (требует черновик от session-prep). Триггеры вызова skill — «проведём/запустим/начнём/откроем стратегическую сессию», «стратсессия», «strategy session», «strategy planning», «давай стратегировать», «помоги со стратегией», «постратегируем». Initial-режим внутри skill включается отдельно (см. Шаг 1).
+description: Стратегическая сессия — диспетчер. День-0 (нет Strategy.md/WeekPlan) → initial flow (цели, неудовлетворённости, первый WeekPlan). День-1+ → weekly flow (требует черновик от session-prep). Триггеры — «проведём стратегическую сессию», «первая стратегическая сессия», «strategy session», «давай стратегировать».
+version: 1.0.0
+layer: L1
+status: active
+triggers:
+  slash: [/strategy-session]
+  phrases: []
 routing:
   executor: opus
   deterministic: false
@@ -12,17 +18,16 @@ routing:
 
 ## Шаг 1. Определить режим
 
-Проверь:
+Проверь наличие любого из:
 
-1. **Skeleton-marker:** есть ли `<!-- IWE-INITIAL-NEEDED -->` в `{{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/docs/Strategy.md`? Маркер ставится seed-шаблоном при первом setup и удаляется после initial-сессии. Его наличие = Strategy.md ещё не наполнена реальным содержимым.
-2. **Явный intent пользователя:** в сообщении есть «первая», «начальная», «initial», «day-0», «c нуля»?
-3. **Файлы:** существует ли `{{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/docs/Strategy.md` и/или хотя бы один `{{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/current/WeekPlan W*.md`?
+- `{{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/docs/Strategy.md`
+- `{{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/current/WeekPlan W*.md`
 
-| Условие | Режим | Куда дальше |
-|---------|-------|-------------|
-| Skeleton-marker присутствует ИЛИ явный intent ИЛИ нет ни Strategy.md, ни WeekPlan | **initial** (день-0) | §2 этого файла |
-| Файлы есть, маркера нет, intent не указан, есть WeekPlan со `status: draft` | **weekly** | `{{IWE_TEMPLATE}}/roles/strategist/prompts/strategy-session-weekly.md` |
-| Файлы есть, маркера нет, intent не указан, нет draft WeekPlan | weekly без draft | сообщи пользователю: «нет черновика, запустить session-prep?» |
+| Состояние | Режим | Куда дальше |
+|-----------|-------|-------------|
+| Нет ни Strategy.md, ни WeekPlan | **initial** (день-0) | §2 этого файла |
+| Есть Strategy.md и/или WeekPlan со `status: draft` | **weekly** | `roles/strategist/prompts/strategy-session.md` |
+| Есть Strategy.md, но нет draft WeekPlan | weekly без draft | сообщи пользователю: «нет черновика, запустить session-prep?» |
 
 ---
 
@@ -69,11 +74,27 @@ routing:
 
 ### 2.5. Закрытие initial-сессии
 
-1. **Удали skeleton-marker** из `{{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/docs/Strategy.md` — строка `<!-- IWE-INITIAL-NEEDED: ... -->`. Без удаления skill будет каждый раз уходить в initial.
-2. Скажи: «Готово. Завтра утром можешь сказать "открывай день" — Стратег соберёт DayPlan на сегодня. По понедельникам в 04:00 автоматически готовится session-prep для следующей сессии.»
+Скажи: «Готово. Завтра утром можешь сказать "открывай день" — Стратег соберёт DayPlan на сегодня. По понедельникам в 04:00 автоматически готовится session-prep для следующей сессии.»
 
 ---
 
 ## Шаг 3. Weekly flow
 
-Если режим = weekly: загрузи `{{IWE_TEMPLATE}}/roles/strategist/prompts/strategy-session-weekly.md` и следуй ему.
+Если режим = weekly:
+
+### 3.1 Обход Backlog (B-005, обязательно)
+
+Прочитай `{{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/docs/Backlog.md`. Для каждой записи `B-NNN` в разделе `## Активные записи`:
+
+- Проверь триггеры открытия (`Триггер открытия:` блок в записи).
+- **Hard-trigger сработал?** (внешнее событие случилось — например, `первый user-deletion request получен`, `legal review запланирован на эту неделю`, `Honcho API timeout ≥48ч`) — поднять для обсуждения в стратегической повестке: «B-NNN активирован, открываем РП?»
+- **Soft-trigger подошёл?** (дата/процессная веха, например `при открытии WP-XXX-v2`, `при следующей ревизии DP.D.NNN`) — упомянуть в обзоре повестки как кандидата на следующие 1-2 недели.
+- Ни один не сработал → оставить как есть, отметить «B-NNN живой, триггеров нет».
+
+Если есть `??` (неопределённый статус) или `Дата открытия:` старше 90 дней без движения — пометить как кандидата на архивацию (`## Архивные записи`) с явным решением пилота.
+
+**Цель шага:** Backlog не должен превращаться в dead inventory. Каждый Strategy Session — явная сверка триггеров.
+
+### 3.2 Делегирование в роль Стратега
+
+Загрузи `{{IWE_TEMPLATE}}/roles/strategist/prompts/strategy-session.md` и следуй ему.

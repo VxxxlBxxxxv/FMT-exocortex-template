@@ -125,6 +125,7 @@ fi
 
 # --- Запрашиваем каждый календарь ---
 EVENTS_JSON=$($PYTHON3 << PYEOF
+# -*- coding: utf-8 -*-
 import json, subprocess, urllib.parse, sys, re
 from datetime import datetime, timezone, timedelta
 
@@ -286,6 +287,7 @@ PYEOF
 
 # --- Формируем markdown ---
 $PYTHON3 << PYEOF
+# -*- coding: utf-8 -*-
 import json, sys
 from datetime import datetime, timezone
 

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# OUTDATED: canonical copy at workspace scripts/iwe-agent-dispatcher.py
+# See #143 for RC1-RC5 fixes. Do not use this file in production.
 """
 iwe-agent-dispatcher.py — диспетчер Agent Inbox IWE (WP-324 Ф8).
 
@@ -448,18 +450,12 @@ def build_prompt(task_path: Path, repo_dir: Path) -> str:
     return full_prompt
 
 
-def invoke_claude(prompt: str, model: str, cwd: Path) -> tuple[bool, str]:
-    """Возвращает (ok, output).
-
-    cwd = одноразовый клон (изоляция). RC5: без cwd агент наследовал cwd процесса
-    и мог дотянуться до рабочего репо и закоммитить туда мимо «диспетчер — sole
-    writer». Запуск в throwaway-клоне: даже если агент закоммитит, последующий
-    reset --hard это сотрёт, а рабочий репо не трогается.
-    """
+def invoke_claude(prompt: str, model: str) -> tuple[bool, str]:
+    """Возвращает (ok, output)."""
     cmd = ["claude", "-p", prompt, "--model", model, "--output-format", "text"]
     try:
         r = subprocess.run(
-            cmd, cwd=cwd, capture_output=True, text=True,
+            cmd, capture_output=True, text=True,
             timeout=CLAUDE_TIMEOUT_SEC,
         )
         return (r.returncode == 0), r.stdout + ("\n" + r.stderr if r.stderr else "")
@@ -476,12 +472,10 @@ def write_result(repo_dir: Path, task_id: str, fm: dict,
     results_dir.mkdir(parents=True, exist_ok=True)
     result_path = results_dir / f"RESULT-{task_id.replace('TASK-', '')}.md"
 
-    verdict = parse_verdict(output) if ok else "SYSTEM FAIL"
     content = (
         f"---\n"
         f"task_id: {task_id}\n"
         f"status: {'completed' if ok else 'failed'}\n"
-        f"verdict: {verdict}\n"
         f"started_at: {started_at.isoformat()}\n"
         f"finished_at: {finished_at.isoformat()}\n"
         f"model: {fm.get('model', MODEL_DEFAULT)}\n"
@@ -490,7 +484,7 @@ def write_result(repo_dir: Path, task_id: str, fm: dict,
         f"---\n\n"
         f"# Результат: {task_id}\n\n"
         f"## Статус\n\n"
-        f"**{'✅ COMPLETED' if ok else '❌ FAILED'}** — {(finished_at - started_at).total_seconds():.0f}s · вердикт: {verdict}\n\n"
+        f"**{'✅ COMPLETED' if ok else '❌ FAILED'}** — {(finished_at - started_at).total_seconds():.0f}s\n\n"
         f"## Вывод агента\n\n"
         f"```\n{output}\n```\n\n"
         f"## Acceptance check\n\n"
@@ -498,48 +492,6 @@ def write_result(repo_dir: Path, task_id: str, fm: dict,
     )
     result_path.write_text(content)
     return result_path
-
-
-def parse_verdict(output: str) -> str:
-    """Доменный вердикт soak/verify из вывода агента: SYSTEM FAIL | FAIL | PASS | UNKNOWN."""
-    text = (output or "").upper()
-    if "SYSTEM FAIL" in text or "SYSTEM_FAIL" in text:
-        return "SYSTEM FAIL"
-    m = re.search(r"VERDICT[`*:\s]+([A-Z _]+)", text)
-    if m:
-        v = m.group(1).strip()
-        for cand in ("SYSTEM FAIL", "FAIL", "PASS"):
-            if v.startswith(cand):
-                return cand
-    if re.search(r"\bFAIL\b", text):
-        return "FAIL"
-    if re.search(r"\bPASS\b", text):
-        return "PASS"
-    return "UNKNOWN"
-
-
-def notify_telegram(text: str) -> bool:
-    """TG-уведомление (stdlib-only). Токены берутся из env и не логируются."""
-    token = os.environ.get("TELEGRAM_BOT_TOKEN")
-    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
-    if not token or not chat_id:
-        log("TG skip: TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID не заданы", "WARN")
-        return False
-    import urllib.request
-    import urllib.parse
-    data = urllib.parse.urlencode({
-        "chat_id": chat_id,
-        "text": text,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": "true",
-    }).encode()
-    req = urllib.request.Request(f"https://api.telegram.org/bot{token}/sendMessage", data=data)
-    try:
-        with urllib.request.urlopen(req, timeout=15) as r:
-            return r.status == 200
-    except Exception as e:
-        log(f"TG send failed: {e}", "WARN")
-        return False
 
 
 # === Главный цикл ===
@@ -574,46 +526,33 @@ def process_task(task_path: Path, repo_dir: Path, dry_run: bool) -> bool:
         f"dispatch(WP-324): {task_id} pending→assigned via claude-cli-headless",
         [task_path])
 
-    # Invoke claude (в одноразовом клоне — изоляция от рабочего репо, RC5)
-    ok, output = invoke_claude(prompt, model, repo_dir)
+    # Invoke claude
+    ok, output = invoke_claude(prompt, model)
     finished_at = now_utc()
     log(f"claude done ok={ok} duration={(finished_at - started_at).total_seconds():.0f}s")
 
-    # Re-sync с origin (на случай чужих коммитов за время прогона). Диспетчер —
-    # writer of record: result пишется из stdout агента, агенту запись файла не нужна.
+    # Sync with origin: agent may have committed its own result during execution.
+    # reset --hard picks up those commits before we write dispatcher's status update.
     log("Syncing with origin after claude returned...")
     run(["git", "fetch", "origin", GOV_BRANCH], cwd=repo_dir, timeout=30)
     run(["git", "reset", "--hard", f"origin/{GOV_BRANCH}"], cwd=repo_dir, timeout=30)
 
-    # Write result. Если агент всё же создал свой файл (edit-права) — используем его.
+    # Write result only if agent didn't already write it
     results_dir = repo_dir / "inbox" / "agent" / "results"
     result_path = results_dir / f"RESULT-{task_id.replace('TASK-', '')}.md"
     if result_path.exists():
-        log("Agent already wrote result file — using it")
+        log(f"Agent already wrote result file — skipping dispatcher write")
     else:
         result_path = write_result(repo_dir, task_id, fm, ok, output, started_at, finished_at)
 
-    verdict = parse_verdict(output) if ok else "SYSTEM FAIL"
-
-    # Update task status (+ доменный вердикт, не только код возврата процесса)
+    # Update task status
     update_task_frontmatter(task_path, {
         "status": "completed" if ok else "failed",
-        "verdict": verdict,
         "completed_at": finished_at.isoformat(),
     })
-    # RC1 fix: коммитим И task, И result-файл (раньше result молча терялся).
     commit_and_push(repo_dir,
-        f"dispatch(WP-324): {task_id} → {'completed' if ok else 'failed'} ({verdict})",
-        [task_path, result_path])
-
-    # RC2 fix: уведомление при плохом вердикте / системном сбое (обещание DP.SC.136).
-    if verdict in ("FAIL", "SYSTEM FAIL") or not ok:
-        notify_telegram(
-            f"<b>🚨 IWE Agent Inbox: {verdict}</b>\n\n"
-            f"task: {task_id}\n"
-            f"result: {result_path.relative_to(repo_dir)}\n"
-            f"audit-trail в git, подробности в result-файле."
-        )
+        f"dispatch(WP-324): {task_id} → {'completed' if ok else 'failed'}",
+        [task_path])
 
     return True
 

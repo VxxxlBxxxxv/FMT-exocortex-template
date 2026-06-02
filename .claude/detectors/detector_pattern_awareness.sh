@@ -1,6 +1,6 @@
 #!/bin/bash
 # detector_pattern_awareness.sh
-# see DP.SC.025 (capture-bus service clause), DP.ROLE.001#R29 (Детектор)
+# see DP.SC.025 (capture-bus service clause), DP.ROLE.001#R47 (Детектор)
 # event_type: agent_incident
 # cost_class: free (rule-based, grep на содержимое файла)
 # runtime: shell

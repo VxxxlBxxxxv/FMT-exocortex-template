@@ -84,24 +84,74 @@ if $check_only; then
 fi
 
 if $dry_run; then
+    echo "=== CLAUDE.md diff (dry-run) ==="
     diff <(printf '%s\n' "$result") "$FMT" || true
-    exit 0
+else
+    printf '%s\n' "$result" > "$FMT"
+    echo "✅ Синхронизировано: CLAUDE.md → FMT/CLAUDE.md"
 fi
 
-printf '%s\n' "$result" > "$FMT"
-echo "✅ Синхронизировано: CLAUDE.md → FMT/CLAUDE.md"
+# 4a. Расширенный allowlist — sync FMT/memory/protocol-*.md и FMT/.claude/rules/*.md
+# WP-7/PZ-2 (2026-05-29): закрытие B12c Reverse drift для протоколов и правил.
+# Каждый файл: strip <!-- AUTHOR-ONLY -->...<!-- /AUTHOR-ONLY --> блоков +
+# placeholder-подстановка путей. ToRefresh-list см. ниже.
+sync_allowlist_file() {
+    local rel="$1"
+    local src_path="$IWE/$rel"
+    local dst_path="$FMT_DIR/$rel"
+    [ -f "$src_path" ] || { echo "  skip: $rel (нет в авторе)"; return 0; }
+    [ -f "$dst_path" ] || { echo "  skip: $rel (нет в FMT — добавлять руками первый раз)"; return 0; }
+    local body
+    body=$(awk '
+        /<!-- AUTHOR-ONLY -->/  { skip=1; next }
+        /<!-- \/AUTHOR-ONLY -->/{ skip=0; next }
+        !skip { print }
+    ' "$src_path" | sed \
+        -e "s|$HOME|{{HOME_DIR}}|g" \
+        -e "s|~/IWE|{{HOME_DIR}}/IWE|g" \
+        -e "s|$GOV_REPO_AUTHOR|$GOV_REPO_TMPL|g")
+    if [ "$body" != "$(cat "$dst_path")" ]; then
+        if $dry_run; then
+            echo "  DIFF: $rel (будет обновлён)"
+        else
+            printf '%s\n' "$body" > "$dst_path"
+            echo "  ✅ Синхронизировано: $rel"
+        fi
+    else
+        echo "  OK: $rel"
+    fi
+}
 
-# 5. Валидация FMT/scripts/ на личные хардкоды
-VALIDATOR="$FMT_DIR/scripts/validate-fmt-scripts.sh"
-if [ -f "$VALIDATOR" ]; then
-    echo ""
-    bash "$VALIDATOR" "$FMT_DIR/scripts" || {
-        echo "⚠️  Личные хардкоды в FMT/scripts/ — исправить до коммита" >&2
-    }
+echo ""
+echo "Расширенный allowlist (PZ-2):"
+for f in \
+    memory/protocol-open.md \
+    memory/protocol-work.md \
+    memory/protocol-close.md \
+    memory/protocol-month-close.md \
+    .claude/rules/distinctions.md \
+    .claude/rules/formatting.md \
+    .claude/rules/wp-scope.md \
+    .claude/rules/role-prefixes.md
+do
+    sync_allowlist_file "$f"
+done
+
+# 5. Валидация FMT/scripts/ на личные хардкоды (skip в dry-run)
+if ! $dry_run; then
+    VALIDATOR="$FMT_DIR/scripts/validate-fmt-scripts.sh"
+    if [ -f "$VALIDATOR" ]; then
+        echo ""
+        bash "$VALIDATOR" "$FMT_DIR/scripts" || {
+            echo "⚠️  Личные хардкоды в FMT/scripts/ — исправить до коммита" >&2
+        }
+    fi
+
+    CHANGELOG_SCRIPT="$FMT_DIR/scripts/changelog-append.sh"
+    [[ -f "$CHANGELOG_SCRIPT" ]] && bash "$CHANGELOG_SCRIPT" || true
 fi
 
-CHANGELOG_SCRIPT="$FMT_DIR/scripts/changelog-append.sh"
-[[ -f "$CHANGELOG_SCRIPT" ]] && bash "$CHANGELOG_SCRIPT" || true
+$dry_run && exit 0
 
 echo ""
 echo "Следующий шаг:"

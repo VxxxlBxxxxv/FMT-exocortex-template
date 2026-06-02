@@ -25,8 +25,37 @@
 - [ ] Все новые файлы добавлены в `update-manifest.json["files"]`
   (`git ls-files | python3 scripts/check-manifest-coverage.py update-manifest.json`)
 - [ ] `deprecated_files` соответствует правилу (см. «Конвенция deprecated_files» ниже)
+- [ ] fix-коммитов с последнего бампа ≤5 (если >5 → обязательный review нестабильности, см. секцию «Метрика стабильности»)
 
 ---
+
+## Метрика стабильности
+
+Количество fix-коммитов с момента последнего бампа версии служит прокси-метрикой стабильности кодовой базы. Порог ≤5 означает, что накопленная нестабильность ещё не критична и релиз можно проводить без дополнительного review; превышение порога требует явной оценки рисков.
+
+```bash
+# Подсчёт fix-коммитов с последнего бампа версии
+# Ветка А — теги существуют (нормальный путь):
+LAST_TAG=$(git tag --list 'v*' --sort=-v:refname | head -1)
+if [ -n "$LAST_TAG" ]; then
+  COUNT=$(git log "$LAST_TAG"..HEAD --oneline | grep -cE '^[a-f0-9]+ (fix|hotfix)(\(|: )' || true)
+else
+  # Ветка B — тегов нет (legacy, удалить через 2 релиза после восстановления тегов):
+  LAST_MANIFEST_BUMP=$(git log -2 --format=%H -- update-manifest.json | sed -n '2p')
+  if [ -z "$LAST_MANIFEST_BUMP" ]; then
+    echo "ℹ️  Нет предыдущего бампа manifest — пропуск проверки fix-метрики (первый релиз)"
+    exit 0
+  fi
+  COUNT=$(git log "$LAST_MANIFEST_BUMP"..HEAD --oneline | grep -cE '^[a-f0-9]+ (fix|hotfix)(\(|: )' || true)
+fi
+echo "fix-коммитов: $COUNT"
+if [ "$COUNT" -gt 5 ]; then
+  echo "⚠️  >5 фиксов — требуется review нестабильности перед бампом"
+  exit 1
+fi
+```
+
+> Fallback-ветка B удаляется через 2 релиза после восстановления нормальной тегальности.
 
 ## Шаги бампа версии
 

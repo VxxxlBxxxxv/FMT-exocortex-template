@@ -13,6 +13,7 @@ Exit: 0 = OK, 1 = error, 2 = validation failure (missing routing: sections)
 see DP.SC.159, DP.ROLE.059
 """
 
+import os
 import re
 import sys
 import yaml
@@ -21,7 +22,7 @@ from pathlib import Path
 from typing import Optional
 
 SKILLS_DIR = Path.home() / "IWE" / ".claude" / "skills"
-DEFAULT_OUTPUT = Path.home() / "IWE" / "${IWE_GOVERNANCE_REPO:-DS-strategy}" / "scripts" / "executor-catalog.yaml"
+DEFAULT_OUTPUT = Path.home() / "IWE" / os.environ.get("IWE_GOVERNANCE_REPO", "DS-strategy") / "scripts" / "executor-catalog.yaml"
 
 VALID_EXECUTORS = {"script", "haiku", "sonnet", "opus", "mcp-direct"}
 FRONTMATTER_RE = re.compile(r'^---\n(.*?)\n---\n', re.DOTALL)
