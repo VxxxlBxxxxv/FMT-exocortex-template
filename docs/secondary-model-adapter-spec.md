@@ -28,7 +28,7 @@
 │  8 empty-guard · verdict-parse · timeout     │
 │  9 audit-envelope (out-of-band) · exit-код    │
 └─────────────────────────────────────────────┘
-        │ env: SMA_MODEL_RESOLVED, SMA_CLEAN_DIRS, SMA_MODE, SMA_TRUST, SMA_SANDBOX_CWD
+        │ env: SMA_MODEL_RESOLVED, SMA_CLEAN_MANIFEST(JSON 0600), SMA_MODE, SMA_TRUST, SMA_SANDBOX_CWD
         ▼
    drivers/kimi.sh   drivers/claude.sh   drivers/<next>.sh   ← только транспорт
         │
@@ -41,6 +41,29 @@
 **Что в драйвере (тонкий, только транспорт):** найти/запустить binary backend на УЖЕ очищенных директориях, прокинуть модель, stdin → stdout. Драйвер **не** делает фильтрацию, **не** трогает оригинальные директории, **не** ставит attribution, **не** пишет за пределы sandbox.
 
 **Принцип (OwnerIntegrity):** security-логика существует в ОДНОМ месте. Драйвер, который дублирует фильтр или trust — нарушение контракта (вето на code-review).
+
+</details>
+
+<details>
+<summary><b>1b. Подтверждение реализации (octocode + Codex + Context7, 04.06)</b></summary>
+
+> Кросс-проверка тремя независимыми источниками (raw-код, дизайн-ревью, офиц. документация). Все сошлись на **гибриде: Python-ядро политики + bash-обёртки совместимости + тонкие provider-драйверы**.
+
+**Доказательная база (octocode — реальные репозитории):**
+- **simonw/llm** — `llm/hookspecs.py: register_models(register)` + `llm/models.py: class Model.execute(prompt, stream, response, conversation)`. Отдельный `KeyModel.execute(..., key)` — готовый прецедент для разделения trust-tier'ов (доверенный без ключа / недоверенный с ключом). Это канонический «тонкий драйвер на провайдера + register-хук».
+- **BerriAI/litellm** — `litellm/llms/custom_llm.py: class CustomLLM(BaseLLM)` с `completion()/streaming()`; реестр `CustomLLMItem{provider, custom_handler}` (провайдер→хендлер). Сигнатура `completion()` сильно HTTP-ориентирована (`api_base`, `headers`, `encoding`) → **доказывает, что декларативно-OpenAI-совместимый путь (вариант 3) протекает для CLI-backend'ов** — драйвер обязан владеть вызовом.
+
+**Документация (Context7 — официальные доки simonw/llm + litellm):**
+- simonw/llm: задокументированный контракт драйвера минимален — `@llm.hookimpl register_models(register)` + `class X(llm.Model): model_id; def execute(prompt, stream, response, conversation)`. Тонкий драйвер = несколько строк.
+- **KeyModel-паттерн решает риск #2 (auth vs env-scrub):** backend с ключом → `class X(llm.KeyModel): needs_key; key_env_var; def execute(..., key)`. Ключ **объявлен** и инжектируется явным параметром, а не вычищается из ambient env. → реестр объявляет `needs_key`/`key_env` per-driver, ядро инжектирует точечно.
+- litellm: `ProviderConfigManager.get_provider_model_info` + `BaseLLMModelInfo` — провайдер регистрируется в центральном менеджере-реестре → подтверждает model-registry.yaml + диспатч ядром.
+
+**Независимый ревью (Codex gpt-5.5) — 3 недооценённых риска, исправлены в спеке:**
+1. **NUL в env невозможен** — `SMA_CLEAN_DIRS` как NUL-список в переменной окружения нереализуем → заменено на `SMA_CLEAN_MANIFEST` (JSON-файл 0600). См. §3.
+2. **env-scrub vs auth** — `env -i` ломает auth backend'ов (HOME/XDG/keychain/node) → per-provider allowlist обязателен, иначе «безопасно, но нерабоче». См. §6 #2.
+3. **cwd-sandbox иллюзорен** для untrusted — CLI со своими tools читает `$HOME` мимо cwd; честно назвать «контекстная санитаризация», полная изоляция = bwrap/firejail вне MVP. См. §6 #5.
+
+Сырьё ревью: `/tmp/wp72-codex-impl.md`.
 
 </details>
 
@@ -73,6 +96,8 @@ models:
     allowed_modes: [peer, reviewer, verifier, writer]
     capabilities: [1,2,3,4,6,8,9,10]   # классы DP.SC.163 §Capability surface
     network: allow             # информативно для аудита
+    env_passthrough: [HOME, PATH, XDG_CONFIG_HOME, XDG_CACHE_HOME]  # per-provider allowlist (Codex risk #2)
+    needs_key: false           # ключ-несущие backend'ы: needs_key + key_env (паттерн llm.KeyModel, Context7)
 
   claude:
     provider: anthropic
@@ -84,6 +109,8 @@ models:
     aliases: [sonnet, opus, haiku, claude-*]
     allowed_modes: [peer, reviewer, verifier, writer]
     capabilities: [1,2,3,4,5,6,7,8,9,10,11]
+    env_passthrough: [HOME, PATH, XDG_CONFIG_HOME, XDG_CACHE_HOME, NODE_PATH]
+    needs_key: false           # claude: свой device-auth, ключ адаптером не инжектируется
 ```
 
 **Правила реестра:**
@@ -102,7 +129,7 @@ models:
 | Переменная | Значение |
 |---|---|
 | `SMA_MODEL_RESOLVED` | конкретный backend-идентификатор модели (после нормализации алиаса) |
-| `SMA_CLEAN_DIRS` | NUL-разделённый список УЖЕ очищенных директорий (только их можно отдавать модели) |
+| `SMA_CLEAN_MANIFEST` | путь к temp JSON-файлу (права 0600) со списком УЖЕ очищенных директорий. **env не может содержать NUL** → список передаётся файлом, не переменной (исправлено по ревью Codex, 04.06) |
 | `SMA_MODE` | `peer` / `writer` / `reviewer` / `verifier` |
 | `SMA_TRUST` | `trusted` / `untrusted` (итоговый, после понижения) |
 | `SMA_SANDBOX_CWD` | директория-песочница, в которой драйвер обязан запускать backend |
@@ -167,10 +194,10 @@ models:
 | # | Поверхность | Угроза | Митигация в ядре | Failure-test (acceptance) |
 |---|---|---|---|---|
 | 1 | **stdin** (промпт) | PII/секрет в payload → недоверенной модели | вне охвата фильтра по контракту; trust-политика + документированная граница; caller-ответственность | тест: промпт с секретом → envelope помечает `stdin_unfiltered=true`, граница задокументирована |
-| 2 | **env** | секреты окружения наследует дочерний процесс | `env -i` + явный allowlist passthrough (PATH, HOME, backend-token по реестру) перед exec драйвера | тест: подложить `SECRET_X` в env → его нет в окружении backend |
+| 2 | **env** | секреты окружения наследует дочерний процесс | `env -i` + **per-provider** allowlist passthrough: реестр задаёт переменные, нужные именно этому backend'у (PATH, HOME, XDG_*, keychain, node-paths, токен). Без per-provider списка backend безопасен, но НЕработоспособен — `env -i` ломает auth Claude/Codex/Gemini (Codex 04.06). Ключ объявляется в реестре (`needs_key`/`key_env`, паттерн `llm.KeyModel`) и инжектируется явно, не из ambient env (Context7) | тест: `SECRET_X` в env → нет у backend; backend стартует с allowlist + объявленным ключом |
 | 3 | **tmp** | world-readable /tmp, предсказуемые имена, TOCTOU | `mktemp -d` 0700 + `mkstemp` 0600, выделенный корень, `trap cleanup EXIT INT TERM` | тест: проверить права 0600/0700; после выхода tmp удалён |
 | 4 | **stderr** | секрет/PII backend в stderr → лог | перехват stderr ядром, скраб known-pattern перед проксированием, не эхоить сырьём в audit | тест: backend пишет `sk-...` в stderr → в логе редактировано |
-| 5 | **cwd** | запуск в корне репо = доступ ко всем файлам через относительные пути | `SMA_SANDBOX_CWD` = tmp-песочница; только `SMA_CLEAN_DIRS` в allowlist | тест: backend пытается читать `../secret` → недоступно |
+| 5 | **cwd** | запуск в корне репо = доступ ко всем файлам через относительные пути | `SMA_SANDBOX_CWD` = tmp-песочница; только clean-манифест в allowlist. **Для untrusted это контекстная санитаризация, НЕ OS-sandbox** — CLI со своими tools/config всё ещё может читать `$HOME`; полная изоляция = bwrap/firejail, вне MVP (Codex 04.06) | тест: backend читает `../secret` относительным путём → за границей cwd недоступно |
 | 6 | **config** | подмена `model-registry.yaml`, env-override пути, неприпиненная версия | реестр из фиксированного пути; env-override только с явным флагом; `version_pin` сверка; fail-closed | тест: подмена пути реестра через env без флага → игнор; неизвестная версия → exit 5 |
 | 7 | **logs** | сырьё с PII в audit-envelope | envelope хранит **только метаданные** (модель/режим/счётчики/exit), НЕ payload; attribution от ядра | тест: envelope не содержит текста ответа модели |
 | 8 | **symlink** | symlink в allowlist-дир на `/etc`/секреты | `peer-adapter-filter.py` уже: `os.walk(followlinks=False)` + `islink` skip + realpath-guard; ядро повторно резолвит realpath границы | тест: symlink на `/etc/passwd` в `--add-dir` → пропущен, не скопирован |
