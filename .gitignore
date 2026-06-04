@@ -10,3 +10,7 @@ DS-exocortex-setup/
 .claude/settings.local.json
 .claude/checkpoint.md
 .claude/logs/
+
+# Личная лента заметок не должна попадать в публикуемый шаблон
+# (канонический скелет — templates/strategy-skeleton/inbox/fleeting-notes.md)
+inbox/fleeting-notes.md
