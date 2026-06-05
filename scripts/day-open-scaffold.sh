@@ -158,6 +158,40 @@ render_bot_qa() {
   echo "<!-- PENDING: smoke-tests — N passed/failed (если запущены до commit) -->"
 }
 
+# --- Section: Новые задачи в репозиториях (issue sweep, 2 дня) ---
+# Сигнальный канал из day-open/SKILL.md:54 (раньше был только в спеке, не в коде).
+# Ленивый: кэш 1ч + fallback при недоступности gh — не ломает pipeline.
+render_repo_issues() {
+  command -v gh >/dev/null 2>&1 || { echo "_gh CLI недоступен — обзор задач пропущен._"; return; }
+  local cache="/tmp/iwe-issue-sweep-$DATE.md"
+  if [ -f "$cache" ] && [ -n "$(find "$cache" -mmin -60 2>/dev/null)" ]; then
+    cat "$cache"; return
+  fi
+  if ! gh auth status >/dev/null 2>&1; then
+    echo "_gh не авторизован — обзор задач пропущен (проверьте \`gh auth login\`)._"; return
+  fi
+  local since
+  since=$(date -v-2d +%Y-%m-%d 2>/dev/null || date -d "2 days ago" +%Y-%m-%d 2>/dev/null)
+  [ -z "$since" ] && { echo "_не удалось вычислить дату фильтра — пропуск._"; return; }
+  local out="" any=0 repo slug rows
+  for repo in "$IWE"/*/; do
+    [ -d "${repo}.git" ] || continue
+    git -C "$repo" remote get-url origin 2>/dev/null | grep -qi github || continue
+    slug=$(basename "$repo")
+    rows=$( (cd "$repo" && gh issue list --state open --search "created:>=$since" \
+             --json number,title --jq '.[] | "| #\(.number) | \(.title) |"' 2>/dev/null) )
+    if [ -n "$rows" ]; then
+      out="${out}\n**${slug}:**\n\n| # | Заголовок |\n|---|---|\n${rows}\n"
+      any=1
+    fi
+  done
+  if [ "$any" = "1" ]; then
+    printf "%b" "$out" | tee "$cache"
+  else
+    echo "Новых задач за 2 дня нет." | tee "$cache"
+  fi
+}
+
 # --- Section: IWE за ночь (светофор) ---
 render_iwe_status() {
   echo "| Подсистема | Статус | Детали |"
@@ -388,6 +422,10 @@ $(render_bot_qa)
 **IWE за ночь (светофор):**
 
 $(render_iwe_status)
+
+**Новые задачи в репозиториях (за 2 дня):**
+
+$(render_repo_issues)
 
 </details>
 

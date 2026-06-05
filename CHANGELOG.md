@@ -5,6 +5,87 @@ All notable changes to FMT-exocortex-template will be documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/).
 
+
+
+
+
+## [Unreleased] — обновлено 2026-06-04
+
+### Added
+
+- `9a04944` feat(wp-7): WP-REGISTRY Naming rule в Agent Core SYNC-CORE
+- `77f5052` feat(wp-7): close-wp.sh + create-wp.sh archive-заготовка
+- `be7b9ce` feat(multi-agent): поддержка Kimi Code и Hermes в точках входа
+- `8d0d8e5` feat(style): правило #5 «— это» + детектор R5-emdash в response-clarity-hook
+- `57f6ee7` feat(wp-395): Ф4 — универсальный дашборд agent-dashboard.py для IWE-шаблона
+- `560c357` feat(template-sync): Status Reporting (WP-395) + staged validator mode
+- `fccd93f` feat(WP-388 Ф8-Ф10): трёхслойная архитектура стиля + enforce
+- `b11ea42` feat(wp-394): Ф4.3-4.5 — промоция паттернов в шаблон + восстановление дрифта
+- `e4a8645` feat(wp-394): Ф4.2 — single-source автоген AGENTS.md из ядра CLAUDE.md
+- `88d9e33` feat(wp-394): Ф3.1+Ф4.6 — IWE instructions tiering + model tiering in peer sessions
+- `7295b6f` feat(roles/strategy): WP-393 Ф5+Ф6 — role-boundaries, калибр, ценность, cycles, OKR
+- `0ac4a91` feat(strategist/prompts): WP-393 Ф3 остатки — ВДВ-структура для 6 промптов
+- `b623b3a` feat(WP-391 Ф5): browser mass-user MVP — CI template + skill index
+- `b51fe40` feat(skills): migrate 5 skills to FMT (WP-387 Ф3)
+- `eafefd3` feat(WP-393 Ф4+Ф2c): обновление шаблонов + appendix
+- `8bb8ade` feat(strategist): WP-393 Ф2 stepwise strategy session (monthly + weekly)
+- `672f36d` feat(style): sync communication-style rules to AGENTS.md and CLAUDE.md
+- `53ea30a` feat(style): sync CLAUDE.md with WP-code format rule and communication-style ref
+- `0f45e0d` feat(communication-style): add WP-code format rule and self-check
+- `cc7c196` feat: auto-sync version badge via CI + local script
+- `03363b7` feat(0.35.3): communication-style-base + sync script + downstream markers
+- `cd1e268` feat(0.35.3): community-facing communication style
+- `ea6625e` feat(0.35.1): promote response-style rules to template (S-37 v2 + AGENTS.md)
+- `996df2a` feat(peer-skill): content-roles §1.5 + frontmatter ad_hoc_roles/discovery_turns
+- `08d6f2e` feat(hardening): stale-bot + TG alert env fallback (peer-session 2026-06-01-25) (#148)
+- `cb45d31` feat: WP-337/З Ф6 — peer-session инфраструктура в шаблоне (v0.35.0)
+- `7e9aa78` feat(triage): post-2026-06-01 backlog cleanup infrastructure
+- `dc18e90` feat(detection): MVP FMT critical/deadline issues alert (peer-session 2026-06-01-18) (#145)
+- `6be164d` feat(hindsight): WP-337/А.13 FMT template — docker-compose, start, launchd, docs
+
+### Changed
+
+- `0acb88d` chore: sync rules + protocols from template-sync (2026-06-04)
+- `5840624` refactor: externalize downstream paths from sync script to yaml config (WP-388)
+- `b6ddac7` refactor: FMT-копия стиля → проекция Pack SoT + обобщённый sync (WP-388 Ф8)
+- `7c7768f` docs: РП-394 Ф4.3-4.5 — PREFIX/BODY/TAIL + memory-lifecycle + Hermes coordination в шаблон [no-registry-touch]
+- `79defa3` refactor(WP-393): правки Клода — ВДВ в intro блоков, /diagnose-iwe, R{N}-цель, _не задано_
+- `0631439` refactor(session-prep): WP-393 Ф3 remove WORKPLAN anti-pattern
+- `1e3cd92` docs(dispatcher): OUTDATED comment — canonical at workspace scripts/
+- `0a15c8a` docs(skills): Ф4 WP-386 — явный Шаг 1 Extensions checks + WHY-комментарий dry-run sentinel
+- `c54ff45` ci: migrate actions/checkout@v4 → v6, github-script@v7 → v8
+- `76be56b` docs(CHANGELOG): корректировки 0.35.0 по post-deploy verify
+
+### Fixed
+
+- `efadfa0` fix(fmt): триаж 4 issues + сигнальный канал Day Open
+- `136c4b1` fix(day-close): шаг 3c — явное done-форматирование строк WP-REGISTRY
+- `e4e3c96` fix(wp-395): recursive-retry guard в get_agents() — max 1 refresh
+- `0ce1864` fix(wp-393): resolve 3 medium review findings
+- `8168e05` fix(peer-infra): synthesis 4.2 stdout-only — остаточный High из баг-репорта WP-393
+- `830ff9d` fix(peer-infra): адаптер passthrough --permission-mode + SKILL.md stdout-only
+- `cb39a82` fix(day-close): backup AGENTS.md to exocortex alongside CLAUDE.md
+- `fa8878d` fix(communication-style): merge rule 1a into rule 2, fix numbering
+- `190802e` fix(peer): add negative scope guard to kimi-peer-writer SKILL.md Шаг 3.1
+- `103a14f` fix(peer-writer): close-signal detector, explicit mv, Python path fix, pre-commit guard
+- `64376e3` fix(peer-writer): add 180s timeout to report synthesis subprocess
+- `f28a6da` fix(server-news): silent exit when news.enabled=false
+- `8a0a5c6` fix(create-wp): учитывать жирный шрифт **NNN** при парсинге номеров РП
+- `1ead2bc` fix: update version badge to 0.35.3
+- `46a7606` fix(scripts): remove author-specific paths from sync-communication-style template
+- `15ff497` fix(0.35.2): hotfix S-37 — A1-A11 labels in CLAUDE.md + frontmatter cleanup
+- `7e0ebd6` fix(build-runtime): remove leftover conflict markers from PR #50 merge
+- `480b277` fix: chmod +x all .sh files in build-runtime
+- `35c473f` fix(update): add .claude/scripts/ to workspace propagation
+- `f112f0d` fix: iwe-audit portability + release-audit-log.md (closes #24, #142) (#144)
+- `575ae4e` fix(notify): make TEMPLATES_DIR overridable via environment (#49)
+- `934e9c9` fix(verify): add model mapping for verification_class in wp type (#47)
+- `4a00339` fix(dt-collect): replace hardcoded DS-strategy with $GOVERNANCE_DIR (#46)
+- `065e60a` fix(day-close): portability — HOME_SLUG + rsync --delete (#119)
+- `df591ea` fix(dry-run-gate): make sentinel discovery session-agnostic (closes #59) (#60)
+- `bffd92c` fix(skill): quote pack-new description in SKILL.md frontmatter (#137)
+
+
 ## [0.35.3] — 2026-06-01
 
 ### Added
@@ -84,12 +165,6 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 
 
-
-## [Unreleased]
-
-### Added
-
-- Peer-session report template: content-roles section (§1.5) + frontmatter fields `roles`, `ad_hoc_roles`, `discovery_turns`. Synthesizer now reads `meta.yaml` to include assigned content-roles in `report.md`/`report-draft.md`.
 
 ## [0.35.0] — 2026-06-01
 

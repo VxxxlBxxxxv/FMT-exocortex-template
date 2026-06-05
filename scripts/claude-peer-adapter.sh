@@ -34,13 +34,14 @@ fi
 
 ADD_DIRS=()
 MODEL_ARG=("--model" "sonnet")
+PERMISSION_MODE_ARG=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -p)              shift ;;
     --model)         MODEL_ARG=("--model" "$2"); shift 2 ;;
     --add-dir)       ADD_DIRS+=("--add-dir" "$2"); shift 2 ;;
-    --permission-mode) shift 2 ;;
+    --permission-mode) PERMISSION_MODE_ARG=("--permission-mode" "$2"); shift 2 ;;
     *)               shift ;;
   esac
 done
@@ -51,5 +52,5 @@ done
 "$CLAUDE_BIN" -p \
   "${MODEL_ARG[@]}" \
   ${ADD_DIRS[@]+"${ADD_DIRS[@]}"} \
-  --permission-mode acceptEdits \
+  ${PERMISSION_MODE_ARG[@]+"${PERMISSION_MODE_ARG[@]}"} \
   2>/dev/null

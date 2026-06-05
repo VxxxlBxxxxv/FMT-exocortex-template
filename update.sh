@@ -127,6 +127,15 @@ DOWNLOAD_IDX=0
 # Parse manifest: extract path and desc for each file entry
 while IFS='|' read -r fpath fdesc; do
     [ -z "$fpath" ] && continue
+    # Protected user files (issue #154): never overwrite if they already exist locally.
+    # The "Не затрагиваются" list below is cosmetic; this is the actual skip-if-exists guard.
+    case "$fpath" in
+        params.yaml|memory/MEMORY.md|.claude/settings.local.json)
+            if [ -f "$SCRIPT_DIR/$fpath" ]; then
+                UNCHANGED=$((UNCHANGED + 1))
+                continue
+            fi ;;
+    esac
     DOWNLOAD_IDX=$((DOWNLOAD_IDX + 1))
     printf "  (%s/%s) %s\r" "$DOWNLOAD_IDX" "$TOTAL_FILES" "$fpath"
 

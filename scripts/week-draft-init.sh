@@ -68,8 +68,9 @@ mkdir -p "$DRAFT_DIR"
 MON_DATE=$(date -v-$(($(date +%u)-1))d +%Y-%m-%d 2>/dev/null || date -d "monday this week" +%Y-%m-%d)
 SUN_DATE=$(date -v+$((7-$(date +%u)))d +%Y-%m-%d 2>/dev/null || date -d "sunday this week" +%Y-%m-%d)
 
-MON_DAY=$(date -j -f %Y-%m-%d "$MON_DATE" +%d 2>/dev/null | sed 's/^0//')
-SUN_DAY=$(date -j -f %Y-%m-%d "$SUN_DATE" +%d 2>/dev/null | sed 's/^0//')
+# issue #155: || fallback на GNU date (Linux) — иначе date -j падает, 2>/dev/null глушит, день пустой
+MON_DAY=$(date -j -f %Y-%m-%d "$MON_DATE" +%d 2>/dev/null || date -d "$MON_DATE" +%d 2>/dev/null); MON_DAY=${MON_DAY#0}
+SUN_DAY=$(date -j -f %Y-%m-%d "$SUN_DATE" +%d 2>/dev/null || date -d "$SUN_DATE" +%d 2>/dev/null); SUN_DAY=${SUN_DAY#0}
 MONTH_FOR_DATES="${MONTH_NAME:0:3}"
 
 # Генерируем строки таблицы метрик с датами Пн-Вс (WD1 fix: совместимость с week-draft-append.sh)

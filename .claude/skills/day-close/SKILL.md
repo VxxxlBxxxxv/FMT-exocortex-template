@@ -57,7 +57,7 @@ done
 
 **3b.** Обновить DayPlan `${IWE_GOVERNANCE_REPO:-DS-strategy}/current/DayPlan YYYY-MM-DD.md`: статусы ВСЕХ строк (РП + ad-hoc). Done → зачеркнуть.
 
-**3c.** Обновить `${IWE_GOVERNANCE_REPO:-DS-strategy}/docs/WP-REGISTRY.md`: статусы + даты.
+**3c.** Обновить `${IWE_GOVERNANCE_REPO:-DS-strategy}/docs/WP-REGISTRY.md`: статусы + даты + **done-форматирование**. Done-РП → зачеркнуть номер, приоритет, название, репо, бюджет (`~~...~~`); снять bold с названия; эмодзи ✅ НЕ зачёркивать (см. `.claude/rules/formatting.md §Таблицы с РП`). Тильду внутри ячеек заменить (`~6.5h` → `6.5h`).
 
 **3d.** Обновить `${IWE_GOVERNANCE_REPO:-DS-strategy}/inbox/open-sessions.log`: удалить строки закрытых сессий.
 
@@ -241,7 +241,7 @@ python3 $HOME/IWE/.claude/scripts/rule-classifier.py
 - [ ] Маркер `.krisp-done` за сегодня поставлен (если есть Krisp-расширение)
 - [ ] MEMORY.md: done-РП удалены, активные актуальны, drift-scan выполнен (шаг 5б)
 - [ ] Index Health Check (шаг 5в): `check-index-health.py` — все FAIL/WARN разобраны или помечены skip
-- [ ] WP-REGISTRY.md обновлён
+- [ ] WP-REGISTRY.md обновлён: статусы + done-форматирование (done-строки зачёркнуты, ✅ не зачёркнут)
 - [ ] WeekPlan обновлён (grep по номерам РП — ВСЕ упоминания)
 - [ ] DayPlan обновлён (статусы ВСЕХ строк: РП + ad-hoc)
 - [ ] open-sessions.log: строки закрытых сессий удалены

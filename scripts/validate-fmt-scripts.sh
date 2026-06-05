@@ -24,12 +24,20 @@ set -uo pipefail
 
 MODE="all"
 SCRIPTS_DIR=""
+FILES=()
+MODE_FILES=0
 for arg in "$@"; do
     case "$arg" in
         --scripts)       MODE="scripts" ;;
         --settings-json) MODE="settings-json" ;;
         --all)           MODE="all" ;;
-        *)               SCRIPTS_DIR="$arg" ;;
+        --files)         MODE_FILES=1 ;;   # FMT7 (#150): последующие позиционные = конкретные файлы
+        *)
+            if [ "$MODE_FILES" = "1" ] && [ -f "$arg" ]; then
+                FILES+=("$arg")
+            else
+                SCRIPTS_DIR="$arg"
+            fi ;;
     esac
 done
 SCRIPTS_DIR="${SCRIPTS_DIR:-$(dirname "$0")}"
@@ -41,7 +49,13 @@ errors=0
 checked=0
 
 if [[ "$MODE" != "settings-json" ]]; then
-    for f in "$SCRIPTS_DIR"/*.sh "$SCRIPTS_DIR"/*.py; do
+    # FMT7: переданы конкретные файлы (--files) → проверять только их, иначе весь каталог
+    if [ ${#FILES[@]} -gt 0 ]; then
+        TARGETS=("${FILES[@]}")
+    else
+        TARGETS=("$SCRIPTS_DIR"/*.sh "$SCRIPTS_DIR"/*.py)
+    fi
+    for f in "${TARGETS[@]}"; do
         [[ -f "$f" ]] || continue
         fname=$(basename "$f")
         # Не проверять сам себя
@@ -69,7 +83,7 @@ if [[ "$MODE" != "settings-json" ]]; then
                 | grep -v '^\s*#\|^[0-9]*:\s*#' \
                 | grep -v '\${[^}]*:-' \
                 | grep -v '\${[^}]*:?' \
-                | grep -v 'GOV_REPO_TMPL=' \
+                | grep -vE '^[0-9]*:[[:space:]]*[A-Z_]+_TMPL=' \
                 | grep -vE "os\.environ\.get\([^)]*,[[:space:]]*[\"']" \
                 | grep -vE '^[0-9]*:\s*[A-Z_][A-Z0-9_]*="[^"]*"[[:space:]]*[\\]$' \
                 || true)

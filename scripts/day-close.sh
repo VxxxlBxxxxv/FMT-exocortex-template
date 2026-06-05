@@ -81,6 +81,10 @@ do_backup() {
     cp "$WORKSPACE_DIR/CLAUDE.md" "$EXOCORTEX_DST/CLAUDE.md"
   fi
 
+  if [ -f "$WORKSPACE_DIR/AGENTS.md" ]; then
+    cp "$WORKSPACE_DIR/AGENTS.md" "$EXOCORTEX_DST/AGENTS.md"
+  fi
+
   local count
   count=$(find "$EXOCORTEX_DST" -maxdepth 1 -type f \( -name '*.md' -o -name '*.yaml' -o -name '*.yml' \) | wc -l | tr -d ' ')
   log "  Синхронизировано: $count файлов → $EXOCORTEX_DST/"

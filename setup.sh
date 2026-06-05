@@ -201,7 +201,30 @@ else
     check_command "gh" "GitHub CLI" "brew install gh" "$_TOOL_REQUIRED"
     check_command "node" "Node.js" "brew install node (or https://nodejs.org)" "$_TOOL_REQUIRED"
     check_command "npm" "npm" "Comes with Node.js" "$_TOOL_REQUIRED"
-    check_command "claude" "Claude Code" "npm install -g @anthropic-ai/claude-code" "$_TOOL_REQUIRED"
+    # Multi-agent support: Claude Code, Kimi Code, Hermes — любой из них подходит
+    AI_CLI_CANDIDATES="${AI_CLI_CANDIDATES:-claude kimi-code kimi hermes}"
+    _AGENT_FOUND=false
+    for _agent_cmd in $AI_CLI_CANDIDATES; do
+        if command -v "$_agent_cmd" >/dev/null 2>&1; then
+            echo "  ✓ AI Agent: $_agent_cmd ($(command -v "$_agent_cmd"))"
+            _AGENT_FOUND=true
+            break
+        fi
+    done
+    if ! $_AGENT_FOUND; then
+        if [ "${_TOOL_REQUIRED:-true}" = "true" ]; then
+            echo "  ✗ AI Agent: не найден"
+            echo "    Установи один из поддерживаемых агентов:"
+            echo "      Claude Code: npm install -g @anthropic-ai/claude-code"
+            echo "      Kimi Code:   расширение Kimi Code в VS Code"
+            echo "      Hermes:      см. https://hermes-agent.nousresearch.com/"
+            echo "    Или задай AI_CLI_CANDIDATES=<команда-агента> в окружении"
+            echo "    Минимальная установка без агента: bash setup.sh --core"
+            PREREQ_FAIL=1
+        else
+            echo "  ○ AI Agent: не найден (опционально)"
+        fi
+    fi
 
     # Check gh auth
     if command -v gh >/dev/null 2>&1; then

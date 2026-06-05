@@ -11,7 +11,5 @@ DS-exocortex-setup/
 .claude/checkpoint.md
 .claude/logs/
 
-# Личные inbox-файлы не должны попадать в публикуемый шаблон
-# (канонический скелет — templates/strategy-skeleton/inbox/)
-inbox/fleeting-notes.md
-inbox/captures.md
+# Author-local downstream config for sync-communication-style.py (WP-388)
+scripts/sync-communication-style.yaml
