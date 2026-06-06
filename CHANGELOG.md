@@ -9,10 +9,26 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 
 
-## [Unreleased] — обновлено 2026-06-04
+
+
+
+
+
+
+
+
+## [Unreleased] — обновлено 2026-06-06
 
 ### Added
 
+- `61c46f3` feat(peer): sync kimi-peer-adapter.sh v3 from DS-my-strategy (selective merge)
+- `42e015f` feat(WP-356): промоция артефактов Day Open pipeline (5 скриптов + 1 хук)
+- `e5c86a0` feat(WP-378): навык /discovery-session + распаковка strategy-session
+- `4f6a0b9` feat(strategy-session): РП393 Ф2c appendix consent-check + dt-guide-prep
+- `bce2037` feat(roles): распаковка R1 — Стратег сужен, добавлен Плановик (DP.ROLE.066)
+- `edda5a3` feat(wp-398): Ф4 — тесты CLI-слоя agent-dashboard.py + фикс normalize_file_path
+- `9ae1746` feat(wp398-f5): командный дашборд --repo + Agent Core инструкция
+- `754a203` feat(wp-383): promote routing hint в peer-conversation skill (L1)
 - `9a04944` feat(wp-7): WP-REGISTRY Naming rule в Agent Core SYNC-CORE
 - `77f5052` feat(wp-7): close-wp.sh + create-wp.sh archive-заготовка
 - `be7b9ce` feat(multi-agent): поддержка Kimi Code и Hermes в точках входа
@@ -42,9 +58,17 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - `7e9aa78` feat(triage): post-2026-06-01 backlog cleanup infrastructure
 - `dc18e90` feat(detection): MVP FMT critical/deadline issues alert (peer-session 2026-06-01-18) (#145)
 - `6be164d` feat(hindsight): WP-337/А.13 FMT template — docker-compose, start, launchd, docs
+- `43e8268` feat(WP-377): promote pack-creator + org-dev + spf-guard
+- `f47bf49` feat(WP-348): promote apply-captures defer_until invariant to L1
+- `bc5686f` feat(L1): B-005 reliability обхода Backlog и pending-фаз
+- `fbc5585` feat(L1): promote DP.D.052 v2 формулировок из peer-сессии 2026-05-31-11
 
 ### Changed
 
+- `ba4f5e6` docs(WP-349): Ф34 — онбординг-доки под канон двух осей
+- `6a634a8` chore: обновление promotion-status (peer-conversation skill)
+- `8b683de` docs(readme): упрощена формулировка про другие агенты
+- `e76758e` docs(portability): audience-based descriptions + Hermes CLI (Вариант В)
 - `0acb88d` chore: sync rules + protocols from template-sync (2026-06-04)
 - `5840624` refactor: externalize downstream paths from sync script to yaml config (WP-388)
 - `b6ddac7` refactor: FMT-копия стиля → проекция Pack SoT + обобщённый sync (WP-388 Ф8)
@@ -55,9 +79,12 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - `0a15c8a` docs(skills): Ф4 WP-386 — явный Шаг 1 Extensions checks + WHY-комментарий dry-run sentinel
 - `c54ff45` ci: migrate actions/checkout@v4 → v6, github-script@v7 → v8
 - `76be56b` docs(CHANGELOG): корректировки 0.35.0 по post-deploy verify
+- `22cdd0d` chore(WP-377): R29 Детектор → R47 в hooks/lib/detectors
 
 ### Fixed
 
+- `6fd9e77` fix(peer): pidfile fallback uses PPID, remove orphan cleanup
+- `a85cf57` fix(fmt7): pre-commit валидирует только staged-скрипты (#150 collateral)
 - `efadfa0` fix(fmt): триаж 4 issues + сигнальный канал Day Open
 - `136c4b1` fix(day-close): шаг 3c — явное done-форматирование строк WP-REGISTRY
 - `e4e3c96` fix(wp-395): recursive-retry guard в get_agents() — max 1 refresh
@@ -805,7 +832,7 @@ Commit: `84dd6dc`
 - **`/iwe-bug-report` скилл** — создаёт GitHub issue в FMT-exocortex-template через `gh issue create` (6 шагов: категоризация → детали → gh CLI check → issue → URL).
 - **`docs/onboarding/iwe-layers.md`** — онбординг-схема слоёв L1/L2/L3.
 - **`.stignore` по умолчанию** — шаблон добавлен в корень FMT (`717d2d8`). При `update.sh` пользователь получает рабочий `.stignore` для Syncthing (исключены `.git/`, `node_modules/`, `.venv/`, `*.pyc` и другие build-артефакты). Фидбек пилота Дмитрия, 27 апр.
-- **`day-close` шаг 10b rule-classifier** — добавлен шаг `python3 $HOME/IWE/.claude/scripts/rule-classifier.py` после коммита в SKILL.md day-close (WP-272 Ф5.2, `0e41292`). Обогащает журнал `~/logs/rule-engine/YYYY-MM-DD-classified.jsonl`. Exit-код игнорируется (идемпотентно); убивать через 60 сек если зависает.
+- **`day-close` шаг 10b rule-classifier** — добавлен шаг `python3 $HOME/IWE/.claude/scripts/rule-classifier.py` после коммита в SKILL.md day-close (WP-272 Ф5.2, `0e41292`). Обогащает журнал `~/logs/rule-engine/YYYY-MM-DD-classified.jsonl`. Exit-код игнорируется (идемпотентно); убивать через 60 сек если зависает. ⚠️ **Требует ручной установки:** скрипт не поставляется в шаблоне — нужен `claude` CLI + репо `PACK-agent-rules` (см. #158).
 
 ## [0.29.10] — 2026-04-28
 

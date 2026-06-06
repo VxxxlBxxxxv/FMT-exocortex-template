@@ -78,15 +78,12 @@ case "$HOOK_EVENT" in
 
                 jq -nc \
                     --arg sid "$SESSION_UUID" --arg tn "$TOOL_NAME" --arg ih "$INPUT_HASH" \
-                    --argjson tin "$TOOL_INPUT" --argjson tres "$TOOL_RESPONSE" \
                     --argjson rsz "$RESPONSE_SIZE" --arg ts "$NOW" \
                     '{event_type: "agent_tool_called", schema_version: "v1", emitted_at: $ts, payload: {
                         session_id: $sid,
                         decision_id: null,
                         tool_name: $tn,
                         input_hash: $ih,
-                        input_payload: $tin,
-                        response: $tres,
                         response_size_bytes: $rsz,
                         called_at: $ts
                     }}' >> "$NDJSON" 2>/dev/null || true

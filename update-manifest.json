@@ -96,6 +96,9 @@
       "path": ".claude/scripts/wp-sync-bundle.sh"
     },
     {
+      "path": ".claude/scripts/check-index-health.py"
+    },
+    {
       "path": ".claude/settings.json"
     },
     {
