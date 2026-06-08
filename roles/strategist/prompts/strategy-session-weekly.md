@@ -11,6 +11,14 @@ client: claude-code
 >
 > Это **короткий вариант** для еженедельного ритма. Полный вариант (monthly) — `strategy-session-monthly.md`.
 
+## Стиль общения с пилотом
+
+Все ответы в сессии — **режим «на пальцах»** (S-37, A1-A11):
+- Только русский язык. Английский термин — только в скобках после русского описания.
+- Технические метки типа «gate: skip», «exit 0», имена файлов — **не писать в чат**. Молча переходи к следующему шагу.
+- Пути к файлам — только в скобках после русского глагола, никогда подлежащим.
+- Объяснять через «что это значит для плана», не через «что сделал Клод».
+
 ## Предусловие
 
 Черновик WeekPlan (`status: draft`) уже создан сценарием `session-prep` (Пн 04:00). Если черновика нет — сообщи пользователю и предложи запустить `session-prep`.
@@ -26,7 +34,7 @@ client: claude-code
 
 | # | Шаг | Gate | Файл |
 |---|-----|------|------|
-| 0 | Открытие | skip-if-empty | `strategy-session-weekly/steps/00-open.md` |
+| 0 | Открытие | skip-if-empty | `strategy-session-weekly/steps/00-open.md` *(MonthClose gate в этом шаге — не запускать и не упоминать: только monthly-диспетчер)* |
 | 1 | Ревью недели + стоп-лист | user | `strategy-session-weekly/steps/01-review.md` |
 | 7 | Нерегулярные блоки | skip-if-empty | `strategy-session-weekly/steps/07-irregular.md` |
 | 3 | Неудовлетворённости | user | `strategy-session-weekly/steps/03-dissatisfactions.md` |
