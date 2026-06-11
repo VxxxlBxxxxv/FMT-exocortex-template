@@ -1,6 +1,6 @@
 ---
 name: fpf
-description: Загрузка применимых принципов для задачи из иерархии Pack → SPF → FPF. Используй когда нужно найти релевантные принципы перед принятием решения.
+description: Loads applicable principles for a task from the Pack → SPF → FPF hierarchy. Use when you need to find relevant first principles before making a decision.
 argument-hint: "<запрос или тема>"
 routing:
   executor: haiku

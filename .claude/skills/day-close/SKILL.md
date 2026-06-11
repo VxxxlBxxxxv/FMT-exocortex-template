@@ -1,6 +1,6 @@
 ---
 name: day-close
-description: "Протокол закрытия дня (Day Close). Алиас для /run-protocol close day — симметрия с /day-open."
+description: "Day Close protocol. Alias for /run-protocol close day — symmetric with /day-open."
 argument-hint: ""
 version: 1.0.0
 layer: L1
@@ -135,6 +135,26 @@ SCRIPT="{{HOME_DIR}}/IWE/.claude/scripts/check-index-health.py"
 
 Скрипт выполняет: Linear sync, downstream sync (update.sh), backup (memory/ + CLAUDE.md).
 
+### 6a. Week Draft (рефлексивный черновик)
+
+> **Роль после ОПТ-5:** week-draft — рефлексивный черновик, НЕ дубль метрик WeekReport.
+> WeekReport (шаг 3f/10b) = факты (коммиты, РП, мультипликатор).
+> Week-draft = мысли, нерешённые вопросы, инсайты для недельного поста.
+
+**Понедельник:** инициализировать черновик недели:
+```bash
+"$IWE_SCRIPTS/week-draft-init.sh"
+```
+
+**Каждый день (включая Пн):** дописать метрики дня в черновик:
+```bash
+"$IWE_SCRIPTS/week-draft-append.sh"
+```
+
+Если `knowledge_repo` не задан в `params.yaml` — оба скрипта выходят с кодом 0 (пропуск), шаг не блокирует закрытие.
+
+> Рефлексия (мир/сообщество/человек/личное): если `knowledge_repo` настроен — агент набрасывает три первых секции из контекста дня; по «Личному» — спросить пилота.
+
 ### 7. Мультипликатор IWE
 
 > Условный шаг: если `params.yaml → multiplier_enabled: false` → пропустить.
@@ -263,6 +283,7 @@ SCRIPT="$HOME/IWE/.claude/scripts/rule-classifier.py"
 - [ ] Видео: обработанные помечены (если video.enabled)
 - [ ] Governance: REPOSITORY-REGISTRY, navigation.md, MAP.002
 - [ ] Backup: `day-close.sh` выполнен
+- [ ] Week Draft (6a): `week-draft-init.sh` (Пн) + `week-draft-append.sh` выполнены (или пропуск если `knowledge_repo` не задан)
 - [ ] **Rule-engine FP-stats** (WP-272 Ф2.5): `[ -f ~/IWE/.claude/scripts/fp-stats.py ] && python3 ~/IWE/.claude/scripts/fp-stats.py --date $(date +%Y-%m-%d) || echo "skip: fp-stats.py требует rule-classifier.py"` → если есть `⚠️ REVISE` (FP > 20%) — записать в «Завтра начать с» правило + FP%. Флоу ревизии: `~/IWE/PACK-agent-rules/revision-flow.md`.
 - [ ] Верификация compliance: /verify запускался сегодня?
 - [ ] WakaTime + Мультипликатор: часы / **бюджет ПО ФАКТУ** (sessions/00-index.md перечислен; ad-hoc peer-сессии оценены по числу ходов; сверхплановая работа в плановом РП — по факту); остаток недели. Sanity check: мультипликатор <1.5x при ≥10 peer-сессий = пересчитать

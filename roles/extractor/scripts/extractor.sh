@@ -37,6 +37,15 @@ AI_CLI="${AI_CLI:-$CLAUDE_PATH}"
 AI_CLI_PROMPT_FLAG="${AI_CLI_PROMPT_FLAG:--p}"
 AI_CLI_EXTRA_FLAGS="${AI_CLI_EXTRA_FLAGS:---dangerously-skip-permissions --allowedTools Read,Write,Edit,Glob,Grep,Bash}"
 
+# issue #17: load NOTIFY_SH_PATH from params.yaml if not already set in environment
+if [ -z "${NOTIFY_SH_PATH:-}" ]; then
+    _params="${IWE_WORKSPACE:-$HOME/IWE}/params.yaml"
+    if [ -f "$_params" ]; then
+        _notify_val=$(grep -E '^notify_sh_path:' "$_params" | sed 's/^notify_sh_path:[[:space:]]*//;s/^"//;s/"$//;s/^'"'"'//;s/'"'"'$//' | tr -d '[:space:]')
+        [ -n "$_notify_val" ] && export NOTIFY_SH_PATH="$_notify_val"
+    fi
+fi
+
 # Создаём папку для логов
 mkdir -p "$LOG_DIR"
 
@@ -52,10 +61,15 @@ log() {
 notify() {
     local title="$1"
     local message="$2"
-    # macOS: osascript, Linux: notify-send, fallback: silent
-    printf 'display notification "%s" with title "%s"' "$message" "$title" | osascript 2>/dev/null \
-        || notify-send "$title" "$message" 2>/dev/null \
-        || true
+    # issue #17: NOTIFY_SH_PATH override for Linux/Docker (set in params.yaml or .exocortex.env)
+    if [ -n "${NOTIFY_SH_PATH:-}" ] && [ -x "$NOTIFY_SH_PATH" ]; then
+        "$NOTIFY_SH_PATH" "$title" "$message" 2>/dev/null || true
+    else
+        # macOS: osascript, Linux: notify-send, fallback: silent
+        printf 'display notification "%s" with title "%s"' "$message" "$title" | osascript 2>/dev/null \
+            || notify-send "$title" "$message" 2>/dev/null \
+            || true
+    fi
 }
 
 notify_telegram() {
