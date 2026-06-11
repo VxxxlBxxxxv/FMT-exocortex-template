@@ -137,12 +137,23 @@ if [ "$TOOL_NAME" = "Bash" ]; then
     CMD=$(echo "$INPUT" | jq -r '.tool_input.command // ""')
     [ -z "$CMD" ] && exit 0
 
+    # Cleanup-исключение (bug-2026-06-12-sticky-sentinel): удаление СОБСТВЕННОГО
+    # sentinel — единственная разрешённая мутация. Строго: одна команда rm,
+    # цели — только /tmp/iwe-dry-run-*.flag, без цепочек (&&, ;, |) и прочих аргументов.
+    if echo "$CMD" | grep -qE '^[[:space:]]*rm([[:space:]]+-[a-zA-Z]+)*([[:space:]]+/tmp/iwe-dry-run-[^[:space:];|&]*\.flag)+[[:space:]]*$'; then
+        exit 0
+    fi
+
     # Удалить «> /dev/null» из команды для проверки опасных redirect'ов
     CHECK=$(echo "$CMD" | sed -E 's@>[[:space:]]*/dev/null@@g; s@2>&1@@g')
 
-    # Опасные паттерны
-    if echo "$CHECK" | grep -qE '(^|[[:space:]&;|])git[[:space:]]+(commit|push|pull|reset|merge|rebase|checkout[[:space:]]+-)([[:space:]]|$)'; then
-        block "$CMD"
+    # Опасные паттерны.
+    # git-мутации: допускаем глобальные опции между git и подкомандой
+    # (-C <path>, --git-dir[=…], --work-tree[=…], -c k=v) — bug-2026-06-12-git-C-bypass.
+    # Подкоманды дополнены add|mv|rm|stash|tag (мутации индекса/refs).
+    GIT_GLOBAL_OPTS='([[:space:]]+(-C[[:space:]]+[^[:space:]]+|--git-dir(=[^[:space:]]+)?([[:space:]]+[^[:space:]]+)?|--work-tree(=[^[:space:]]+)?([[:space:]]+[^[:space:]]+)?|-c[[:space:]]+[^[:space:]]+))*'
+    if echo "$CHECK" | grep -qE "(^|[[:space:]&;|])git${GIT_GLOBAL_OPTS}[[:space:]]+(add|commit|push|pull|reset|merge|rebase|mv|rm|stash|tag|checkout[[:space:]]+-)([[:space:]]|\$)"; then
+        block "$CMD (git mutation)"
     fi
     if echo "$CHECK" | grep -qE '[[:space:]]>[[:space:]]'; then
         block "$CMD (redirect to file)"
