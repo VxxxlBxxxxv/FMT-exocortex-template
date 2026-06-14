@@ -107,6 +107,9 @@ cd "$IWE_TEMPLATE" && bash update.sh --yes 2>&1
 **5d. Рекомендации:**
 На основе кастомизаций пользователя (его extensions/, params.yaml, Pack) — предложить как использовать новые возможности.
 
+**5e. Extensions (after) — БЛОКИРУЮЩЕЕ для отчёта:**
+Загрузить: `bash .claude/scripts/load-extensions.sh iwe-update after`. Exit 0 → `Read` каждый файл из вывода (alphabetic) → выполнить содержимое (post-update проверки: валидатор шаблона, детектор регрессий). Exit 1 → пропустить. Поддерживает `extensions/iwe-update.after.md` И `extensions/iwe-update.after.<suffix>.md`. Результаты проверок включить в отчёт (шаг 6) и, при FAIL, в «Требует внимания» DayPlan.
+
 ### 6. Отчёт
 
 ```
