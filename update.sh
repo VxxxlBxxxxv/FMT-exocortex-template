@@ -146,7 +146,7 @@ while IFS='|' read -r fpath fdesc; do
     # Protected user files (issue #154): never overwrite if they already exist locally.
     # The "Не затрагиваются" list below is cosmetic; this is the actual skip-if-exists guard.
     case "$fpath" in
-        params.yaml|memory/MEMORY.md|.claude/settings.local.json)
+        params.yaml|memory/MEMORY.md|.claude/settings.local.json|sessions/00-index.md)
             if [ -f "$SCRIPT_DIR/$fpath" ]; then
                 UNCHANGED=$((UNCHANGED + 1))
                 continue
@@ -271,6 +271,7 @@ echo "  ✓ extensions/ (ваши расширения протоколов)"
 echo "  ✓ params.yaml (ваши параметры)"
 echo "  ✓ .secrets/ (ключи)"
 echo "  ✓ .claude/settings.local.json (permissions)"
+echo "  ✓ sessions/00-index.md (журнал peer-сессий)"
 echo "  ✓ personal/ (ваши файлы)"
 echo "  ✓ DS-strategy/ (ваше планирование)"
 echo ""
