@@ -512,15 +512,16 @@ else
     fi
 fi
 
-# === 4b. Propagate skills, hooks, rules, lib, config, detectors, scripts to workspace ===
-echo "[4b] Installing skills, hooks, rules, lib, config, detectors, scripts..."
+# === 4b. Propagate skills, hooks, rules, lib, config, detectors, scripts, styles to workspace ===
+echo "[4b] Installing skills, hooks, rules, lib, config, detectors, scripts, styles..."
 if $DRY_RUN; then
-    echo "  [DRY RUN] Would copy .claude/{skills,hooks,rules,lib,config,detectors,scripts,agents}/ → $WORKSPACE_DIR/.claude/"
+    echo "  [DRY RUN] Would copy .claude/{skills,hooks,rules,lib,config,detectors,scripts,agents,styles}/ → $WORKSPACE_DIR/.claude/"
 else
     mkdir -p "$WORKSPACE_DIR/.claude"
     # lib/config/detectors — runtime dependencies капчер-шины (capture-bus.sh) и детекторов
     # scripts — требуется скиллами (напр. load-extensions.sh)
-    for subdir in skills hooks rules lib config detectors scripts agents; do
+    # styles — дисциплина языковых стилей (WP-412)
+    for subdir in skills hooks rules lib config detectors scripts agents styles; do
         if [ -d "$TEMPLATE_DIR/.claude/$subdir" ]; then
             cp -r "$TEMPLATE_DIR/.claude/$subdir" "$WORKSPACE_DIR/.claude/"
             echo "  ✓ .claude/$subdir/ → $WORKSPACE_DIR/.claude/$subdir/"

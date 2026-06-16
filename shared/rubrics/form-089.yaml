@@ -112,7 +112,7 @@ drill_down:
       5: "Учу других"
 
 scoring:
-  stage_formula: "min(cp.rhy, cp.wld, cp.skl, cp.iwe, cp.int, cp.agt)"
+  stage_formula: "min(cp.rhy, cp.wld, cp.skl, cp.int, cp.agt)"
   bottleneck_formula: "argmin(mandatory)"
   stream_formula: "S + max(1, min(4, stage))"
   default_missing: 2

@@ -227,7 +227,7 @@ for target in drill_targets:
 
 ```
 mandatory          = [cp.rhy, cp.wld, cp.skl, cp.int, cp.agt]   # FORM.089 §5.1/§6.1 — БЕЗ cp.iwe
-cp_confirmed_stage = min(mandatory)                             # cp.iwe информационный — ступень НЕ блокирует (решение пилота 2026-06-08)
+cp_confirmed_stage = min(cp.rhy, cp.wld, cp.skl, cp.int, cp.agt)  # cp.iwe информационный — ступень НЕ блокирует (решение пилота 2026-06-08)
 bottleneck_slot    = argmin(mandatory)
 recommended_stream = "S" + str(max(1, min(4, cp_confirmed_stage)))
 ```

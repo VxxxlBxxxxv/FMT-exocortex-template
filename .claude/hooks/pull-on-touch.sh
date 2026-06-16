@@ -69,17 +69,21 @@ while IFS= read -r repo; do
 
     dir="$IWE_ROOT/$repo"
 
-    # Грязное дерево (в т.ч. работа другого агента) → не трогаем, помечаем stale.
-    if [ -n "$(git -C "$dir" status --porcelain 2>/dev/null)" ]; then
-        warns="${warns}${repo}: незакоммиченные изменения, pull пропущен (данные potentially stale). "
-        continue
-    fi
+    # autostash тянет даже на грязном дереве (прячет правки → rebase → возвращает),
+    # поэтому пропуска-на-грязном нет. Считаем стэши до/после, чтобы поймать
+    # незавершённый возврат при конфликте и НЕ потерять локальную работу молча.
+    stash_before=$(git -C "$dir" stash list 2>/dev/null | wc -l | tr -d ' ')
 
-    if out=$($TO git -C "$dir" pull --rebase --quiet 2>&1); then
+    if out=$($TO git -C "$dir" pull --rebase --autostash --quiet 2>&1); then
         [ -n "$out" ] && pulled="${pulled}${repo} "
     else
-        git -C "$dir" rebase --abort >/dev/null 2>&1 || true   # не оставлять полу-rebase
-        warns="${warns}${repo}: git pull не удался (сеть/конфликт), данные potentially stale. "
+        git -C "$dir" rebase --abort >/dev/null 2>&1 || true   # вернуть репо в исходное состояние
+        warns="${warns}${repo}: подтяжка не удалась (сеть/конфликт), данные potentially stale. "
+    fi
+
+    stash_after=$(git -C "$dir" stash list 2>/dev/null | wc -l | tr -d ' ')
+    if [ "${stash_after:-0}" -gt "${stash_before:-0}" ]; then
+        warns="${warns}${repo}: локальные правки не вернулись автоматически (конфликт), лежат в git stash — верни вручную (git -C $dir stash pop). "
     fi
 done <<< "$REPOS"
 

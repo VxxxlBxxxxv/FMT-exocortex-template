@@ -40,7 +40,7 @@ for arg in "$@"; do
         *) [ -z "$TEMPLATE_DIR" ] && TEMPLATE_DIR="$arg" ;;
     esac
 done
-TEMPLATE_DIR="${TEMPLATE_DIR:-$HOME/IWE/FMT-exocortex-template}"
+TEMPLATE_DIR="${TEMPLATE_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 FAIL=0
 
 # Guard: post-setup state + default pristine mode → подсказать installed-режим и выйти.
