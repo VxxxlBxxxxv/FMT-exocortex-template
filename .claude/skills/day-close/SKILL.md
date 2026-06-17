@@ -182,6 +182,22 @@ python3 {{HOME_DIR}}/IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/scripts/check-index
 - С чего начать утром
 - Незавершённые РП: что именно осталось (конкретный next action по каждому)
 
+**з) Утренние приоритеты (`current/priorities.yaml`):**
+- Спросить пилота: «Какие 1–3 утренних приоритета на завтра? Укажи WP-ID в порядке важности (первый = самый важный). Если не хочешь задавать — скажи «пропустить».
+- Если пилот задаёт приоритеты → перезаписать `{{HOME_DIR}}/IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/current/priorities.yaml`:
+  ```yaml
+  # Утренние приоритеты на сегодня — обновлять вечером или утром
+  # Порядок = убывающий приоритет (первый = самый важный)
+  # Пустой список = fallback на вчерашний перенос в Day Open
+  last_updated: "YYYY-MM-DD"
+  today:
+    - WP-NNN
+    - WP-MMM
+  ```
+  где `last_updated` = завтрашняя дата (`date -v+1d +%Y-%m-%d 2>/dev/null || date -d "tomorrow" +%Y-%m-%d`).
+- Если пилот пропускает → оставить файл без изменений (Day Open покажет stale-предупреждение, если он устарел ≥3 дня).
+- Добавить файл в список изменений для коммита на шаге 10 (если перезаписывался).
+
 ### 8. Согласование
 
 Пользователь читает черновик → корректирует → одобряет.
@@ -227,6 +243,8 @@ git status --short
 # НЕ git add -A/git add ./git add -u — AGENTS.md CRITICAL (может захватить работу других агентов)
 # Стейджить ТОЛЬКО файлы, изменённые в шагах 2-9 этого протокола:
 git add <каждый файл явным путём: WeekPlan, WeekReport, WP-REGISTRY, archive/day-plans/*, inbox/WP-*.md и т.д.>
+# Если на шаге 7.з обновлялись утренние приоритеты:
+git add {{HOME_DIR}}/IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/current/priorities.yaml
 git diff --cached --name-only  # проверить scope — только day-close файлы
 git commit -m "day-close: $(date +%Y-%m-%d)"
 git push
@@ -273,6 +291,7 @@ python3 $HOME/IWE/.claude/scripts/rule-classifier.py
 - [ ] WakaTime + Мультипликатор: часы / **бюджет ПО ФАКТУ** (sessions/00-index.md перечислен; ad-hoc peer-сессии оценены по числу ходов; сверхплановая работа в плановом РП — по факту); остаток недели. Sanity check: мультипликатор <1.5x при ≥10 peer-сессий = пересчитать
 - [ ] Итоги дня записаны в DayPlan **(postcondition 9a: grep подтверждён)**
 - [ ] Handoff-валидация: «Завтра начать с» содержит ВСЕ pending РП с конкретным next action
+- [ ] `current/priorities.yaml` обновлён на завтра (или пилот явно пропустил шаг)
 - [ ] Сводка итогов записана в WeekReport (`<details>`, обратная хронология) **(postcondition 9b: grep подтверждён)**
 - [ ] Новое репо → MAPSTRATEGIC.md + Strategy.md
 
