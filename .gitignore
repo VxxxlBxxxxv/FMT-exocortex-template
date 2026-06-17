@@ -13,3 +13,6 @@ DS-exocortex-setup/
 
 # Author-local downstream config for sync-communication-style.py (WP-388)
 scripts/sync-communication-style.yaml
+
+# Backup copies created by skill-promote.sh — local safety net, not for git
+.backups/

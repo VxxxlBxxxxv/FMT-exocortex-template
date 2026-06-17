@@ -1,12 +1,16 @@
 ---
 name: bottleneck-pick
-description: "Identify the pilot's development bottleneck across cp-profile slots and recommend the next growth step."
+description: "Аналитик ограничений (DP.ROLE.054): находит главное ограничение (bottleneck) конкретного конвейера через TOC Five Steps + EC + NBR и строит Stage Dependency Map. Используй ТОЛЬКО при работе с конкретным WP, эпиком, проектом или weekplan (--target WP-NNN|weekplan|pilot:id). НЕ используй для общих вопросов приоритизации без явного системного контекста."
 version: 1.0.0
 layer: L1
 status: active
 triggers:
   slash: [/bottleneck-pick]
-  phrases: []
+  phrases:
+    - "выбери bottleneck"
+    - "какое ограничение сейчас"
+    - "горлышко системы"
+    - "bottleneck-pick"
 routing:
   executor: sonnet
   deterministic: false

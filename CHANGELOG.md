@@ -31,10 +31,22 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 
 
-## [Unreleased] — обновлено 2026-06-16
+
+
+
+
+
+
+
+## [Unreleased] — обновлено 2026-06-17
 
 ### Added
 
+- `a3ecd21` feat(skills): promote agent-fault + apply-captures to L1 (WP-422 Ф7 audit)
+- `157f483` feat(agent-trace): promote uploader+recorder hook fixes to platform
+- `8793f64` feat(skill-creator): add Step 2.5 update mode for existing skills (sync from IWE WP-422 Ф7)
+- `7468c0f` feat(skill): promote bottleneck-pick L3->L1, description+phrases
+- `760be7b` feat(skill-creator): promote to platform L1 (WP-422 Ф6)
 - `d6160b2` feat: promote skill artifactor from staging (L1)
 - `7f19385` feat(skill): promote kimi-peer-writer fix — NameError peer_agent + deprecated utcnow
 - `5e21531` feat(WP-7/SP1): refactor skill-promote.sh — safety, validation, tests
@@ -44,6 +56,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- `d98c62e` chore(skill-creator): bump version to 0.3.0 (sync from IWE)
 - `f820cb9` docs(local-llm): sync ADR-001 venv-Python note from author SoT (WP-404 Ф4)
 - `a512810` chore(day-close): commit dirty changes from 2026-06-15
 - `6c8a4cd` docs(WP-362 Ф8.1): developer/README — тиры T1-T4 → T0-T4 (консистентность с каноном)
@@ -51,6 +64,13 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `0f92b40` fix(skill-creator): SKILL.md v0.3.1 — review fixes Critical+High
+- `b653a38` fix(ke-queue-stats): frontmatter parser + support pending and pending-review statuses
+- `7c7151c` fix(ke-queue-stats): fix COUNT double-output bug and cross-platform stat
+- `c92d968` fix(promote): auto-regenerate update-manifest.json after hook/script promotion
+- `2d20f46` fix(manifest): close 3 gaps that let skill files bypass coverage check
+- `daeaa01` fix(manifest): exclude .backups/, add promoted skill files (artifactor + skill-creator)
+- `4d7c2f3` fix(skill-creator): remove /create-skill alias from triggers and description
 - `9bd0593` fix(update.sh): Windows SSL revocation flag detection via curl --help
 - `b1b45cd` fix(WP-7): strategist runner env fallback + diagnose-iwe YAML sync (#136 #122)
 - `a823c51` fix(WP-7): setup/validate-template.sh delivery, CLAUDE.md conflict hard-fail, manifest coverage

@@ -153,6 +153,9 @@
       "path": ".claude/skills/archgate/SKILL.md"
     },
     {
+      "path": ".claude/skills/artifactor/SKILL.md"
+    },
+    {
       "path": ".claude/skills/audit-docs/SKILL.md"
     },
     {
@@ -256,6 +259,21 @@
     },
     {
       "path": ".claude/skills/setup-wakatime/SKILL.md"
+    },
+    {
+      "path": ".claude/skills/skill-creator/SKILL.md"
+    },
+    {
+      "path": ".claude/skills/skill-creator/assets/skill-scaffold-full.md"
+    },
+    {
+      "path": ".claude/skills/skill-creator/assets/skill-scaffold-minimal.md"
+    },
+    {
+      "path": ".claude/skills/skill-creator/scripts/scaffold-init.sh"
+    },
+    {
+      "path": ".claude/skills/skill-creator/scripts/verify-skill.sh"
     },
     {
       "path": ".claude/skills/strategy-session/SKILL.md"
@@ -889,6 +907,9 @@
     },
     {
       "path": "update.sh"
+    },
+    {
+      "path": ".claude/skills/iwe-restore/SKILL.md"
     }
   ],
   "excluded_paths": [
