@@ -6,14 +6,14 @@ description: |
   The skill enforces WP Gate precondition, Routing Gate, IntegrationGate hard-check,
   collects parameters in 4 short steps, generates a scaffold SKILL.md from a template,
   shows a draft, writes files, and reminds about verify-skill.sh.
-version: 0.3.0
+version: 0.3.2
 status: experimental
 layer: L1
 agents: single
 interaction: multi-step
 gates_required: [wp]
 gates_enforced: [integration, routing]
-gates_rationale: ""
+gates_rationale: "wp — создание скилла = нетривиальный артефакт (>15 мин), требует согласованного РП до начала (WP Gate precondition). integration — новый скилл-обёртка над инструментом/ролью требует существующих DP.SC.* + DP.ROLE.* до реализации (IntegrationGate hard-block). routing — размещение (Claude/Kimi, project/user, L1-L3) есть решение Routing Gate до scaffold."
 triggers:
   slash:
     - /skill-creator
@@ -191,6 +191,20 @@ before the skill is used in practice.
 - `assets/skill-scaffold-minimal.md` — scaffold for single-step skills without external gates
 - `assets/skill-scaffold-full.md` — scaffold for multi-step skills with Preconditions and Bundled resources
 - `scripts/verify-skill.sh` — validates frontmatter, gates fields, bundled resource existence, L1 location
+
+## Known schema gaps
+
+Fields used by some existing skills but not yet in the standard frontmatter schema:
+
+- `argument-hint` — CLI-style hint for script-executor skills (e.g. agent-fault, apply-captures). Encodes the argument contract. Keep until schema is extended or absorbed into `description`.
+- `routing.executor` — indicates whether the skill runs via `script`, `sonnet`, or another executor. Useful for the dispatcher but not validated by `verify-skill.sh`. Candidate for standardization.
+
+Until standardized: leave these fields as-is in existing skills; do not remove during Step 2.5 updates.
+
+## Known tool gaps
+
+- **`verify-skill.sh` L1 location check for `.kimi/skills/`**: `check_l1_location` only checks `FMT-exocortex-template/.claude/skills/`. For skills placed at `.kimi/skills/` (platform:kimi), the L1 location check is skipped when `layer: L2`, or produces a spurious FAIL when `layer: L1`. Until verify-skill.sh is extended with a `--platform kimi` flag, use `layer: L2` for `.kimi/skills/` test skills, and document any intentional L1 Kimi skills separately.
+- **`content-audit.sh` coverage (Ф9)**: audit script checks 5 structural criteria (gates_rationale, Algorithm section, step headings ≥3, step content ≥2 lines, When-to-use section). 7 YELLOW skills (single C3 issue) are simple alias/mode skills without numbered step headings. This is structural noise, not content error — these skills are functionally correct. See `scripts/content-audit.sh` for full output.
 
 ## Anti-patterns
 

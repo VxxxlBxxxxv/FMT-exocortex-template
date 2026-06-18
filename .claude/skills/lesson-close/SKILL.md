@@ -1,6 +1,6 @@
 ---
 name: lesson-close
-description: Close a lesson opened with /lesson. Finalizes workbook/YYYY-MM-DD.md (frontmatter status, time metadata, duration), commits + pushes to the personal-guide repo. Triggers the closed delivery loop: push → GitHub webhook → sync_one_user_to_dt → Digital Twin updates in Neon. Use when pilot says 'close', 'done', 'finish', 'close lesson' — or after explicit task completion in /lesson.
+description: Закрыть занятие, открытое скиллом /lesson. Финализирует workbook/YYYY-MM-DD.md (frontmatter status, метаданные времени, длительность), делает commit + push в репо personal-guide. Триггерит замкнутый контур доставки — после push → GitHub webhook → bot oauth_server.py:/webhook/github/workbook → sync_one_user_to_dt → ЦД обновляется в Neon. Используй когда пилот говорит «закрываем», «всё», «закончили», «закрой урок» — или после явного завершения задания в /lesson.
 argument-hint: "[необязательно: дата урока YYYY-MM-DD; по умолчанию сегодня; либо --skipped если урок был пропущен; --no-push для локального commit без push]"
 experimental: true
 sunset: "после WP-301 Ф6 (E2E smoke) и WP-149 Block D (ИИ-агент-носитель Портного)"
@@ -16,11 +16,20 @@ routing:
   deterministic: true
   script_path: "scripts/lesson-close.sh"
   optimization_priority: 2
+agents: none
+interaction: one-shot
+gates_required: []
+gates_enforced: []
+gates_rationale: "операционный скилл; WP Gate применим только при создании нового РП, не для операционных вызовов"
 ---
 
 # /lesson-close — закрыть занятие и замкнуть контур доставки
 
 > ⚡ **Алгоритм, не диалог.** Шаги 1-5 последовательно. Без вопросов.
+
+## When to use
+
+Закрыть занятие, открытое скиллом /lesson. Финализирует workbook/YYYY-MM-DD.md (frontmatter status, метаданные времени, длительность), делает commit + push в репо personal-guide. Триггерит замкнутый контур доставки — после push → GitHub webhook → bot oauth_server.py:/webhook/github/workbook → sync_one_user_to_dt → ЦД обновляется в Neon. Используй когда пилот говорит «закрываем», «всё», «закончили», «закрой урок» — или после явного завершения задания в /lesson.
 
 ## Контракт скилла
 
@@ -28,6 +37,8 @@ routing:
 - **Выход:** workbook-файл с финализированным frontmatter (`status: done|partial|skipped`, `finished_at`, `duration_min`) + git commit + git push. На сервере: webhook triggered → `sync_one_user_to_dt(user_id)` → Neon `digital_twins.data['2_collected']` обновлён + событие в `development.user_events`.
 - **Время:** ≤2 мин (быстрая финализация после `/lesson`).
 - **Не делает:** не оценивает качество ответа (Оценщик R12 — отдельно, асинхронно); не генерирует assignment на завтра (Портной, ночной рендер).
+
+## Algorithm
 
 ## Шаг 1. Вызов через Маршрутизатор
 
@@ -61,7 +72,7 @@ bash "$IWE_SCRIPTS/route-task.sh" --skill lesson-close --args "<YYYY-MM-DD> [--n
 
 Не нужно ждать или проверять, что webhook реально сработал. Он асинхронный, факт push — единственное, что от тебя требуется. Если интересно: проверь логи `[WorkbookWebhook]` в Railway аист-боте.
 
-## Граничные случаи
+## Шаг 3. Граничные случаи
 
 | Ситуация | Действие |
 |---|---|

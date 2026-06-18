@@ -2,7 +2,7 @@
 # see DP.SC.153
 # НЕ редактировать вручную — перегенерировать через generate-skills-catalog.sh
 #
-generated: 2026-06-17T07:55:38Z
+generated: 2026-06-17T15:11:57Z
 skills_dir: .claude/skills
 
 skills:
@@ -33,17 +33,19 @@ skills:
     - apply-captures
   - id: archgate
     name: "archgate"
-    description: "Evaluate an architectural decision against 7 ECOGSSS characteristics (v3 — profile without aggregate score, conjunctive screening). Use when the pilot proposes an architectural decision, new tool, or system change."
-    version: 0.0.0
-    layer: unknown
+    description: "Оценка архитектурного решения по 7 характеристикам ЭМОГССБ (v3 — профиль без агрегатного балла, conjunctive screening). Используй когда пользователь предлагает архитектурное решение, новый инструмент или системное изменение."
+    version: 1.0.0
+    layer: L1
     status: active
     triggers:
-      slash: []
+      slash:
+        - /archgate
     depends_on: []
     invoked_by:
     - CLAUDE.md
     - verify
     - bottleneck-pick
+    - archgate
     - decompose
   - id: artifactor
     name: "artifactor"
@@ -109,7 +111,7 @@ skills:
     - check-secret
   - id: consent
     name: "consent"
-    description: "Manage consent in learning.tracking_consent — opt-in / opt-out / status / revoke. Required for the stage_evaluator worker (WP-253 Block 2). GDPR-compliant."
+    description: "Управление consent в learning.tracking_consent — opt-in / opt-out / status / revoke. Обязательное условие для работы stage_evaluator worker (WP-253 Блок 2). GDPR-совместимо."
     version: 1.0.0
     layer: L1
     status: active
@@ -121,7 +123,7 @@ skills:
     - consent
   - id: day-close
     name: "day-close"
-    description: "Day Close protocol. Alias for /run-protocol close day — symmetric with /day-open."
+    description: "Протокол закрытия дня (Day Close). Алиас для /run-protocol close day — симметрия с /day-open."
     version: 1.0.0
     layer: L1
     status: active
@@ -132,6 +134,7 @@ skills:
     invoked_by:
     - run-protocol
     - extend
+    - day-close
     - day-close
   - id: day-open
     name: "day-open"
@@ -147,8 +150,10 @@ skills:
     - run-protocol
     - extend
     - day-close
+    - day-close
     - week-close-pilot
     - day-open
+    - week-close
   - id: decompose
     name: "decompose"
     description: "Decompose work into stages with physical artifacts and acceptance checklists. Gap detector. Use when opening a WP ≥3h (open-loop/problem-framing) or on explicit request to break into stages. Executes R29 Decomposer role."
@@ -201,12 +206,13 @@ skills:
     - extend
   - id: fpf
     name: "fpf"
-    description: "Loads applicable principles for a task from the Pack → SPF → FPF hierarchy. Use when you need to find relevant first principles before making a decision."
-    version: 0.0.0
-    layer: unknown
+    description: "Загрузка применимых принципов для задачи из иерархии Pack → SPF → FPF. Используй когда нужно найти релевантные принципы перед принятием решения."
+    version: 1.0.0
+    layer: L1
     status: active
     triggers:
-      slash: []
+      slash:
+        - /fpf
     depends_on: []
     invoked_by:
     - CLAUDE.md
@@ -284,7 +290,7 @@ skills:
     invoked_by: []
   - id: lesson-close
     name: "lesson-close"
-    description: "Close a lesson opened with /lesson. Finalizes workbook/YYYY-MM-DD.md (frontmatter status, time metadata, duration), commits + pushes to the personal-guide repo. Triggers the closed delivery loop: push → GitHub webhook → sync_one_user_to_dt → Digital Twin updates in Neon. Use when pilot says 'close', 'done', 'finish', 'close lesson' — or after explicit task completion in /lesson."
+    description: "Закрыть занятие, открытое скиллом /lesson. Финализирует workbook/YYYY-MM-DD.md (frontmatter status, метаданные времени, длительность), делает commit + push в репо personal-guide. Триггерит замкнутый контур доставки — после push → GitHub webhook → bot oauth_server.py:/webhook/github/workbook → sync_one_user_to_dt → ЦД обновляется в Neon. Используй когда пилот говорит «закрываем», «всё», «закончили», «закрой урок» — или после явного завершения задания в /lesson."
     version: 1.0.0
     layer: L1
     status: active
@@ -386,9 +392,9 @@ skills:
     - personal-guide-render
   - id: platform-bottleneck
     name: "platform-bottleneck"
-    description: "Alias for /bottleneck-pick --layer platform. Deprecated — use /bottleneck-pick directly."
+    description: "Скилл IWE — см. тело файла"
     version: 1.0.0
-    layer: L3
+    layer: L1
     status: active
     triggers:
       slash:
@@ -420,7 +426,9 @@ skills:
     invoked_by:
     - CLAUDE.md
     - day-close
+    - day-close
     - audit-installation
+    - week-close
   - id: setup-wakatime
     name: "setup-wakatime"
     description: "Set up WakaTime time-tracking for Claude Code and VS Code."
@@ -435,7 +443,7 @@ skills:
   - id: skill-creator
     name: "skill-creator"
     description: "|"
-    version: 0.3.0
+    version: 0.3.2
     layer: L1
     status: experimental
     triggers:
@@ -446,7 +454,7 @@ skills:
     - skill-creator
   - id: strategy-session
     name: "strategy-session"
-    description: "Strategy session — dispatcher. Day 0 (no Strategy.md/WeekPlan) → initial flow (goals, dissatisfactions, first WeekPlan). Day 1+ → weekly flow (requires draft from session-prep). Triggers: 'run strategy session', 'first strategy session', 'strategy session', 'let's strategize'."
+    description: "Стратегическая сессия — диспетчер. День-0 (нет Strategy.md/WeekPlan) → initial flow (цели, неудовлетворённости, первый WeekPlan). День-1+ → weekly flow (требует черновик от session-prep). Триггеры — «проведём стратегическую сессию», «первая стратегическая сессия», «strategy session», «давай стратегировать»."
     version: 1.0.0
     layer: L1
     status: active
@@ -479,14 +487,30 @@ skills:
     depends_on: []
     invoked_by:
     - transcribe
-  - id: verify
-    name: "verify"
-    description: "Verify an artifact against a Pack standard. Loads VR.R.001 (Verifier) role with context isolation — checks the result, not the creation process."
-    version: 0.0.0
-    layer: unknown
+  - id: vdv
+    name: "vdv"
+    description: "ВДВ-скилл — генератор и аудитор описания стадийного процесса по 6 принципам Вход·Действие·Выход. Используй для построения описания нового процесса (/vdv build) или проверки готового описания (/vdv audit)."
+    version: 1.0.0
+    layer: L1
     status: active
     triggers:
-      slash: []
+      slash:
+        - /vdv
+        - /vdv build
+        - /vdv audit
+    depends_on: []
+    invoked_by:
+    - vdv
+    - skill-creator
+  - id: verify
+    name: "verify"
+    description: "Верификация артефакта по эталону из Pack. Загружает роль VR.R.001 (Верификатор) с context isolation — проверяет результат, а не процесс создания."
+    version: 1.0.0
+    layer: L1
+    status: active
+    triggers:
+      slash:
+        - /verify
     depends_on: []
     invoked_by:
     - run-protocol
@@ -499,7 +523,7 @@ skills:
     - audit-docs
   - id: w-reflection
     name: "w-reflection"
-    description: "Record a W-reflection (worldview slot of RCS) in learning.w_reflections. Used by Diagnostician R28 (MIM.R.009) or called by the user after a reflective session. Affects the D→P gate (FORM.089 §5.2)."
+    description: "Записать W-рефлексию (мировоззренческий слот RCS) в learning.w_reflections. Используется Диагностом R28 (MIM.R.009) или вызывается пользователем после рефлексивной сессии. Влияет на gate Д→П (FORM.089 §5.2)."
     version: 1.0.0
     layer: L1
     status: active
@@ -523,7 +547,7 @@ skills:
     - week-close-pilot
   - id: week-close
     name: "week-close"
-    description: "Week Close protocol. 7-day retrospective + carry-over to new week + platform steps (backup, dirty repos)."
+    description: "Протокол закрытия недели (Week Close). Ретро 7 дней + carry-over в новую неделю + платформенные шаги (бэкап, dirty repos)."
     version: 1.2.0
     layer: L1
     status: active
@@ -537,9 +561,10 @@ skills:
     - week-close-pilot
     - month-close
     - week-close
+    - week-close
   - id: wp-new
     name: "wp-new"
-    description: "Create a new Work Product (WP) with atomic registration in 5 places. Use when a new task appears that is not in the week plan."
+    description: "Создание нового рабочего продукта (РП) с записью в 5 мест атомарно. Используй когда появляется новая задача, которой нет в плане недели."
     version: 1.0.0
     layer: L1
     status: active

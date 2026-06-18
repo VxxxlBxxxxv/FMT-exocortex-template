@@ -130,7 +130,7 @@ schema_version: 1
 2. **Memory Validate** — `memory-bleed.sh` (HOT-лимит, orphans, superseded_by)
 3. **ТО памяти (T, SC.024.3)** — проверка здоровья статической нагрузки:
    - `wc -l {{HOME_DIR}}/IWE/.claude/rules/distinctions.md` → **> 80 строк = drift-флаг** (по правилу DP.KR.001 §6: 1-3 строки на различение). Предложить аудит в WP-7.
-   - `wc -l ~/.claude/projects/-Users-{{USERNAME}}-IWE/memory/MEMORY.md` → **> 200 строк = флаг** (превышен лимит).
+   - `wc -l ~/.claude/projects/*/memory/MEMORY.md` → **> 200 строк = флаг** (превышен лимит).
    - Feedback/lessons файлы в `memory/` с `mtime > 14 дней` без обращения → предложить понизить `horizon: warm`.
    - Флаги — информативно. Пользователь решает действие.
 4. **iwe-drift.sh** — полный drift-отчёт в Week Report (S)

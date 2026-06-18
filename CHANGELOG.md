@@ -38,10 +38,29 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## [Unreleased] — обновлено 2026-06-17
 
 ### Added
 
+- `bcdb0ed` feat(skills): promote skill-creator v0.3.2 + C6 audit + pg-start Verification
+- `326c460` feat(WP-422): promote 7 skills with C3-fixed step headings (L1)
+- `d2dd196` feat(WP-422/SP1): promote skill iwe-restore to platform (L1)
 - `a3ecd21` feat(skills): promote agent-fault + apply-captures to L1 (WP-422 Ф7 audit)
 - `157f483` feat(agent-trace): promote uploader+recorder hook fixes to platform
 - `8793f64` feat(skill-creator): add Step 2.5 update mode for existing skills (sync from IWE WP-422 Ф7)
@@ -56,6 +75,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- `ed2cca0` docs: add KIMI-SETUP.md — инструкция по подключению Kimi к IWE
 - `d98c62e` chore(skill-creator): bump version to 0.3.0 (sync from IWE)
 - `f820cb9` docs(local-llm): sync ADR-001 venv-Python note from author SoT (WP-404 Ф4)
 - `a512810` chore(day-close): commit dirty changes from 2026-06-15
@@ -64,6 +84,8 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `290d149` fix(wp-7): sanitize author-specific content in template-sync'd files
+- `850c303` fix(wp-7/wpn1): promote create-wp.sh with GOV_REPO parametrization
 - `0f92b40` fix(skill-creator): SKILL.md v0.3.1 — review fixes Critical+High
 - `b653a38` fix(ke-queue-stats): frontmatter parser + support pending and pending-review statuses
 - `7c7151c` fix(ke-queue-stats): fix COUNT double-output bug and cross-platform stat

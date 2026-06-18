@@ -201,6 +201,9 @@
       "path": ".claude/skills/iwe-bug-report/SKILL.md"
     },
     {
+      "path": ".claude/skills/iwe-restore/SKILL.md"
+    },
+    {
       "path": ".claude/skills/iwe-rules-review/SKILL.md"
     },
     {
@@ -270,6 +273,12 @@
       "path": ".claude/skills/skill-creator/assets/skill-scaffold-minimal.md"
     },
     {
+      "path": ".claude/skills/skill-creator/scripts/batch-fix-skills.py"
+    },
+    {
+      "path": ".claude/skills/skill-creator/scripts/content-audit.sh"
+    },
+    {
       "path": ".claude/skills/skill-creator/scripts/scaffold-init.sh"
     },
     {
@@ -283,6 +292,12 @@
     },
     {
       "path": ".claude/skills/transcribe/SKILL.md"
+    },
+    {
+      "path": ".claude/skills/vdv/SKILL.md"
+    },
+    {
+      "path": ".claude/skills/vdv/test_cases.md"
     },
     {
       "path": ".claude/skills/verify/SKILL.md"
@@ -349,6 +364,9 @@
     },
     {
       "path": "docs/IWE-HELP.md"
+    },
+    {
+      "path": "docs/KIMI-SETUP.md"
     },
     {
       "path": "docs/LEARNING-PATH.md"
@@ -897,6 +915,24 @@
       "path": "sessions/00-index.md"
     },
     {
+      "path": "sessions/2026-06/2026-06-17-01-kimi-setup/00-writer.md"
+    },
+    {
+      "path": "sessions/2026-06/2026-06-17-01-kimi-setup/01-peer.md"
+    },
+    {
+      "path": "sessions/2026-06/2026-06-17-01-kimi-setup/02-writer.md"
+    },
+    {
+      "path": "sessions/2026-06/2026-06-17-01-kimi-setup/03-peer.md"
+    },
+    {
+      "path": "sessions/2026-06/2026-06-17-01-kimi-setup/meta.yaml"
+    },
+    {
+      "path": "sessions/2026-06/2026-06-17-01-kimi-setup/report.md"
+    },
+    {
       "path": "setup.sh"
     },
     {
@@ -907,9 +943,6 @@
     },
     {
       "path": "update.sh"
-    },
-    {
-      "path": ".claude/skills/iwe-restore/SKILL.md"
     }
   ],
   "excluded_paths": [
