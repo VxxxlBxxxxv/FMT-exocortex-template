@@ -16,3 +16,8 @@ scripts/sync-communication-style.yaml
 
 # Backup copies created by skill-promote.sh — local safety net, not for git
 .backups/
+
+# Local secrets and Python bytecode must never enter template commits
+.secrets/
+__pycache__/
+*.pyc

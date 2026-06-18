@@ -216,6 +216,9 @@
       "path": ".claude/skills/kimi-peer-writer/SKILL.md"
     },
     {
+      "path": ".claude/skills/kimi-peer-writer/modes.md"
+    },
+    {
       "path": ".claude/skills/lesson-close/SKILL.md"
     },
     {
@@ -439,6 +442,9 @@
     },
     {
       "path": "docs/scripts-catalog.md"
+    },
+    {
+      "path": "docs/secondary-model-adapter-spec.md"
     },
     {
       "path": "docs/skills-catalog.md"
@@ -954,6 +960,7 @@
     "docs/maintaining-skills.md",
     "docs/release-audit-log.md",
     "promotion-status.yaml",
+    "roles/strategist/WORKPLAN.md",
     "scripts/active-wp-sweep.sh",
     "scripts/agent-dashboard.py",
     "scripts/agent_fault_remind.py",
