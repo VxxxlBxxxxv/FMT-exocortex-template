@@ -66,10 +66,12 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 
 
+
 ## [Unreleased] — обновлено 2026-06-21
 
 ### Added
 
+- `affae73` feat(day-open): промоция ТВС-структуры скаффолда + дефолт IWE
 - `ae5e638` feat(translation): add translate.py pipeline + en-doc-style.md
 - `0f54175` feat(wp-432): USER-SPACE customization zones in L1 skills
 - `49443ad` feat(wp-149): promote lesson-close SKILL.md to platform (L1) — lesson/ path
@@ -93,7 +95,6 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - `36febfd` feat(strategy): модель ТВС в шаблон (стратегирование + ОРЗ)
 - `673474d` feat(WP-388): проекция базы стиля — 4 новых элемента регистра (зеркало L0)
 - `dd117c5` feat(styles): WP-412 Ф11 — дисциплина языковых стилей в шаблон IWE
-- `83434ea` feat: promote pull-on-touch.sh — детерминированный Pull-on-Touch (CLAUDE.md §2 п.5)
 
 ### Changed
 
