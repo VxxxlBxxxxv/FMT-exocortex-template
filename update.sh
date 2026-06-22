@@ -386,6 +386,23 @@ for f in "${UPDATED_FILES[@]}"; do
             # Save base for next update
             cp "$NEW_FILE" "$SCRIPT_DIR/.claude.md.base"
         fi
+    elif [[ "$f" == .claude/skills/*/SKILL.md ]]; then
+        # USER-SPACE preserve for L1 skill spec files (no install_constants in SCRIPT_DIR — already {{KEY}})
+        CURR_SKILL_FILE="$SCRIPT_DIR/$f"
+        if [ -f "$CURR_SKILL_FILE" ]; then
+            USER_SECTION=$(sed -n '/^<!-- USER-SPACE -->/,/^<!-- \/USER-SPACE -->/p' "$CURR_SKILL_FILE")
+        else
+            USER_SECTION=""
+        fi
+        cp "$TMPDIR_UPDATE/files/$f" "$SCRIPT_DIR/$f"
+        if [ -n "$USER_SECTION" ]; then
+            perl -i -0pe 's/^<!-- USER-SPACE -->.*?^<!-- \/USER-SPACE -->//ms' "$SCRIPT_DIR/$f"
+            perl -i -0pe 's/\n+$/\n/' "$SCRIPT_DIR/$f"
+            printf '\n%s\n' "$USER_SECTION" >> "$SCRIPT_DIR/$f"
+            echo "  ~ $f (USER-SPACE preserved)"
+        else
+            echo "  ~ $f"
+        fi
     else
         cp "$TMPDIR_UPDATE/files/$f" "$SCRIPT_DIR/$f"
         case "$f" in *.sh) chmod +x "$SCRIPT_DIR/$f" ;; esac
@@ -701,13 +718,51 @@ fi
 # Propagate skills, hooks, rules, lib, config, detectors to workspace if changed.
 # lib/config/detectors — runtime dependencies капчер-шины (capture-bus.sh) и детекторов.
 for f in "${NEW_FILES[@]}" "${UPDATED_FILES[@]}"; do
-    case "$f" in .claude/skills/*|.claude/hooks/*|.claude/rules/*|.claude/lib/*|.claude/config/*|.claude/detectors/*|.claude/scripts/*|.claude/agents/*|.claude/styles/*|.claude/settings.json)
-        src="$SCRIPT_DIR/$f"
-        dst="$WORKSPACE_DIR/$f"
-        mkdir -p "$(dirname "$dst")"
-        cp "$src" "$dst"
-        echo "  ✓ $f → workspace"
-        ;;
+    case "$f" in
+        .claude/skills/*/SKILL.md)
+            src="$SCRIPT_DIR/$f"
+            dst="$WORKSPACE_DIR/$f"
+            mkdir -p "$(dirname "$dst")"
+            # 1. Extract USER_SECTION from workspace before overwriting
+            if [ -f "$dst" ]; then
+                USER_SECTION=$(sed -n '/^<!-- USER-SPACE -->/,/^<!-- \/USER-SPACE -->/p' "$dst" 2>/dev/null || true)
+            else
+                USER_SECTION=""
+            fi
+            # 2. Extract install_constants values from workspace frontmatter
+            if [ -f "$dst" ]; then
+                IC_BLOCK=$(awk '/^install_constants:/{found=1} found && /^[a-z][^:]+:/ && !/^install_constants:/{exit} found{print}' "$dst" 2>/dev/null || true)
+            else
+                IC_BLOCK=""
+            fi
+            # 3. Copy src (with {{KEY}} placeholders) → dst
+            cp "$src" "$dst"
+            # 4. Substitute install_constants: {{KEY}} → VALUE
+            if [ -n "$IC_BLOCK" ]; then
+                while IFS=': ' read -r key val; do
+                    key="${key#"${key%%[! ]*}"}"
+                    val="${val#"${val%%[! ]*}"}"
+                    [[ "$key" =~ ^[A-Z_]+$ ]] && [ -n "$val" ] || continue
+                    sed_inplace "s|{{${key}}}|${val}|g" "$dst"
+                done <<< "$IC_BLOCK"
+            fi
+            # 5. Reinject USER_SECTION
+            if [ -n "$USER_SECTION" ]; then
+                perl -i -0pe 's/^<!-- USER-SPACE -->.*?^<!-- \/USER-SPACE -->//ms' "$dst"
+                perl -i -0pe 's/\n+$/\n/' "$dst"
+                printf '\n%s\n' "$USER_SECTION" >> "$dst"
+                echo "  ✓ $f → workspace (USER-SPACE preserved)"
+            else
+                echo "  ✓ $f → workspace"
+            fi
+            ;;
+        .claude/skills/*|.claude/hooks/*|.claude/rules/*|.claude/lib/*|.claude/config/*|.claude/detectors/*|.claude/scripts/*|.claude/agents/*|.claude/styles/*|.claude/settings.json)
+            src="$SCRIPT_DIR/$f"
+            dst="$WORKSPACE_DIR/$f"
+            mkdir -p "$(dirname "$dst")"
+            cp "$src" "$dst"
+            echo "  ✓ $f → workspace"
+            ;;
     esac
 done
 
@@ -935,6 +990,55 @@ fi
 if [ -f "$MANIFEST" ]; then
     cp "$MANIFEST" "$SCRIPT_DIR/update-manifest.json" \
         && echo "  • update-manifest.json: заменён remote manifest (v$UPSTREAM_VERSION)"
+fi
+
+# === Step 6f: Orphan detection — L1 files not in manifest ===
+# Warn about files present on disk in L1 directories that are not listed in
+# update-manifest.json (neither in files[] nor deprecated_files[]).
+# These may be stale user customisations or files left over from a renamed skill.
+# Never auto-deletes; always informational only.
+if command -v python3 &>/dev/null && [ -f "$SCRIPT_DIR/update-manifest.json" ]; then
+    ORPHAN_OUTPUT=$(python3 - <<'PYEOF'
+import json, os
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+manifest_path = os.path.join(script_dir, "update-manifest.json")
+
+with open(manifest_path) as f:
+    manifest = json.load(f)
+
+known = set(manifest.get("files", []))
+deprecated = set(manifest.get("deprecated_files", []))
+all_known = known | deprecated
+
+L1_DIRS = [".claude/hooks", ".claude/rules", ".claude/skills"]
+L1_PREFIXES = ["memory/protocol-"]
+
+orphans = []
+for base in L1_DIRS:
+    full_base = os.path.join(script_dir, base)
+    if not os.path.isdir(full_base):
+        continue
+    for root, dirs, files in os.walk(full_base):
+        for fname in files:
+            full = os.path.join(root, fname)
+            rel = os.path.relpath(full, script_dir)
+            if rel not in all_known:
+                tag = "[maybe-L3]" if "extensions/" in rel else "[orphan]"
+                orphans.append((tag, rel))
+
+for tag, rel in sorted(orphans):
+    print(f"  {tag} {rel}")
+PYEOF
+)
+    if [ -n "$ORPHAN_OUTPUT" ]; then
+        echo ""
+        echo "⚠  Файлы в L1-директориях не найдены в манифесте (не удалять автоматически):"
+        echo "$ORPHAN_OUTPUT"
+        echo "   [orphan]   — возможно устаревший платформенный файл; удалите вручную или"
+        echo "               добавьте в deprecated_files если это намеренно удалённый артефакт."
+        echo "   [maybe-L3] — возможно пользовательское расширение (extensions/)."
+    fi
 fi
 
 # === Step 7: Commit changes ===
