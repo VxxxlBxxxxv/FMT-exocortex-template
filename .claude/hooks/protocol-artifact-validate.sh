@@ -10,7 +10,7 @@
 #   - DayClose: итоги, carry-over (day-close protocol) [future]
 #
 # Parameterized: sections list is a variable, not hardcoded per format.
-# Ф3 WP-229: добавлены проверки структуры (collapsible, непустые секции, мультипликатор, carry-over)
+# Ф3 WP-229: добавлены проверки структуры (## заголовки, непустые секции, мультипликатор, carry-over)
 
 INPUT=$(cat)
 TOOL=$(echo "$INPUT" | jq -r '.tool_name // empty')
@@ -28,9 +28,9 @@ if ! echo "$TOOL_INPUT" | grep -qE 'git (add.*&&.*git )?commit'; then
   exit 0
 fi
 
-# Governance-репо: из env $IWE_GOVERNANCE_REPO (по умолчанию DS-strategy).
+# Governance-репо: из env $IWE_GOVERNANCE_REPO (по умолчанию ${IWE_GOVERNANCE_REPO:-DS-strategy}).
 # Workspace: $IWE_WORKSPACE или $IWE_ROOT (синонимы), default ~/IWE.
-GOV_REPO="${IWE_GOVERNANCE_REPO:-DS-strategy}"
+GOV_REPO="${IWE_GOVERNANCE_REPO:-${IWE_GOVERNANCE_REPO:-DS-strategy}}"
 WORKSPACE="${IWE_WORKSPACE:-${IWE_ROOT:-$HOME/IWE}}"
 GOV_PATH="$WORKSPACE/$GOV_REPO"
 
@@ -76,8 +76,11 @@ if [ "$HEADINGS_COUNT" -lt 3 ]; then
 fi
 
 # --- Ф3 Check 2: непустые обязательные секции ---
-# Календарь: должна содержать хотя бы одну строку с | (таблица) или "нет событий"
-CALENDAR_CONTENT=$(awk '/Календарь/,/^## /' "$DAYPLAN" 2>/dev/null | wc -l || echo 0)
+# Календарь: должна содержать хотя бы одну строку с | (таблица) или "нет событий".
+# Флаг-диапазон вместо awk-range '/start/,/^## /': заголовок секции (## Календарь ...)
+# совпадает и со start, и с end-ограничителем /^## /, из-за чего range схлопывается в
+# одну строку и тело секции теряется (ложный блок коммита — issue #207).
+CALENDAR_CONTENT=$(awk 'f && /^## /{exit} /Календарь/{f=1} f' "$DAYPLAN" 2>/dev/null | wc -l || echo 0)
 if [ "$CALENDAR_CONTENT" -lt 3 ]; then
   ERRORS+=("Секция 'Календарь' пустая или слишком короткая (${CALENDAR_CONTENT} строк)")
 fi
@@ -85,7 +88,9 @@ fi
 # Scout: проверяется только если секция вообще присутствует в DayPlan (опциональный компонент,
 # зависит от DS-agent-workspace). Если секции нет — Scout не сконфигурирован, валидатор не блокирует.
 if grep -q "Наработки Scout" "$DAYPLAN" 2>/dev/null; then
-  if ! awk '/Наработки Scout/,/^## /' "$DAYPLAN" 2>/dev/null | grep -iqE 'наход|capture|статус|нет|find|disabled|not configured'; then
+  # Флаг-диапазон вместо awk-range (см. Календарь выше, issue #207): заголовок
+  # '## Наработки Scout' совпадает с end-ограничителем /^## /, range схлопывается.
+  if ! awk 'f && /^## /{exit} /Наработки Scout/{f=1} f' "$DAYPLAN" 2>/dev/null | grep -iqE 'наход|capture|статус|нет|find|disabled|not configured'; then
     ERRORS+=("Секция 'Наработки Scout' пустая (допустимы маркеры 'нет находок', 'disabled', 'not configured')")
   fi
 fi
