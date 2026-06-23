@@ -81,3 +81,6 @@ bash "$IWE_SCRIPTS/route-task.sh" --skill consent --args "$ARGUMENTS"
 
 - Миграция `113-consent-writer-grants.sql` (в директории миграций инфраструктурного репозитория)
 - Privacy spec: [`B7.3.6-stage-evaluation-privacy-spec.md`](../../../DS-ecosystem-development/C.IT-Platform/C2.IT-Platform/C2.2.Architecture/Data-Governance/B7.3.6-stage-evaluation-privacy-spec.md)
+
+<!-- USER-SPACE -->
+<!-- /USER-SPACE -->

@@ -57,3 +57,6 @@ gates_rationale: "операционный скилл; WP Gate применим 
 
 → `/bottleneck-pick` SKILL.md (секция `--layer=platform`)
 → DP.SC.152 (обещание платформо-специфичного анализа)
+
+<!-- USER-SPACE -->
+<!-- /USER-SPACE -->

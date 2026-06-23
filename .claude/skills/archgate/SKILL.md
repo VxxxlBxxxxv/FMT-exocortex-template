@@ -244,3 +244,6 @@ Source-of-truth: `{{WORKSPACE_DIR}}/DS-ecosystem-development/C.IT-Platform/C2.IT
 - Принцип есть, решение противоречит → пересмотреть
 - Принцип есть, слабый → усилить
 - Принципа нет → предложить (уровень: 2-й = домен, 3-й = ADR)
+
+<!-- USER-SPACE -->
+<!-- /USER-SPACE -->

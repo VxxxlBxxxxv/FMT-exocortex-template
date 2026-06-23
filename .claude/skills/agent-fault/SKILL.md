@@ -40,3 +40,6 @@ python3 "${IWE_SCRIPTS:-$HOME/IWE/scripts}/iwe_checklist_memory.py" \
 
 При отсутствии `$IWE_SCRIPTS` использовать явный путь:
 `$HOME/IWE/scripts/iwe_checklist_memory.py`
+
+<!-- USER-SPACE -->
+<!-- /USER-SPACE -->

@@ -2,7 +2,7 @@
 # see DP.SC.153
 # НЕ редактировать вручную — перегенерировать через generate-skills-catalog.sh
 #
-generated: 2026-06-18T06:14:29Z
+generated: 2026-06-23T05:10:49Z
 skills_dir: .claude/skills
 
 skills:
@@ -167,19 +167,18 @@ skills:
     invoked_by:
     - bottleneck-pick
     - decompose
-  - id: diagnose-iwe
-    name: "diagnose-iwe"
-    description: "Диагностика ступени мастерства (Диагност R28, FORM.089 §6.1 v5.0) прямо в VS Code / claude.ai. До 6 вопросов, ~3 мин. Сохраняет cp-профиль в цифровой двойник (browser) или Neon (VS Code). Запускай когда: пилот говорит «пройди диагностику», «какая моя ступень», «/diagnose», «/diagnose-iwe» — или ПРОАКТИВНО когда видишь пустой cp_profile или нового пользователя без данных."
+  - id: diagnose
+    name: "diagnose"
+    description: "Диагностика ступени мастерства (Диагност R28, FORM.089 §6.1 v5.0) прямо в VS Code / claude.ai. До 6 вопросов, ~3 мин. Сохраняет cp-профиль в цифровой двойник (browser) или Neon (VS Code). Запускай когда: пилот говорит «пройди диагностику», «какая моя ступень», «/diagnose» — или ПРОАКТИВНО когда видишь пустой cp_profile или нового пользователя без данных."
     version: 5.0.0
     layer: L1
     status: active
     triggers:
       slash:
         - /diagnose
-        - /diagnose-iwe
     depends_on: []
     invoked_by:
-    - diagnose-iwe
+    - diagnose
     - pack-creator
   - id: discovery-session
     name: "discovery-session"
@@ -221,12 +220,13 @@ skills:
     - fpf
   - id: iwe-bug-report
     name: "iwe-bug-report"
-    description: "Report a bug or platform issue in IWE. Creates a GitHub issue in FMT-exocortex-template."
-    version: 0.0.0
-    layer: unknown
+    description: "Сообщить об ошибке или проблеме платформы IWE. Создаёт GitHub issue в FMT-exocortex-template."
+    version: 1.0.0
+    layer: L1
     status: active
     triggers:
-      slash: []
+      slash:
+        - /iwe-bug-report
     depends_on: []
     invoked_by:
     - iwe-bug-report
@@ -291,7 +291,7 @@ skills:
     invoked_by: []
   - id: lesson-close
     name: "lesson-close"
-    description: "Закрыть занятие, открытое скиллом /lesson. Финализирует workbook/YYYY-MM-DD.md (frontmatter status, метаданные времени, длительность), делает commit + push в репо personal-guide. Триггерит замкнутый контур доставки — после push → GitHub webhook → bot oauth_server.py:/webhook/github/workbook → sync_one_user_to_dt → ЦД обновляется в Neon. Используй когда пилот говорит «закрываем», «всё», «закончили», «закрой урок» — или после явного завершения задания в /lesson."
+    description: "Закрыть занятие, открытое скиллом /lesson. Финализирует lesson/YYYY-MM-DD.md (frontmatter status, метаданные времени, длительность), делает commit + push в репо personal-guide. Триггерит замкнутый контур доставки — после push → GitHub webhook → bot oauth_server.py:/webhook/github/workbook → sync_one_user_to_dt → ЦД обновляется в Neon. Используй когда пилот говорит «закрываем», «всё», «закончили», «закрой урок» — или после явного завершения задания в /lesson."
     version: 1.0.0
     layer: L1
     status: active
@@ -302,14 +302,27 @@ skills:
     invoked_by:
     - lesson-close
     - personal-guide-render
-  - id: month-close
-    name: "month-close"
-    description: "Month Close protocol. Stage 7 of the OWC v9 cascade (PD.METHOD.008). Runs on the first Monday of the month, before Strategy Session."
+  - id: local-llm
+    name: "local-llm"
+    description: "Локальный LLM-стек на Mac (Apple Silicon, MLX) под приватность и запасной режим. NL-вход к установке/запуску/переключению моделей + слой суждения для мониторинга новых моделей. Тонкая обёртка над скриптами РП404, не замена."
     version: 1.0.0
-    layer: unknown
+    layer: L1
     status: active
     triggers:
-      slash: []
+      slash:
+        - /local-llm
+    depends_on: []
+    invoked_by:
+    - local-llm
+  - id: month-close
+    name: "month-close"
+    description: "Протокол закрытия месяца (Month Close). Стадия 7 каскада ВДВ v9 (PD.METHOD.008). Запускается в первый Пн месяца, до Strategy Session."
+    version: 1.0.0
+    layer: L1
+    status: active
+    triggers:
+      slash:
+        - /month-close
     depends_on: []
     invoked_by:
     - CLAUDE.md
@@ -353,9 +366,9 @@ skills:
     - pack-creator
   - id: peer-conversation
     name: "peer-conversation"
-    description: "Multi-turn dialog between writer (Claude) and partner (Kimi) on the pilot's task (DP.SC.154). Manages turn-loop, detects CONSENSUS/ESCALATE, after consensus — Decision Gate (record vs implement → review → verify → deploy), synthesizes report.md via Agent tool."
+    description: "Многотуровый диалог писателя (Claude) с напарником (Kimi) по задаче пилота (DP.SC.154). Ведёт turn-loop, обнаруживает CONSENSUS/ESCALATE, после консенсуса — Decision Gate (зафиксировать vs реализовать → ревью → проверить → задеплоить), синтезирует report.md через Agent tool."
     version: 1.2.0
-    layer: L3
+    layer: L1
     status: active
     triggers:
       slash:

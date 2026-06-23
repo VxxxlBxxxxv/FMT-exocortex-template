@@ -21,7 +21,7 @@ EXIT_GENERAL=1
 
 trap 'echo "ОШИБКА: update.sh прервался на строке ${LINENO}: ${BASH_COMMAND}" >&2' ERR
 
-VERSION="2.1.0"  # WP-273 Этап 2: Generated runtime architecture (F)
+VERSION="2.2.0"  # fix #205: --check mode guard + self-integrity hash
 REPO="TserenTserenov/FMT-exocortex-template" # UPSTREAM-CONST: do not substitute
 BRANCH="main"
 RAW_BASE="https://raw.githubusercontent.com/$REPO/$BRANCH"
@@ -112,16 +112,23 @@ echo ""
 
 # === Step 0: Self-update (bootstrap) ===
 echo "[0] Проверка update.sh..."
+# Capture hash before any network activity — used for --check integrity guard below (fix #205)
+SELF_HASH_BEFORE=$(hash_file "$SCRIPT_DIR/update.sh")
 REMOTE_UPDATE="$TMPDIR_UPDATE/update.sh.new"
 if curl $CURL_BASE_OPTS $_CURL_SSL_OPT -sSfL "$RAW_BASE/update.sh" -o "$REMOTE_UPDATE" 2>/dev/null; then
     LOCAL_HASH=$(hash_file "$SCRIPT_DIR/update.sh")
     REMOTE_HASH=$(hash_file "$REMOTE_UPDATE")
     if [ "$LOCAL_HASH" != "$REMOTE_HASH" ]; then
-        echo "  Найдена новая версия update.sh — обновляю..."
-        cp "$REMOTE_UPDATE" "$SCRIPT_DIR/update.sh"
-        chmod +x "$SCRIPT_DIR/update.sh"
-        echo "  Перезапуск..."
-        exec bash "$SCRIPT_DIR/update.sh" "$@"
+        if $CHECK_ONLY; then
+            # In --check mode: report available update without touching the file
+            echo "  ⚠ Новая версия update.sh доступна. Запустите без --check для обновления."
+        else
+            echo "  Найдена новая версия update.sh — обновляю..."
+            cp "$REMOTE_UPDATE" "$SCRIPT_DIR/update.sh"
+            chmod +x "$SCRIPT_DIR/update.sh"
+            echo "  Перезапуск..."
+            exec bash "$SCRIPT_DIR/update.sh" "$@"
+        fi
     fi
 fi
 echo "  update.sh актуален."
@@ -308,6 +315,12 @@ fi
 if $CHECK_ONLY; then
     echo "Режим --check: изменения не применяются."
     echo "Для применения: bash update.sh"
+    # Self-integrity guard: verify update.sh was not mutated during the check pass (fix #205)
+    SELF_HASH_AFTER=$(hash_file "$SCRIPT_DIR/update.sh")
+    if [ "$SELF_HASH_BEFORE" != "$SELF_HASH_AFTER" ]; then
+        echo "ОШИБКА: update.sh мутировал в режиме --check — это баг!" >&2
+        exit 1
+    fi
     exit 0
 fi
 

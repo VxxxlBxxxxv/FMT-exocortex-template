@@ -81,7 +81,7 @@
       "path": ".claude/hooks/response-clarity-hook.sh"
     },
     {
-      "path": ".claude/hooks/wakatime-heartbeat.sh"
+      "path": ".claude/hooks/rule-engine.sh"
     },
     {
       "path": ".claude/hooks/wp-gate-reminder.sh"
@@ -124,6 +124,9 @@
     },
     {
       "path": ".claude/scripts/check-index-health.py"
+    },
+    {
+      "path": ".claude/scripts/generate-rules-registry.py"
     },
     {
       "path": ".claude/scripts/load-extensions.sh"
@@ -177,6 +180,9 @@
       "path": ".claude/skills/day-close/SKILL.md"
     },
     {
+      "path": ".claude/skills/day-close/day-close/SKILL.md"
+    },
+    {
       "path": ".claude/skills/day-open/SKILL.md"
     },
     {
@@ -186,7 +192,7 @@
       "path": ".claude/skills/decompose/SKILL.md"
     },
     {
-      "path": ".claude/skills/diagnose-iwe/SKILL.md"
+      "path": ".claude/skills/diagnose/SKILL.md"
     },
     {
       "path": ".claude/skills/discovery-session/SKILL.md"
@@ -219,6 +225,9 @@
       "path": ".claude/skills/lesson-close/SKILL.md"
     },
     {
+      "path": ".claude/skills/local-llm/SKILL.md"
+    },
+    {
       "path": ".claude/skills/month-close/SKILL.md"
     },
     {
@@ -238,9 +247,6 @@
     },
     {
       "path": ".claude/skills/peer-conversation/SKILL.md"
-    },
-    {
-      "path": ".claude/skills/peer-conversation/modes.md"
     },
     {
       "path": ".claude/skills/personal-guide-render/SKILL.md"
@@ -316,6 +322,9 @@
     },
     {
       "path": ".claude/skills/week-close/SKILL.md"
+    },
+    {
+      "path": ".claude/skills/week-close/week-close/SKILL.md"
     },
     {
       "path": ".claude/skills/wp-new/SKILL.md"
@@ -942,6 +951,15 @@
       "path": "shared/rubrics/form-089.yaml"
     },
     {
+      "path": "translation-manifest.yaml"
+    },
+    {
+      "path": "translation/en-doc-style.md"
+    },
+    {
+      "path": "translation/glossary-v0.1.csv"
+    },
+    {
       "path": "update.sh"
     }
   ],
@@ -955,6 +973,7 @@
     "docs/release-audit-log.md",
     "promotion-status.yaml",
     "scripts/active-wp-sweep.sh",
+    "scripts/add-skill-markers.sh",
     "scripts/agent-dashboard.py",
     "scripts/agent_fault_remind.py",
     "scripts/agent_fault_remind.sh",
@@ -982,7 +1001,7 @@
     "scripts/day-open-smoke.sh",
     "scripts/fmt-critical-alert.sh",
     "scripts/generate-catalogs.py",
-    "scripts/generate-diagnose-iwe-skill.py",
+    "scripts/generate-diagnose-skill.py",
     "scripts/generate-executor-catalog.py",
     "scripts/generate-helper-catalog.py",
     "scripts/generate-skills-catalog.sh",
@@ -1038,6 +1057,7 @@
     "scripts/tests/conftest.py",
     "scripts/tests/test_agent_dashboard.py",
     "scripts/tests/test_skill_promote.py",
+    "scripts/translate.py",
     "scripts/validate-fmt-scripts.sh",
     "scripts/validate-skill.sh",
     "scripts/verify-manifest.sh",

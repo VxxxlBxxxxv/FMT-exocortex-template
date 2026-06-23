@@ -168,9 +168,9 @@ python3 {{HOME_DIR}}/IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/scripts/check-index
 **в) Похвала:** что получилось, что было непросто но сделано.
 
 **г) Не забыто?**
-- Незакоммиченные изменения: `${IWE_SCRIPTS}/check-dirty-repos.sh` (сканирует ВСЕ репо, включая вложенные подрепозитории). Если есть грязные → закоммитить и запушить ДО продолжения.
+- Незакоммиченные изменения: `${IWE_SCRIPTS}/check-dirty-repos.sh` (сканирует ВСЕ репо, включая вложенные). Если есть грязные → закоммитить и запушить ДО продолжения.
 - **EXTENSION POINT (day-close checks):** `bash .claude/scripts/load-extensions.sh day-close checks` — exit 0 → `Read` каждый файл из вывода (alphabetic) → выполнить. Exit 1 → пропустить. Поддерживает `extensions/day-close.checks.md` И `extensions/day-close.checks.<suffix>.md`.
-- **Часы саморазвития:** записан ли `/slot` за сегодня? Если у пользователя есть бот-аккаунт — спросить «Сколько часов саморазвития сегодня?», предложить варианты 0/0.5/1/2/3/4 или свой ввод. После ответа: подсказать команду `/slot N` в `{{BOT_HANDLE}}` (handler пишет slot_logged event с source='self_report_daily'). bh.inv обновится при следующем прогоне Аттестатора.
+- **Часы саморазвития (WP-310 Ф13c):** записан ли `/slot` за сегодня? Если у пользователя есть бот-аккаунт — спросить «Сколько часов саморазвития сегодня?», предложить кнопки 0/0.5/1/2/3/4 или свой ввод. После ответа: подсказать команду `/slot N` в {{TELEGRAM_BOT}} (handler пишет slot_logged event с source='self_report_daily'). bh.inv обновится при следующем прогоне Аттестатора.
 - Незаписанные мысли? (спросить пользователя)
 - Обещания кому-то? (спросить пользователя)
 
@@ -241,12 +241,14 @@ DAY_NUM=$(date +%-d)
 cd {{HOME_DIR}}/IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}
 git status --short
 # НЕ git add -A/git add ./git add -u — AGENTS.md CRITICAL (может захватить работу других агентов)
-# Стейджить ТОЛЬКО файлы, изменённые в шагах 2-9 этого протокола:
-git add <каждый файл явным путём: WeekPlan, WeekReport, WP-REGISTRY, archive/day-plans/*, inbox/WP-*.md и т.д.>
+# Стейджить ТОЛЬКО файлы, изменённые в шагах 2-9 (в массив для pathspec):
+DC_FILES=(<каждый файл явным путём: WeekPlan, WeekReport, WP-REGISTRY, archive/day-plans/*, inbox/WP-*.md и т.д.>)
 # Если на шаге 7.з обновлялись утренние приоритеты:
-git add {{HOME_DIR}}/IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/current/priorities.yaml
+DC_FILES+=({{HOME_DIR}}/IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/current/priorities.yaml)
+git add "${DC_FILES[@]}"
 git diff --cached --name-only  # проверить scope — только day-close файлы
-git commit -m "day-close: $(date +%Y-%m-%d)"
+# pathspec после `--`: commit ТОЛЬКО свои файлы, не подметаем чужой индекс
+git commit -m "day-close: $(date +%Y-%m-%d)" -- "${DC_FILES[@]}"
 git push
 ```
 
@@ -296,3 +298,6 @@ python3 $HOME/IWE/.claude/scripts/rule-classifier.py
 - [ ] Новое репо → MAPSTRATEGIC.md + Strategy.md
 
 Все ✅ → «День закрыт.» Иначе — указать что осталось.
+
+<!-- USER-SPACE -->
+<!-- /USER-SPACE -->
