@@ -272,7 +272,7 @@ case "$1" in
         echo "Usage: $0 <process>"
         echo ""
         echo "Processes:"
-        echo "  inbox-check    Headless: обработка pending captures (launchd, 3h)"
+        echo "  inbox-check    Headless: обработка pending captures (09:00, 15:00, 21:00 UTC)"
         echo "  audit          Аудит Pack'ов"
         echo "  session-close  Экстракция при закрытии сессии"
         echo "  on-demand      Экстракция по запросу"

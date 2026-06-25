@@ -139,17 +139,6 @@ mark_done_week() {
     echo "$DATE $(date '+%H:%M:%S')" > "$STATE_DIR/$1-W$WEEK"
 }
 
-last_run_seconds_ago() {
-    local marker="$STATE_DIR/$1-last"
-    if [ -f "$marker" ]; then
-        local prev
-        prev=$(cat "$marker")
-        echo $(( NOW - prev ))
-    else
-        echo 999999
-    fi
-}
-
 mark_interval() {
     echo "$NOW" > "$STATE_DIR/$1-last"
 }
@@ -279,19 +268,16 @@ dispatch() {
         fi
     fi
 
-    # --- Экстрактор: inbox-check (каждые 3ч, 07-23) ---
-    if (( 10#$HOUR >= 7 && 10#$HOUR <= 23 )); then
-        local elapsed
-        elapsed=$(last_run_seconds_ago "extractor-inbox-check")
-        if [ "$elapsed" -ge 10800 ]; then
-            log "→ extractor inbox-check (${elapsed}s since last)"
-            if timeout "$TASK_TIMEOUT_LONG" "$EXTRACTOR_SH" inbox-check >> "$LOG_FILE" 2>&1; then
-                mark_interval "extractor-inbox-check"
-            else
-                log "WARN: extractor inbox-check failed (will retry next dispatch)"
-            fi
-            ran=1
+    # --- Экстрактор: inbox-check (3 раза в день: 09:00, 15:00, 21:00 UTC) ---
+    if [[ "$HOUR" =~ ^(09|15|21)$ ]] && ! ran_today "extractor-inbox-check-$HOUR"; then
+        log "→ extractor inbox-check (slot=$HOUR:00 UTC)"
+        if timeout "$TASK_TIMEOUT_LONG" "$EXTRACTOR_SH" inbox-check >> "$LOG_FILE" 2>&1; then
+            mark_done "extractor-inbox-check-$HOUR"
+            mark_interval "extractor-inbox-check"
+        else
+            log "WARN: extractor inbox-check failed (will retry next scheduled slot)"
         fi
+        ran=1
     fi
 
     if [ "$ran" -eq 0 ]; then

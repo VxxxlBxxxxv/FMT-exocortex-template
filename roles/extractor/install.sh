@@ -1,6 +1,6 @@
 #!/bin/bash
-# Extractor: установка launchd-агента для inbox-check
-# Запускает inbox-check каждые 3 часа.
+# Extractor: установка launchd/systemd-агента для inbox-check
+# Запускает inbox-check 3 раза в день: 09:00, 15:00, 21:00 UTC.
 # WP-273 Этап 2: plist берётся из $IWE_RUNTIME (Generated runtime, F).
 set -e
 
@@ -75,7 +75,7 @@ if ! command -v launchctl >/dev/null 2>&1; then
         systemctl --user enable --now iwe-extractor-inbox-check.timer
 
         echo "  ✓ Installed: iwe-extractor-inbox-check.timer"
-        echo "  ✓ Interval: every 3 hours"
+        echo "  ✓ Schedule: 09:00, 15:00, 21:00 UTC"
         echo "  ✓ Logs: ~/logs/extractor/"
         echo ""
         echo "Verify: systemctl --user status iwe-extractor-inbox-check.timer"
@@ -98,7 +98,7 @@ cp "$PLIST_SRC" "$PLIST_DST"
 launchctl load "$PLIST_DST"
 
 echo "  ✓ Installed: com.extractor.inbox-check"
-echo "  ✓ Interval: every 3 hours"
+echo "  ✓ Schedule: 09:00, 15:00, 21:00 UTC"
 echo "  ✓ Logs: ~/logs/extractor/"
 echo ""
 echo "Verify: launchctl list | grep extractor"

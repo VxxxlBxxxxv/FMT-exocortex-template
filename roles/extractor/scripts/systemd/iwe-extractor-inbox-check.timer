@@ -1,9 +1,11 @@
 [Unit]
-Description=IWE Extractor — inbox-check каждые 3 часа
+Description=IWE Extractor — inbox-check 3 раза в день (09:00, 15:00, 21:00 UTC)
 
 [Timer]
-OnBootSec=5min
-OnUnitActiveSec=3h
+OnCalendar=*-*-* 09:00:00
+OnCalendar=*-*-* 15:00:00
+OnCalendar=*-*-* 21:00:00
+Persistent=true
 Unit=iwe-extractor-inbox-check.service
 
 [Install]

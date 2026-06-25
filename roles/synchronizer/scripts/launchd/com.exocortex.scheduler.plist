@@ -13,14 +13,14 @@
 
     <!-- Пробуждение в ключевые часы:
          0:00  — week-review (Пн) + code-scan
-         3:00  — extractor inbox-check
+         3:00  — резервный dispatch / catch-up
          4:00  — strategist morning
-         6:00  — extractor + daily-report
-         9:00  — extractor
-         12:00 — extractor
-         15:00 — extractor
-         18:00 — extractor
-         21:00 — extractor
+         6:00  — daily-report
+         9:00  — extractor inbox-check
+         12:00 — резервный dispatch / catch-up
+         15:00 — extractor inbox-check
+         18:00 — резервный dispatch / catch-up
+         21:00 — extractor inbox-check
          23:00 — strategist note-review
     -->
     <key>StartCalendarInterval</key>

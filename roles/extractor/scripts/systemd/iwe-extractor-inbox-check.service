@@ -1,5 +1,5 @@
 [Unit]
-Description=IWE Extractor — inbox-check (3h interval)
+Description=IWE Extractor — inbox-check (3 runs/day)
 After=network-online.target
 Wants=network-online.target
 

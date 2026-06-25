@@ -13,7 +13,7 @@
 | **Session-Close** | Закрытие сессии (протокол Close) | Интерактивный |
 | **On-Demand** | «Запиши это в Pack» | Интерактивный |
 | **Knowledge Audit** | «Аудит Pack» / ежемесячно | Интерактивный |
-| **Inbox-Check** | launchd каждые 3ч (опционально) | Headless (отчёт) |
+| **Inbox-Check** | launchd/systemd 3 раза в день: 09:00, 15:00, 21:00 UTC (опционально) | Headless (отчёт) |
 
 ## Когда подключать
 
@@ -40,7 +40,7 @@ cd {{WORKSPACE_DIR}}/FMT-exocortex-template/roles/extractor
 bash install.sh
 ```
 
-Это установит launchd-агент для проверки inbox каждые 3 часа.
+Это установит launchd/systemd-агент для проверки inbox 3 раза в день: 09:00, 15:00, 21:00 UTC.
 
 ### 3. Ручной запуск
 

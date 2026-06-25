@@ -87,7 +87,7 @@ bash ~/IWE/FMT-exocortex-template/roles/strategist/scripts/strategist.sh day-pla
 ```
 
 ### Экстрактор (R2)
-Извлечение знаний в Pack-репозитории. 4 сценария: session-close (при закрытии сессии), on-demand (по запросу), inbox-check (каждые 3 часа), knowledge-audit (аудит полноты).
+Извлечение знаний в Pack-репозитории. 4 сценария: session-close (при закрытии сессии), on-demand (по запросу), inbox-check (3 раза в день: 09:00, 15:00, 21:00 UTC), knowledge-audit (аудит полноты).
 
 Всегда предлагает, никогда не пишет без одобрения (human-in-the-loop).
 
