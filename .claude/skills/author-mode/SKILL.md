@@ -68,3 +68,6 @@ CLAUDE.md: `bash $IWE_SCRIPTS/template-sync.sh` (sync / `--dry-run` / `--check`)
 ### Различения (авторские)
 
 > Хранятся в `.claude/rules/distinctions.md` в секции «Авторские» — не затираются при `update.sh`.
+
+<!-- USER-SPACE -->
+<!-- /USER-SPACE -->

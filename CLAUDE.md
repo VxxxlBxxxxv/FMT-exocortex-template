@@ -55,7 +55,7 @@
 
 ≤15 мин — не нужен. Внутри системы — `<repo>/PROCESSES.md`.
 
-## 4. Memory (Слой 3 + Agent Memory)
+## 4. Memory (Слой 3)
 
 | Ситуация | Читай |
 |----------|-------|
@@ -65,7 +65,6 @@
 | FPF/SOTA/Роли | `memory/fpf-reference.md`, `memory/sota-reference.md`, `memory/roles.md` |
 
 Политика: ≤15 HOT+WARM, суммарно ≤150 строк hot. CLAUDE.md = ядро (цель ≤150). `memory/` = симлинк auto-memory.
-**Agent Memory** (`.claude/agent-memory/`): для subagent'ов (read-only для человека). Структура: `domains/` `skills/` `patterns/` `state/`.
 
 ## 5. АрхГейт — ОБЯЗАТЕЛЬНАЯ оценка
 

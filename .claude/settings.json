@@ -41,6 +41,14 @@
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/inject-role-prefixes.sh"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/lazy-context-loader.sh"
+          }
+        ]
       }
     ],
     "PreToolUse": [
