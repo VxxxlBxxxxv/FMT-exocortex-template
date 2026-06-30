@@ -57,7 +57,12 @@ grep -nE "→ ждёт|ждёт|dep:|блокер|blocked:|остановлен|
 > Правило: [feedback_memory_index_discipline.md](../../../memory/feedback_memory_index_discipline.md)
 
 ```bash
-python3 {{HOME_DIR}}/IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/scripts/check-index-health.py
+CHECK_INDEX="{{HOME_DIR}}/IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/scripts/check-index-health.py"
+if [ -f "$CHECK_INDEX" ]; then
+  python3 "$CHECK_INDEX"
+else
+  echo "Index Health Check: skip (script missing)"
+fi
 ```
 
 Для каждого FAIL/WARN в отчёте:
@@ -129,9 +134,12 @@ python3 {{HOME_DIR}}/IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/scripts/check-index
 **Postcondition 9a:**
 ```bash
 TODAY=$(date +%Y-%m-%d)
-grep -l "Итоги дня" ~/IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/archive/day-plans/DayPlan\ ${TODAY}.md 2>/dev/null \
-  | xargs grep -l "${TODAY}" 2>/dev/null \
-  | grep -q . && echo "9a OK" || echo "9a FAIL: итоги не найдены в DayPlan ${TODAY}"
+DAYPLAN="$HOME/IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/archive/day-plans/DayPlan ${TODAY}.md"
+if [ -f "$DAYPLAN" ] && grep -q "Итоги дня" "$DAYPLAN" && grep -q "$TODAY" "$DAYPLAN"; then
+  echo "9a OK"
+else
+  echo "9a FAIL: итоги не найдены в DayPlan ${TODAY}"
+fi
 ```
 
 **Postcondition 9b:**

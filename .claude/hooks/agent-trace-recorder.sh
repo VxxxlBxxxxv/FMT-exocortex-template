@@ -92,35 +92,22 @@ case "$HOOK_EVENT" in
                 TOOL_INPUT=$(echo "$INPUT" | jq -c '.tool_input // {}' 2>/dev/null || echo "{}")
                 TOOL_RESPONSE=$(echo "$INPUT" | jq -c '.tool_response // {}' 2>/dev/null || echo "{}")
 
-                # Sanitize tool_response: ensure valid JSON and cap size to avoid malformed NDJSON.
-                if ! echo "$TOOL_RESPONSE" | jq -e . >/dev/null 2>&1; then
-                    TOOL_RESPONSE='{"truncated":true,"reason":"invalid_json"}'
-                fi
-                # PostgreSQL JSON rejects NULL byte \u0000; strip it from tool_response.
-                TOOL_RESPONSE=$(echo "$TOOL_RESPONSE" | jq -c 'walk(if type == "string" then gsub("\u0000"; "") else . end)' 2>/dev/null || echo "$TOOL_RESPONSE")
-                raw_response_size=$(echo -n "$TOOL_RESPONSE" | wc -c | tr -d ' ')
-                if [ "$raw_response_size" -gt 8192 ]; then
-                    TOOL_RESPONSE=$(echo "$TOOL_RESPONSE" | jq -c --argjson size "$raw_response_size" \
-                        '{truncated: true, original_size_bytes: $size, preview: (. | tostring | .[0:1024])}' \
-                        2>/dev/null || echo '{"truncated":true,"reason":"cap_failed"}')
-                fi
-
-                # input_hash = sha256(canonicalized tool_input)
+                # Security Gate B7.3: never persist raw tool_input/tool_response.
+                # Store only hashes + response size; uploader sends hash-only payload to gateway.
                 INPUT_HASH="sha256:$(echo -n "$TOOL_INPUT" | shasum -a 256 | cut -d' ' -f1)"
-                # response_size_bytes = TRUE pre-cap size (capped object would report ~80 bytes).
-                RESPONSE_SIZE="$raw_response_size"
+                RESPONSE_HASH="sha256:$(echo -n "$TOOL_RESPONSE" | shasum -a 256 | cut -d' ' -f1)"
+                RESPONSE_SIZE=$(echo -n "$TOOL_RESPONSE" | wc -c | tr -d ' ')
 
                 jq -nc \
-                    --arg sid "$SESSION_UUID" --arg tn "$TOOL_NAME" --arg ih "$INPUT_HASH" \
-                    --argjson tin "$TOOL_INPUT" --argjson tres "$TOOL_RESPONSE" \
+                    --arg sid "$SESSION_UUID" --arg tn "$TOOL_NAME" \
+                    --arg ih "$INPUT_HASH" --arg rh "$RESPONSE_HASH" \
                     --argjson rsz "$RESPONSE_SIZE" --arg ts "$NOW" \
                     '{event_type: "agent_tool_called", schema_version: "v1", emitted_at: $ts, payload: {
                         session_id: $sid,
                         decision_id: null,
                         tool_name: $tn,
                         input_hash: $ih,
-                        input_payload: $tin,
-                        response: $tres,
+                        response_hash: $rh,
                         response_size_bytes: $rsz,
                         called_at: $ts
                     }}' >> "$NDJSON" 2>/dev/null || true

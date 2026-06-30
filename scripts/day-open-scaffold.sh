@@ -805,8 +805,12 @@ render_compact_dashboard() {
 # --- Pre-compute sweep list and full output (single call, reused below) ---
 # SWEEP_WP_FULL: full markdown table for "Активные РП" section (line ~975)
 # SWEEP_WP_LIST: WP-NNN IDs for PENDING injection — extracted from SWEEP_WP_FULL, no second call
-SWEEP_WP_FULL=$(bash "$IWE/scripts/active-wp-sweep.sh" "$IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/inbox" "$IWE" 2>/dev/null \
-  || echo "<!-- active-wp-sweep: ошибка запуска -->")
+SWEEP_SCRIPT="$IWE/scripts/active-wp-sweep.sh"
+if [ ! -f "$SWEEP_SCRIPT" ] && [ -f "$IWE/FMT-exocortex-template/scripts/active-wp-sweep.sh" ]; then
+  SWEEP_SCRIPT="$IWE/FMT-exocortex-template/scripts/active-wp-sweep.sh"
+fi
+SWEEP_WP_FULL=$(bash "$SWEEP_SCRIPT" "$IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/inbox" "$IWE" 2>/dev/null \
+  || echo "<!-- active-wp-sweep: ошибка запуска: $SWEEP_SCRIPT -->")
 SWEEP_WP_LIST=$(echo "$SWEEP_WP_FULL" \
   | grep -oE '\*\*WP-[0-9]+\*\*' | tr -d '*' | tr '\n' ' ' | sed 's/  */ /g' || true)
 
