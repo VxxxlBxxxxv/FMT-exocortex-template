@@ -101,12 +101,6 @@ gates_rationale: "операционный скилл; WP Gate применим 
 
 Если режим = weekly:
 
-### 3.0 Extensions (checks)
-
-Перед утверждением WeekPlan weekly flow выполняет `bash .claude/scripts/load-extensions.sh strategy-session checks`. Exit 0 → `Read` каждый файл из вывода (alphabetic) → выполнить проверки. Exit 1 → пропустить. Блокирующие checks запрещают переход к `status: confirmed` до исправления.
-
-Поддерживает `extensions/strategy-session.checks.md` И `extensions/strategy-session.checks.<suffix>.md`.
-
 ### 3.1 Обход Backlog (B-005, обязательно)
 
 Прочитай `{{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/docs/Backlog.md`. Для каждой записи `B-NNN` в разделе `## Активные записи`:

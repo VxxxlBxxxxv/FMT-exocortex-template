@@ -2,7 +2,7 @@
 # see DP.SC.153
 # НЕ редактировать вручную — перегенерировать через generate-skills-catalog.sh
 #
-generated: 2026-06-27T03:49:24Z
+generated: 2026-06-30T10:03:05Z
 skills_dir: .claude/skills
 
 skills:
@@ -29,7 +29,6 @@ skills:
         - /apply-captures
     depends_on: []
     invoked_by:
-    - protocol-close
     - ke
     - apply-captures
   - id: archgate
@@ -59,7 +58,6 @@ skills:
         - /artifactor
     depends_on: []
     invoked_by:
-    - protocol-open
     - artifactor
   - id: audit-docs
     name: "audit-docs"
@@ -134,7 +132,6 @@ skills:
         - /consent
     depends_on: []
     invoked_by:
-    - protocol-dt-integration
     - consent
   - id: day-close
     name: "day-close"
@@ -147,7 +144,6 @@ skills:
         - /day-close
     depends_on: []
     invoked_by:
-    - protocol-close
     - run-protocol
     - extend
     - day-close
@@ -163,7 +159,6 @@ skills:
         - /day-open
     depends_on: []
     invoked_by:
-    - protocol-open
     - CLAUDE.md
     - run-protocol
     - extend
@@ -303,7 +298,6 @@ skills:
       slash: []
     depends_on: []
     invoked_by:
-    - protocol-close
     - ke
     - pack-new
     - apply-captures
@@ -331,7 +325,6 @@ skills:
     depends_on: []
     invoked_by:
     - lesson-close
-    - personal-guide-render
   - id: local-llm
     name: "local-llm"
     description: "Локальный LLM-стек на Mac (Apple Silicon, MLX) под приватность и запасной режим. NL-вход к установке/запуску/переключению моделей + слой суждения для мониторинга новых моделей. Тонкая обёртка над скриптами РП404, не замена."
@@ -355,7 +348,6 @@ skills:
         - /month-close
     depends_on: []
     invoked_by:
-    - protocol-month-close
     - CLAUDE.md
     - month-close
   - id: org-dev
@@ -410,8 +402,8 @@ skills:
     - kimi-peer-writer
   - id: personal-guide-render
     name: "personal-guide-render"
-    description: "Builds (or rebuilds) the personal guide in an EXISTING personal-guide repo (flat name, one per pilot) — reads RCS from Memory.Derived, selects stage×domain templates, writes 6 files via personal_write. Use when pilot asks 'rebuild guide', 'update my plan', 'update methods' — or when repo is created but has no content yet."
-    version: 1.0.0
+    description: "Тонкий клиент — собирает персональное руководство пилота через локальный шлюз (mcp__iwe-local-gateway__render_personal_guide). Используй когда пилот просит «пересобери руководство», «обнови мой план», «собери руководство на сегодня»."
+    version: 2.0.0
     layer: L1
     status: active
     triggers:
@@ -469,7 +461,6 @@ skills:
       slash: []
     depends_on: []
     invoked_by:
-    - protocol-month-close
     - CLAUDE.md
     - day-close
     - day-close
@@ -532,7 +523,6 @@ skills:
         - /transcribe
     depends_on: []
     invoked_by:
-    - protocol-work
     - transcribe
   - id: vdv
     name: "vdv"
@@ -560,8 +550,7 @@ skills:
         - /verify
     depends_on: []
     invoked_by:
-    - protocol-work
-    - protocol-close
+    - CLAUDE.md
     - run-protocol
     - peer-conversation
     - day-close
@@ -605,7 +594,6 @@ skills:
         - /week-close
     depends_on: []
     invoked_by:
-    - protocol-close
     - run-protocol
     - extend
     - week-close-pilot
