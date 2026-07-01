@@ -64,6 +64,7 @@ client: claude-code
 | — | **Weekly-stop gate** | — | Если любой сигнал (из 07 или 03) требует пересмотра состава РП текущей недели (убрать или добавить ≥1 РП) → **стоп**, предложи `strategy-session-monthly.md` |
 | 6a | План: candidate pool | user | `strategy-session-weekly/steps/06a-pool.md` |
 | 6b | План: бюджет + ТОС | user | `strategy-session-weekly/steps/06b-budget.md` |
+| 7b | Extension checks | auto | loader `strategy-session checks` (см. `strategy-session/SKILL.md` §3.0) |
 | 8 | Утверждение | user | `strategy-session-weekly/steps/08-confirm.md` |
 
 ## Что считать «срочным» в сессии стратегирования (модель ТВС)
@@ -76,6 +77,12 @@ client: claude-code
 - НЕ срочное (= важное или текущее, даже если ощущается «горящим»): приближающийся дедлайн, сильная неудовлетворённость / высокая мотивация решать, «пилот хочет добавить РП», накопившаяся текучка. Дедлайн на важном остаётся важным.
 
 Поэтому при оценке «нужен ли пересмотр состава РП» НЕ повышай элемент до срочного по дедлайну или по силе НЭП. Эскалация в monthly = сигнал пересмотра приоритетов важного, не «пожар».
+
+## Extension checks перед утверждением
+
+Перед шагом 8 выполнить extension-loader для `strategy-session checks` (команда задана в `strategy-session/SKILL.md` §3.0). Exit 0 → `Read` каждый файл из вывода (alphabetic) → выполнить. Exit 1 → checks отсутствуют, продолжить. Если любой check блокирует — не переводить WeekPlan в `status: confirmed`, сначала исправить.
+
+Поддерживает `extensions/strategy-session.checks.md` И `extensions/strategy-session.checks.<suffix>.md`.
 
 ## Weekly-stop gate (операционный критерий)
 
