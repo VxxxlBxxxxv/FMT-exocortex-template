@@ -504,8 +504,16 @@ render_iwe_status() {
   last_watchdog_log=$(ls -t "$HOME/logs/synchronizer/feedback-watchdog-"*.log 2>/dev/null | head -1 || echo "")
   local last_feedback_triage_log
   last_feedback_triage_log=$(ls -t "$IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/logs/feedback-triage"*.log 2>/dev/null | head -1 || echo "")
+  local scheduler_log="$HOME/logs/synchronizer/scheduler-$DATE.log"
+  local scheduler_report="$IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/current/SchedulerReport $DATE.md"
+  local last_scheduler_log
+  last_scheduler_log=$(ls -t "$HOME/logs/synchronizer/scheduler-"*.log 2>/dev/null | head -1 || echo "")
+  local has_cron_scheduler=false
+  if command -v crontab >/dev/null 2>&1 && crontab -l 2>/dev/null | grep -qE 'scheduler\.sh[[:space:]]+dispatch|roles/synchronizer/scripts/scheduler\.sh'; then
+    has_cron_scheduler=true
+  fi
   local has_launchd_unit=false
-  if launchctl list 2>/dev/null | grep -qE "iwe\.(scheduler|feedback-watchdog|synchronizer|feedback-triage)"; then
+  if command -v launchctl >/dev/null 2>&1 && launchctl list 2>/dev/null | grep -qE "iwe\.(scheduler|feedback-watchdog|synchronizer|feedback-triage)"; then
     has_launchd_unit=true
   fi
 
@@ -517,7 +525,20 @@ render_iwe_status() {
     in_grace_window=true
   fi
 
-  if [ -f "$triage_file" ] || [ -f "$watchdog_log" ] || [ -f "$feedback_triage_log" ]; then
+  if [ "$has_cron_scheduler" = "true" ] && { [ -f "$scheduler_log" ] || [ -f "$scheduler_report" ]; }; then
+    # WSL/Linux: scheduler запускается через cron, а не launchctl. Наличие свежего scheduler log/report = планировщик жив.
+    echo "| Scheduler/триаж | 🟢 | WSL/cron scheduler отработал за $DATE (log/report присутствует) |"
+  elif [ "$has_cron_scheduler" = "true" ] && [ "$in_grace_window" = "true" ]; then
+    echo "| Scheduler/триаж | 🟡 | WSL/cron scheduler зарегистрирован, ждём первый дневной запуск — grace window до 06:30 |"
+  elif [ "$has_cron_scheduler" = "true" ] && [ -n "$last_scheduler_log" ]; then
+    local last_scheduler_age_days
+    last_scheduler_age_days=$(( ( $(date +%s) - $(stat -f %m "$last_scheduler_log" 2>/dev/null || stat -c %Y "$last_scheduler_log" 2>/dev/null || echo 0) ) / 86400 ))
+    if [ "$last_scheduler_age_days" -le 1 ]; then
+      echo "| Scheduler/триаж | 🟢 | WSL/cron scheduler зарегистрирован, последний log ${last_scheduler_age_days}д назад |"
+    else
+      echo "| Scheduler/триаж | 🟡 | WSL/cron scheduler зарегистрирован, но последний log ${last_scheduler_age_days}д назад — проверить cron |"
+    fi
+  elif [ -f "$triage_file" ] || [ -f "$watchdog_log" ] || [ -f "$feedback_triage_log" ]; then
     # Mode B-1: отчёт/лог за сегодня есть → норм
     echo "| Scheduler/триаж | 🟢 | отчёт/лог за $DATE присутствует (Mode B норм) |"
   elif [ "$has_launchd_unit" = "true" ] && [ "$in_grace_window" = "true" ]; then
@@ -548,7 +569,7 @@ render_iwe_status() {
     elif [ -n "$last_watchdog_log" ]; then
       last_log_age_days=$(( ( $(date +%s) - $(stat -f %m "$last_watchdog_log" 2>/dev/null || stat -c %Y "$last_watchdog_log" 2>/dev/null || echo 0) ) / 86400 ))
     fi
-    echo "| Scheduler/триаж | 🔴 | **Mode A** (cron не отработал): юнит feedback-triage не зарегистрирован в launchctl, последний лог ${last_log_age_days}д назад |"
+    echo "| Scheduler/триаж | 🔴 | **Mode A** (планировщик не отработал): нет launchd-юнита или WSL/cron-записи scheduler, последний triage log ${last_log_age_days}д назад |"
 
     # Auto-create incident-файл если ещё нет за сегодня
     local incident_file="$IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/inbox/INCIDENT-scheduler-cron-not-fired-$DATE.md"
@@ -572,15 +593,15 @@ auto_generated: true
 
 ## Симптом (auto-detected)
 
-- launchctl: юнит \`iwe.scheduler\` или \`iwe.feedback-watchdog\` отсутствует
-- Последний лог \`~/logs/synchronizer/feedback-watchdog-*.log\` старше 24ч (или отсутствует)
+- macOS: launchctl-юнит \`iwe.scheduler\` / \`iwe.feedback-watchdog\` отсутствует; WSL/Linux: cron-запись scheduler отсутствует
+- Последний scheduler/feedback log старше 24ч (или отсутствует)
 - Mode A классификация (см. peer-сессия 2026-05-30-07 §Gap 3)
 
 ## Action items
 
-1. Проверить \`~/Library/LaunchAgents/\` на наличие plist
-2. \`bash $IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/scripts/install-launchd.sh\` для регистрации
-3. Запустить руками: \`bash \${IWE_SCHEDULER_PATH:-$IWE/scripts/scheduler.sh} --dry-run\`
+1. macOS: проверить \`~/Library/LaunchAgents/\` на наличие plist
+2. WSL/Linux: проверить \`crontab -l\` на запуск \`scheduler.sh dispatch\`
+3. Запустить руками: \`bash \${IWE_SCHEDULER_PATH:-$IWE/scripts/scheduler.sh} dispatch\`
 
 ## Auto-generation note
 
