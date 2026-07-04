@@ -114,6 +114,9 @@
       "path": ".claude/parity-contract.yaml"
     },
     {
+      "path": ".claude/process-pattern-catalog.yaml"
+    },
+    {
       "path": ".claude/rules-lazy/role-prefixes-full.md"
     },
     {
@@ -358,6 +361,9 @@
     },
     {
       "path": ".claude/sync-manifest.yaml"
+    },
+    {
+      "path": ".claude/templates/drr-template.md"
     },
     {
       "path": ".githooks/pre-commit"
@@ -1007,6 +1013,7 @@
     "scripts/check-component-parity.sh",
     "scripts/check-dirty-repos.sh",
     "scripts/check-manifest-coverage.py",
+    "scripts/check-manifest-rename-coverage.py",
     "scripts/check-open-sessions.sh",
     "scripts/check-script-collisions.sh",
     "scripts/check-setup-update-parity.sh",

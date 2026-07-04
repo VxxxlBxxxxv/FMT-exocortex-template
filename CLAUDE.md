@@ -12,6 +12,8 @@
 | **DS** (instrument/governance/surface) | Код, планы, курсы | Нет (производное от Pack) |
 
 **Fallback Chain:** DS → Pack → Base (SPF → FPF → ZP). **Pack = source-of-truth доменного знания.**
+**Лестница принципов (уровень специфичности):** ZPF → FPF → SPF → TPF → LPF
+где: ZPF/FPF/SPF-методология → Base · SPF-инстанс → Pack · TPF → DS + операционный слой агента · LPF → партикулярные практики роли (тест: без носителя данной роли — бессмысленны); детали → `memory/repo-type-rules.md`
 **Pack Creation Gate:** хочешь Pack → `/pack-new`. Имя = существительное-домен.
 Детали типов: → `memory/repo-type-rules.md`
 
