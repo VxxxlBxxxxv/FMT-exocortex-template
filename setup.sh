@@ -197,6 +197,10 @@ check_command() {
 # Git — обязателен всегда
 check_command "git" "Git" "xcode-select --install"
 
+# jq — обязателен всегда: .claude/hooks/dry-run-gate.sh (устанавливается в любом режиме,
+# см. шаг 4b) fail-closed блокирует ВСЕ tool calls без jq, без явного предупреждения (issue #192).
+check_command "jq" "jq" "brew install jq (Linux: apt install jq / dnf install jq)"
+
 if $CORE_ONLY; then
     echo ""
     echo "  Режим --core: проверяются только обязательные зависимости (git)."
@@ -508,21 +512,22 @@ else
         echo "  .mcp.json содержит iwe-knowledge → https://mcp.aisystant.com/mcp"
         echo "  T1-T2: при первом запуске откроется браузер (OAuth через Ory)."
         echo "  T3-T4: CLI-режим (IWE_TIER=T3 в env или tier: T3 в ~/.iwe/config.yaml)."
-        echo "  Необходима подписка «Бесконечное развитие»."
+        echo "  Необходима подписка «Инженерия интеллекта» (ранее «Бесконечное развитие»)."
         echo "  После входа: /mcp в Claude Code."
     fi
 fi
 
 # === 4b. Propagate skills, hooks, rules, lib, config, detectors, scripts, styles to workspace ===
-echo "[4b] Installing skills, hooks, rules, lib, config, detectors, scripts, styles..."
+echo "[4b] Installing skills, hooks, rules, rules-lazy, lib, config, detectors, scripts, styles..."
 if $DRY_RUN; then
-    echo "  [DRY RUN] Would copy .claude/{skills,hooks,rules,lib,config,detectors,scripts,agents,styles}/ → $WORKSPACE_DIR/.claude/"
+    echo "  [DRY RUN] Would copy .claude/{skills,hooks,rules,rules-lazy,lib,config,detectors,scripts,agents,styles}/ → $WORKSPACE_DIR/.claude/"
 else
     mkdir -p "$WORKSPACE_DIR/.claude"
     # lib/config/detectors — runtime dependencies капчер-шины (capture-bus.sh) и детекторов
     # scripts — требуется скиллами (напр. load-extensions.sh)
     # styles — дисциплина языковых стилей (WP-412)
-    for subdir in skills hooks rules lib config detectors scripts agents styles; do
+    # rules-lazy — lazy-loaded rule expansions (role-prefixes-full), parity with update.sh
+    for subdir in skills hooks rules rules-lazy lib config detectors scripts agents styles templates; do
         if [ -d "$TEMPLATE_DIR/.claude/$subdir" ]; then
             cp -r "$TEMPLATE_DIR/.claude/$subdir" "$WORKSPACE_DIR/.claude/"
             echo "  ✓ .claude/$subdir/ → $WORKSPACE_DIR/.claude/$subdir/"
@@ -652,6 +657,27 @@ else
     bash "$TEMPLATE_DIR/setup/install-iwe-paths.sh" \
         --workspace "$WORKSPACE_DIR" --governance "$GOVERNANCE_REPO" 2>&1 | sed 's/^/  /'
     echo "  ℹ  Restart shell or run: source $HOME/.zshenv"
+fi
+
+# === 4e. Generate executor-catalog.yaml for task routing (issue #197) ===
+# route-task.sh (DP.ROLE.059, Маршрутизатор) looks this up at
+# ~/IWE/$GOVERNANCE_REPO/scripts/executor-catalog.yaml — without generating it on
+# install, a fresh install has no catalog and route-task.sh always fails ("not found").
+# Non-fatal on error: routing is a convenience feature, not a hard setup prerequisite
+# (PyYAML availability etc. is already checked at consumption time in route-task.sh).
+if $CORE_ONLY; then
+    echo "[4e] executor-catalog.yaml... пропущено (core mode, нет агента для маршрутизации)"
+elif $DRY_RUN; then
+    echo "[DRY RUN] Would generate executor-catalog.yaml (IWE_GOVERNANCE_REPO=$GOVERNANCE_REPO)"
+else
+    echo "[4e] Generating executor-catalog.yaml..."
+    if CATALOG_OUTPUT=$(IWE_GOVERNANCE_REPO="$GOVERNANCE_REPO" python3 "$TEMPLATE_DIR/scripts/generate-executor-catalog.py" 2>&1); then
+        echo "$CATALOG_OUTPUT" | sed 's/^/  /'
+    else
+        echo "$CATALOG_OUTPUT" | sed 's/^/  /'
+        echo "  ⚠ executor-catalog.yaml не сгенерирован — запусти вручную:"
+        echo "    python3 $TEMPLATE_DIR/scripts/generate-executor-catalog.py"
+    fi
 fi
 
 # === 5. Install roles (autodiscovery via role.yaml) ===

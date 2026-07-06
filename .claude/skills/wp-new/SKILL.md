@@ -129,3 +129,6 @@ grep -q "WP-${WP_NUM}" "{{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}/docs/WP-REGISTRY.m
   && echo "✅ WP-${WP_NUM} найден в WP-REGISTRY.md" \
   || echo "❌ WP-${WP_NUM} НЕ найден — проверить вывод create-wp.sh выше"
 ```
+
+<!-- USER-SPACE -->
+<!-- /USER-SPACE -->

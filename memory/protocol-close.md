@@ -115,7 +115,7 @@ schema_version: 1
 - [ ] KE: «Что узнали» маршрутизировано (или «нет нового знания»)
 - [ ] MEMORY.md: статус РП обновлён
 - [ ] Decision log: прочитать записи сессии в `decisions/decision-log-YYYY-MM.md`, скорректировать если неточно
-- [ ] **Docs Gate (условный):** РП затрагивал UX или поведение онбординга (skills, MCP-сервисы, бот `/start`, тиры доступа T0-T4, имена ролей)? → проверить и обновить вводные документы в `FMT-exocortex-template/docs/` (QUICK-START, SETUP-GUIDE, onboarding/, LEARNING-PATH, IWE-HELP) + `/verify` обновлённый файл. Владелец: пользователь. Если не затрагивал → пропустить молча.
+- [ ] **Docs Gate (условный):** РП затрагивал поведение онбординга (skills, MCP-сервисы, бот `/start`)? → обновить онбординг-документацию в governance-репо + `/verify` обновлённый файл. Владелец: пользователь. Если не затрагивал → пропустить молча.
 - [ ] **Conversational-сессии:** report.md создан ИЛИ status: interrupted (DP.SC.154 Q8)
 
 
@@ -129,8 +129,8 @@ schema_version: 1
 1. **Бэкап + грязные репо** — `backup-icloud.sh` + `check-dirty-repos.sh` (платформа)
 2. **Memory Validate** — `memory-bleed.sh` (HOT-лимит, orphans, superseded_by)
 3. **ТО памяти (T, SC.024.3)** — проверка здоровья статической нагрузки:
-   - `wc -l {{HOME_DIR}}/IWE/.claude/rules/distinctions.md` → **> 80 строк = drift-флаг** (по правилу DP.KR.001 §6: 1-3 строки на различение). Предложить аудит в WP-7.
-   - `wc -l ~/.claude/projects/*/memory/MEMORY.md` → **> 200 строк = флаг** (превышен лимит).
+   - `wc -l {{WORKSPACE_DIR}}/.claude/rules/distinctions.md` → **> 80 строк = drift-флаг** (по правилу DP.KR.001 §6: 1-3 строки на различение). Предложить аудит в WP-7.
+   - `wc -l ~/.claude/projects/{{CLAUDE_PROJECT_SLUG}}/memory/MEMORY.md` → **> 200 строк = флаг** (превышен лимит).
    - Feedback/lessons файлы в `memory/` с `mtime > 14 дней` без обращения → предложить понизить `horizon: warm`.
    - Флаги — информативно. Пользователь решает действие.
 4. **iwe-drift.sh** — полный drift-отчёт в Week Report (S)

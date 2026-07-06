@@ -226,3 +226,6 @@ bash scripts/verify-skill.sh <skill-name>
 ```
 
 Expected result: PASS with checks for: valid YAML frontmatter, non-empty description, recognized triggers, `gates_required`/`gates_enforced` fields with valid enum values, bundled resource files exist, scaffold templates valid, L1 skills present in FMT.
+
+<!-- USER-SPACE -->
+<!-- /USER-SPACE -->

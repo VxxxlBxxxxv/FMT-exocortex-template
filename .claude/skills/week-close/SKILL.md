@@ -211,10 +211,12 @@ echo "=== Hindsight log (last 20) ===" && cat ~/.iwe/hindsight.log 2>/dev/null |
 cd {{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}
 git status --short
 # НЕ git add -A/git add ./git add -u — AGENTS.md CRITICAL (может захватить работу других агентов)
-# Стейджить ТОЛЬКО файлы, изменённые в шагах 1-10 этого протокола:
-git add <каждый файл явным путём: WeekPlan, WeekReport, WP-REGISTRY, inbox/WP-*.md и т.д.>
+# Стейджить ТОЛЬКО файлы, изменённые в шагах 1-10 (в массив для pathspec):
+WC_FILES=(<каждый файл явным путём: WeekPlan, WeekReport, WP-REGISTRY, inbox/WP-*.md и т.д.>)
+git add "${WC_FILES[@]}"
 git diff --cached --name-only  # проверить scope — только week-close файлы
-git commit -m "week-close: W{N} итоги q:{score}"
+# pathspec после `--`: commit ТОЛЬКО свои файлы, не подметаем чужой индекс
+git commit -m "week-close: W{N} итоги q:{score}" -- "${WC_FILES[@]}"
 git push
 ```
 
@@ -254,3 +256,6 @@ git push
   ```
 
 Все ✅ → «Неделя закрыта.» Иначе — указать что осталось.
+
+<!-- USER-SPACE -->
+<!-- /USER-SPACE -->

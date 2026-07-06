@@ -108,3 +108,6 @@ python3 "${IWE_SCRIPTS:-$HOME/IWE/scripts}/artifactor.py" "$ARGUMENTS"
 | Запрос < 5 слов | `{"error": "INSUFFICIENT_INPUT"}` |
 | Скрипт не найден / сбой | Перейти к Шагу 2 напрямую |
 | Запрос на иностранном языке | Классифицировать как есть, `confidence: low` |
+
+<!-- USER-SPACE -->
+<!-- /USER-SPACE -->

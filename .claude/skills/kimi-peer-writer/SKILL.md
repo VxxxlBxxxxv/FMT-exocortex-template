@@ -11,6 +11,11 @@ triggers:
 routing:
   executor: sonnet
   deterministic: false
+agents: single
+interaction: multi-step
+gates_required: []
+gates_enforced: []
+gates_rationale: "операционный скилл; WP Gate применим только при создании нового РП, не для операционных вызовов"
 ---
 
 # Kimi Peer Writer (DP.SC.154)
@@ -23,6 +28,10 @@ routing:
 > Gateway offline ≠ Claude недоступен.
 
 ---
+
+## When to use
+
+Peer-сессия DP.SC.154 где Kimi = писатель, Claude = напарник. Запускается простой фразой. Включает ОРЗ Opening и Closing, turn-loop, эскалации, Decision Gate (зафиксировать vs реализовать → ревью → проверить → задеплоить), отложенную финализацию и верификацию.
 
 ## Шаг 0. Режим
 
@@ -433,12 +442,14 @@ echo "$VERIFY_PROMPT" | bash "$HOME/IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/scri
 ```bash
 cd <repo path>
 git status --short
+# pathspec после `--`: commit ТОЛЬКО свои файлы. Bare `git commit` сметает
+# чужое pre-staged из общего индекса (mis-attribution, см. 2026-06-20-39).
 git add <specific files — НЕ git add . и НЕ git add -u>
 git commit -m "<type>(<scope>): <короткое описание>
 
 Refs: peer-session <SESSION_ID>
 Review iters: <REVIEW_ITER>
-Verify: PASS"
+Verify: PASS" -- <те же specific files>
 git push
 ```
 
@@ -579,6 +590,8 @@ discovery_turns: <из meta.yaml: discovery_turns, целое; omit если 0>
 ---
 
 # Итоговый отчёт
+
+## Algorithm
 
 ## 1. Исходная постановка
 - **Задача:** <цитата из задания пилота, дословно>
@@ -772,10 +785,10 @@ INDEX_COUNT=$(grep -cF "| $SESSION_ID |" "sessions/00-index.md" || echo 0)
 test "$INDEX_COUNT" -eq 1 \
   || { echo "FAIL: 00-index.md: ожидается 1 запись для $SESSION_ID, найдено $INDEX_COUNT"; exit 1; }
 
-git add "sessions/$MONTH/$SESSION_ID/"
-git add "sessions/00-index.md"
-git add "sessions/$MONTH/${TODAY}-${SESSION_SLUG}.md"
-git commit -m "feat(peer): $SESSION_ID (kimi-writer) — <задача кратко>"
+# pathspec после `--`: commit ТОЛЬКО файлы сессии (mis-attribution, 2026-06-20-39)
+PATHS=("sessions/$MONTH/$SESSION_ID/" "sessions/00-index.md" "sessions/$MONTH/${TODAY}-${SESSION_SLUG}.md")
+git add "${PATHS[@]}"
+git commit -m "feat(peer): $SESSION_ID (kimi-writer) — <задача кратко>" -- "${PATHS[@]}"
 git push
 ```
 
@@ -815,3 +828,6 @@ git push
 «проверь отчёт сессии `<session_id>`»
 
 Запустить субагент (Sonnet, context isolation): прочитать все файлы сессии + report.md, сверить с инвариантами schema_version=1 (frontmatter, §4 непустой при agreed, verify-якоря).
+
+<!-- USER-SPACE -->
+<!-- /USER-SPACE -->

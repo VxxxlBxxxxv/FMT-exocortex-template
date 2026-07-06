@@ -2,7 +2,7 @@
 # see DP.SC.153
 # НЕ редактировать вручную — перегенерировать через generate-skills-catalog.sh
 #
-generated: 2026-06-17T15:11:57Z
+generated: 2026-06-30T10:03:05Z
 skills_dir: .claude/skills
 
 skills:
@@ -84,6 +84,18 @@ skills:
     invoked_by:
     - iwe-restore
     - audit-installation
+  - id: author-mode
+    name: "author-mode"
+    description: "Инструкции для автора шаблона IWE: staging-канал (обкатка → FMT), авторские правила L3, Extensions Gate. Загружать при: staging / promote / author / шаблон / extensions / L3."
+    version: 1.0.0
+    layer: L1
+    status: active
+    triggers:
+      slash:
+        - /author-mode
+    depends_on: []
+    invoked_by:
+    - author-mode
   - id: bottleneck-pick
     name: "bottleneck-pick"
     description: "Аналитик ограничений (DP.ROLE.054): находит главное ограничение (bottleneck) конкретного конвейера через TOC Five Steps + EC + NBR и строит Stage Dependency Map. Используй ТОЛЬКО при работе с конкретным WP, эпиком, проектом или weekplan (--target WP-NNN|weekplan|pilot:id). НЕ используй для общих вопросов приоритизации без явного системного контекста."
@@ -140,10 +152,11 @@ skills:
     name: "day-open"
     description: "Day Open protocol. Collects yesterday's commits, issues, notes, calendar, bot QA, Scout, world events — builds DayPlan and compact dashboard."
     version: 1.1.0
-    layer: unknown
+    layer: L1
     status: active
     triggers:
-      slash: []
+      slash:
+        - /day-open
     depends_on: []
     invoked_by:
     - CLAUDE.md
@@ -167,18 +180,18 @@ skills:
     invoked_by:
     - bottleneck-pick
     - decompose
-  - id: diagnose-iwe
-    name: "diagnose-iwe"
-    description: "Diagnose mastery level (Diagnostician R28, FORM.089 §6.1) directly in VS Code / claude.ai. Up to 7 questions, ~7 min. Saves cp-profile to digital twin (browser) or Neon (VS Code). Launch when pilot says 'run diagnostics', 'what is my level', '/diagnose-iwe' — or PROACTIVELY when you see an empty cp_profile or a new user without data."
-    version: 1.0.0
+  - id: diagnose
+    name: "diagnose"
+    description: "Диагностика ступени мастерства (Диагност R28, FORM.089 §6.1 v5.0) прямо в VS Code / claude.ai. До 6 вопросов, ~3 мин. Сохраняет cp-профиль в цифровой двойник (browser) или Neon (VS Code). Запускай когда: пилот говорит «пройди диагностику», «какая моя ступень», «/diagnose» — или ПРОАКТИВНО когда видишь пустой cp_profile или нового пользователя без данных."
+    version: 5.0.0
     layer: L1
     status: active
     triggers:
       slash:
-        - /diagnose-iwe
+        - /diagnose
     depends_on: []
     invoked_by:
-    - diagnose-iwe
+    - diagnose
     - pack-creator
   - id: discovery-session
     name: "discovery-session"
@@ -218,14 +231,27 @@ skills:
     - CLAUDE.md
     - pack-new
     - fpf
-  - id: iwe-bug-report
-    name: "iwe-bug-report"
-    description: "Report a bug or platform issue in IWE. Creates a GitHub issue in FMT-exocortex-template."
-    version: 0.0.0
-    layer: unknown
+  - id: integration-gate
+    name: "integration-gate"
+    description: "IntegrationGate — обязательный чеклист (4 шага) при проектировании нового инструмента, агента, детектора или системы. Загружать при триггерах: новый инструмент / агент / детектор / система / метод / интеграция."
+    version: 1.0.0
+    layer: L1
     status: active
     triggers:
-      slash: []
+      slash:
+        - /integration-gate
+    depends_on: []
+    invoked_by:
+    - integration-gate
+  - id: iwe-bug-report
+    name: "iwe-bug-report"
+    description: "Сообщить об ошибке или проблеме платформы IWE. Создаёт GitHub issue в FMT-exocortex-template."
+    version: 1.0.0
+    layer: L1
+    status: active
+    triggers:
+      slash:
+        - /iwe-bug-report
     depends_on: []
     invoked_by:
     - iwe-bug-report
@@ -262,7 +288,6 @@ skills:
     depends_on: []
     invoked_by:
     - iwe-update
-    - day-open
   - id: ke
     name: "ke"
     description: "Knowledge Extraction — captures and routes knowledge at work boundaries. Use when you discover a pattern, make a decision, find a distinction, or complete a sub-task."
@@ -290,7 +315,7 @@ skills:
     invoked_by: []
   - id: lesson-close
     name: "lesson-close"
-    description: "Закрыть занятие, открытое скиллом /lesson. Финализирует workbook/YYYY-MM-DD.md (frontmatter status, метаданные времени, длительность), делает commit + push в репо personal-guide. Триггерит замкнутый контур доставки — после push → GitHub webhook → bot oauth_server.py:/webhook/github/workbook → sync_one_user_to_dt → ЦД обновляется в Neon. Используй когда пилот говорит «закрываем», «всё», «закончили», «закрой урок» — или после явного завершения задания в /lesson."
+    description: "Закрыть занятие, открытое скиллом /lesson. Финализирует lesson/YYYY-MM-DD.md (frontmatter status, метаданные времени, длительность), делает commit + push в репо personal-guide. Триггерит замкнутый контур доставки — после push → GitHub webhook → bot oauth_server.py:/webhook/github/workbook → sync_one_user_to_dt → ЦД обновляется в Neon. Используй когда пилот говорит «закрываем», «всё», «закончили», «закрой урок» — или после явного завершения задания в /lesson."
     version: 1.0.0
     layer: L1
     status: active
@@ -300,15 +325,27 @@ skills:
     depends_on: []
     invoked_by:
     - lesson-close
-    - personal-guide-render
-  - id: month-close
-    name: "month-close"
-    description: "Month Close protocol. Stage 7 of the OWC v9 cascade (PD.METHOD.008). Runs on the first Monday of the month, before Strategy Session."
+  - id: local-llm
+    name: "local-llm"
+    description: "Локальный LLM-стек на Mac (Apple Silicon, MLX) под приватность и запасной режим. NL-вход к установке/запуску/переключению моделей + слой суждения для мониторинга новых моделей. Тонкая обёртка над скриптами РП404, не замена."
     version: 1.0.0
-    layer: unknown
+    layer: L1
     status: active
     triggers:
-      slash: []
+      slash:
+        - /local-llm
+    depends_on: []
+    invoked_by:
+    - local-llm
+  - id: month-close
+    name: "month-close"
+    description: "Протокол закрытия месяца (Month Close). Стадия 7 каскада ВДВ v9 (PD.METHOD.008). Запускается в первый Пн месяца, до Strategy Session."
+    version: 1.0.0
+    layer: L1
+    status: active
+    triggers:
+      slash:
+        - /month-close
     depends_on: []
     invoked_by:
     - CLAUDE.md
@@ -352,9 +389,9 @@ skills:
     - pack-creator
   - id: peer-conversation
     name: "peer-conversation"
-    description: "Multi-turn dialog between writer (Claude) and partner (Kimi) on the pilot's task (DP.SC.154). Manages turn-loop, detects CONSENSUS/ESCALATE, after consensus — Decision Gate (record vs implement → review → verify → deploy), synthesizes report.md via Agent tool."
+    description: "Многотуровый диалог писателя (Claude) с напарником (Kimi) по задаче пилота (DP.SC.154). Ведёт turn-loop, обнаруживает CONSENSUS/ESCALATE, после консенсуса — Decision Gate (зафиксировать vs реализовать → ревью → проверить → задеплоить), синтезирует report.md через Agent tool."
     version: 1.2.0
-    layer: L3
+    layer: L1
     status: active
     triggers:
       slash:
@@ -365,8 +402,8 @@ skills:
     - kimi-peer-writer
   - id: personal-guide-render
     name: "personal-guide-render"
-    description: "Builds (or rebuilds) the personal guide in an EXISTING personal-guide repo (flat name, one per pilot) — reads RCS from Memory.Derived, selects stage×domain templates, writes 6 files via personal_write. Use when pilot asks 'rebuild guide', 'update my plan', 'update methods' — or when repo is created but has no content yet."
-    version: 1.0.0
+    description: "Тонкий клиент — собирает персональное руководство пилота через локальный шлюз (mcp__iwe-local-gateway__render_personal_guide). Используй когда пилот просит «пересобери руководство», «обнови мой план», «собери руководство на сегодня»."
+    version: 2.0.0
     layer: L1
     status: active
     triggers:
@@ -513,6 +550,7 @@ skills:
         - /verify
     depends_on: []
     invoked_by:
+    - CLAUDE.md
     - run-protocol
     - peer-conversation
     - day-close
