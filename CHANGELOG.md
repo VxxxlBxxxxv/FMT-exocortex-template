@@ -70,10 +70,11 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 
 
-## [Unreleased] — обновлено 2026-06-30
+## [Unreleased] — обновлено 2026-07-06
 
 ### Fixed
 
+- fix(#226): CLAUDE.md conflict больше не обрывает `update.sh` — доставка memory/hooks/skills, repair-pass и коммит (Step 7) выполняются даже при неразрешённом 3-way merge; конфликт репортится и приводит к ненулевому exit-коду (49) в конце, а не к middle-script abort. Repair-pass вынесен в функцию `repair_pass()` и теперь вызывается и на ветке «всё актуально» (`TOTAL_CHANGES=0`), где раньше был недостижим. Добавлен branch-guard перед Step 7: коммит на нестандартной ветке (например, оставленный чекаут PR-ветки) требует подтверждения, в `--yes`-режиме пропускается с предупреждением.
 - `b4d08a2` fix(v0.35.5): orphan-detection TypeError + DS-strategy validator + root detection (#214 #215)
 - `212fa2f` fix(setup): include rules-lazy in dry-run and section message
 
