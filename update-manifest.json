@@ -102,6 +102,9 @@
       "path": ".claude/lib/capture_writer.sh"
     },
     {
+      "path": ".claude/lib/frontmatter.sh"
+    },
+    {
       "path": ".claude/lib/iwe-env-bootstrap.sh"
     },
     {
@@ -946,6 +949,9 @@
     },
     {
       "path": "roles/verifier/role.yaml"
+    },
+    {
+      "path": "scripts/iwe-bug-report.sh"
     },
     {
       "path": "sessions/00-index.md"
