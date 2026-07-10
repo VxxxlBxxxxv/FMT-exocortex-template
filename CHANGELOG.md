@@ -75,12 +75,23 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 
 
-## [Unreleased] — обновлено 2026-07-08
 
-Спасибо всем, кто сообщил об issue #229 и #228 — без вашего внимания к деталям обновление шаблона продолжало бы тихо перезаписывать личные правки в memory-файлах, а лимит на объём горячей памяти оставался бы превышен у каждого нового пилота из коробки.
+
+
+
+
+
+
+
+
+## [Unreleased] — обновлено 2026-07-10
 
 ### Added
 
+- `fed2e79` feat(wp401): governance-файлы публичной витрины (CODE_OF_CONDUCT/SECURITY/PRIVACY/CODEOWNERS/CITATION.cff) + доставка в iwesys
+- `2381d7f` feat(wp-7): promote 6 day-open scripts + fix scaffold drift + seed new-user scripts
+- `927808b` feat(wp-7): promote 6 day-open scripts + fix scaffold drift + seed new-user scripts
+- `1c71664` feat: promote day-open-pipeline.sh entry point (WP-7 FMT-PROMOTE-DAYOPEN1)
 - `c428393` feat(canon-sync): add iwesys/MimEcoSys publish jobs to translate-sync workflow
 - `a100fa6` feat: promote iwe-bug-report.sh to platform (WP-5 sub-#3)
 - `529e165` feat(wp-448-ф7): промоция TPF-рамки — 7 артефактов процессного слоя IWE
@@ -91,6 +102,10 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- `65e5534` rename(canon-sync): target repo iwesys/iwe-template -> iwesys/IWE
+- `e4a23f0` fix(wp415): jq null-guard for per-commit added/modified/removed in translate-sync
+- `039ccf8` chore(hygiene): untrack .DS_Store, добавить в .gitignore
+- `bdb2c9b` docs(changelog): thank users for #229/#228 reports, sync Unreleased section
 - `5b72787` rename(canon-sync): target repo iwesys/FMT-exocortex-template-en -> iwesys/iwe-template
 - `5bce5e3` revert(canon-sync): drop MimEcoSys mirror job — wrong repo scope
 - `b3ba993` refactor(translate): drop openai SDK dependency, call OpenRouter directly
@@ -100,6 +115,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `41c20fe` fix(translate-sync): attribute EN commits to the human source author, not a bot
 - `726fa80` fix(ci): restore scripts/iwe-bug-report.sh dropped from manifest by 7ae267a
 - `7ae267a` fix(#229,#228): protect owner:user memory files from stale-repair, add hot-budget validator
 - `c828396` fix(canon-sync): persist-credentials false on en-draft checkout
@@ -122,8 +138,6 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - `0b5e140` fix(extractor): guard против запуска сырого файла шаблона + правка примеров
 - `b4d08a2` fix(v0.35.5): orphan-detection TypeError + DS-strategy validator + root detection (#214 #215)
 - `212fa2f` fix(setup): include rules-lazy in dry-run and section message
-- `b7d75a8` fix(template): verify-template-integrity mirrors CI contract+smoke jobs
-- `0200a93` fix(template): close manifest drift + setup/update rules-lazy gap, wire parity gate
 
 
 ## [0.35.5] — 2026-06-30
