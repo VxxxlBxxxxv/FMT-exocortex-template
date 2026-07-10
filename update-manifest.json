@@ -1119,7 +1119,10 @@
     "scripts/verify-manifest.sh",
     "scripts/verify-template-integrity.sh",
     "scripts/week-draft-append.sh",
-    "scripts/week-draft-init.sh"
+    "scripts/week-draft-init.sh",
+    ".claude/skills/diagnose-iwe/SKILL.md",
+    ".claude/skills/kimi-peer-writer/modes.md",
+    "docs/secondary-model-adapter-spec.md"
   ],
   "deprecated_files": [
     {
