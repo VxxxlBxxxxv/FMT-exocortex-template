@@ -405,9 +405,6 @@
       "path": "docs/DATA-POLICY.md"
     },
     {
-      "path": "docs/DATA-RESIDENCY.md"
-    },
-    {
       "path": "docs/IWE-HELP.md"
     },
     {
@@ -1009,6 +1006,8 @@
     }
   ],
   "excluded_paths": [
+    ".claude/skills/diagnose-iwe/SKILL.md",
+    ".claude/skills/kimi-peer-writer/modes.md",
     "AGENTS-agent-blocks.md",
     "docs/BROWSER-CI-TEMPLATE.md",
     "docs/developer/README.md",
@@ -1017,6 +1016,7 @@
     "docs/developer/testing-as-spec.md",
     "docs/maintaining-skills.md",
     "docs/release-audit-log.md",
+    "docs/secondary-model-adapter-spec.md",
     "promotion-status.yaml",
     "scripts/active-wp-sweep.sh",
     "scripts/add-skill-markers.sh",

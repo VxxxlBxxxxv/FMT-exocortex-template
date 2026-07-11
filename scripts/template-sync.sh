@@ -61,6 +61,7 @@ l18=$(awk "/$AUTHOR_SECTION/{exit} {print}" "$SRC")
 
 # 2. Применить placeholder-подстановки
 l18_tmpl=$(printf '%s' "$l18" \
+    | sed "s|$IWE|{{HOME_DIR}}/IWE|g" \
     | sed "s|$HOME|{{HOME_DIR}}|g" \
     | sed "s|~/IWE|{{HOME_DIR}}/IWE|g" \
     | sed "s|$GOV_REPO_AUTHOR|$GOV_REPO_TMPL|g")
@@ -107,6 +108,7 @@ sync_allowlist_file() {
         /<!-- \/AUTHOR-ONLY -->/{ skip=0; next }
         !skip { print }
     ' "$src_path" | sed \
+        -e "s|$IWE|{{HOME_DIR}}/IWE|g" \
         -e "s|$HOME|{{HOME_DIR}}|g" \
         -e "s|~/IWE|{{HOME_DIR}}/IWE|g" \
         -e "s|$GOV_REPO_AUTHOR|$GOV_REPO_TMPL|g")

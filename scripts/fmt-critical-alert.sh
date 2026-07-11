@@ -47,7 +47,9 @@ if [ -z "$REPO" ]; then
 fi
 
 SEND_TG=true
-LABEL_QUERY="critical,deadline"
+# stale-unattended added (pipeline fix): issues triaged but unfixed for 14+ days were invisible
+# after the 2-day Day Open window. Now they surface here at Week Close.
+LABEL_QUERY="critical,deadline,stale-unattended"
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -138,13 +140,13 @@ if [ $JQ_RC -ne 0 ]; then
     exit 2
 fi
 if [ "$COUNT" = "0" ]; then
-    # Нет критичных issues — markdown-таблица не нужна
-    echo "_FMT critical/deadline issues:_ 0 (✅ clean)"
+    # Нет критичных/застрявших issues — markdown-таблица не нужна
+    echo "_FMT critical/deadline/stale issues:_ 0 (✅ clean)"
     exit 0
 fi
 
 # Markdown-таблица для DayPlan / WeekClose отчёта
-echo "## ⚠️ FMT критические issues ($COUNT)"
+echo "## ⚠️ FMT issues требуют внимания ($COUNT)"
 echo ""
 echo "| # | Issue | Labels |"
 echo "|---|---|---|"
@@ -162,7 +164,7 @@ if $SEND_TG; then
     fi
 
     # Build message
-    TG_MSG="🔴 FMT critical issues ($COUNT):"$'\n'
+    TG_MSG="🔴 FMT issues требуют внимания ($COUNT):"$'\n'
     while IFS= read -r line; do
         TG_MSG="$TG_MSG"$'\n'"$line"
     done < <(echo "$ISSUES_JSON" | jq -r '.[] | "  #\(.number): \(.title)\n    \(.url)"')

@@ -41,6 +41,10 @@ for arg in "$@"; do
     esac
 done
 SCRIPTS_DIR="${SCRIPTS_DIR:-$(dirname "$0")}"
+if [ ${#FILES[@]} -eq 0 ] && [ ! -d "$SCRIPTS_DIR" ]; then
+    echo "validate-fmt-scripts: SCRIPTS_DIR должна быть директорией: $SCRIPTS_DIR" >&2
+    exit 1
+fi
 FMT_ROOT="$(cd "$SCRIPTS_DIR/.." && pwd)"
 AUTHOR_HOME="${HOME}"
 AUTHOR_GOV_REPO="${IWE_GOVERNANCE_REPO:-DS-strategy}"
@@ -158,6 +162,18 @@ if [[ "$MODE" != "scripts" && "$MODE" != "settings-json" ]]; then
         if [[ $skills_checked -gt 0 ]]; then
             checked=$((checked + skills_checked))
         fi
+
+        # Проверка 6: L1 SKILL.md files must carry USER-SPACE marker block
+        while IFS= read -r -d '' md_file; do
+            fname="${md_file#$FMT_ROOT/}"
+            if grep -qE '^layer:[[:space:]]*L1' "$md_file" 2>/dev/null; then
+                if ! grep -q '^<!-- USER-SPACE -->' "$md_file" 2>/dev/null; then
+                    echo "  ❌ $fname: L1 SKILL.md без маркера <!-- USER-SPACE -->" >&2
+                    echo "     → Запусти: bash \$IWE_SCRIPTS/add-skill-markers.sh" >&2
+                    errors=$((errors + 1))
+                fi
+            fi
+        done < <(find "$SKILLS_DIR" -name "SKILL.md" -print0 2>/dev/null)
     fi
 fi
 
