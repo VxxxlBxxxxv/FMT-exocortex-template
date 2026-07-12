@@ -27,7 +27,7 @@ argument-hint: "<путь к pack или wp-контексту пакета>"
    - `ontology.md` (термины домена, SPF/pack-template)
 5. **Особое внимание:** для seed-пакета ожидается, что часть координат будет `missing(seed-expected)` — это НОРМАЛЬНО, не FAIL. Проверка честно оценивает то, что ЕСТЬ, не то, что ещё развивается.
 
-**Плейсхолдер-конвенция (используется флагами ниже, фиксированная):** значение ячейки/поля считается плейсхолдером, если оно пустое, обёрнуто в `_..._` (курсив шаблона), `{{...}}` или `<...>`, либо равно (case-insensitive) одному из: `...`, `TBD`, `todo`, `—`.
+**Плейсхолдер-конвенция (используется флагами ниже, фиксированная):** значение ячейки/поля считается плейсхолдером, если оно пустое, обёрнуто в `_..._` (курсив шаблона), `{{...}}` или `<...>`, либо равно (case-insensitive) одному из: `...`, `TBD`, `todo`, `—`. Плейсхолдером также считается: (а) отсутствие поля/строки целиком — эквивалентно пустому значению; (б) для дата-полей (`created`, `last_updated`) — буквальный шаблонный дефолт `YYYY-MM-DD` (case-insensitive); (в) для полей с шаблонным перечнем вариантов — буквальный нетронутый текст с разделителем ` | ` (например `draft | active | deprecated`), т.к. это список опций шаблона, не выбранное значение. (Пир-сессия 2026-07-11-13, находка код-ревью: без пп. а-в нетронутый скаффолд-манифест механически проходил как `addressed` в координате D9.)
 
 ## Шаг 2. Проверить 11 координат D1-D11
 
@@ -35,14 +35,16 @@ argument-hint: "<путь к pack или wp-контексту пакета>"
 
 ### D1 — DomainScopeAndUseAdequacy
 
-**Проверка:** Пакет ясно определяет область домена (что в пакете), границы домена (что вне), сценарии использования.
+**Проверка:** Пакет ясно определяет область домена (что в пакете) и границы домена (что вне) решением, а не молчанием.
 
-**Evidence:**
-- `.pfad-decision.md` содержит раздел про границы домена и отвергнутые альтернативы → **partial** (граница описана, но не исчерпывающе)
-- Если раздел про граници отсутствует в .pfad-decision.md → **missing**
-- Если .pfad-decision.md отсутствует вообще → **missing**
+**Evidence (пир-сессия 2026-07-11-13, фикс bug-2026-07-10-verify-pack-d9-ignores-manifest.md §Дополнение):**
+- Строка `**Граница:**` в секции «Финальный выбор» `.pfad-decision.md` заполнена не-плейсхолдерно (по плейсхолдер-конвенции Шага 1) → **addressed** (граница домена зафиксирована явным решением)
+- `.pfad-decision.md` существует, но строка `**Граница:**` пуста/плейсхолдерна → **partial** (граница только подразумевается, решение не зафиксировано)
+- `.pfad-decision.md` отсутствует вообще → **missing**
 
 **Вердикт:** See evidence
+
+**Сценарии использования — вне scope D1-lite (осознанно, пир-сессия 2026-07-11-13):** use-case-уровень пакета не материализуется ни в одном артефакте потока `pack-new`/`pack-creator` до Ф7+ (практический слой) — требовать его для addressed воспроизвело бы тот же баг, что чинится у D9 (проверка несуществующего артефакта). Кандидат для отдельной mature-grade координаты позже.
 
 ### D2 — DidacticEntryAndAdoptionAdequacy
 
@@ -113,14 +115,19 @@ argument-hint: "<путь к pack или wp-контексту пакета>"
 
 ### D9 — EditionStateAndCurrentnessAdequacy
 
-**Проверка:** Пакет указывает текущую edition (версию), дату создания, указатель на последнее обновление. Читатель знает, актуален ли это.
+**Проверка:** Пакет указывает текущую edition (версию), дату последнего обновления, состояние (state). Читатель знает, актуален ли это.
 
-**Evidence:**
-- Маркер `**Maturity:** seed` в frontmatter/тексте → даёт статус (seed, не deprecated)
-- Дата создания в WP-контексте или Git date → есть
-- НО: edition и currentness отдельны. seed-маркер даёт только status, не edition/currentness информацию → **partial**
+**Три бинарных флага (плейсхолдер-конвенция — Шаг 1; по образцу D6, пир-сессия 2026-07-11-13, фикс bug-2026-07-10-verify-pack-d9-ignores-manifest.md):**
+- **O** (edition) = `version` в `00-pack-manifest.md` не-плейсхолдерный
+- **E** (currentness) = `last_updated` в `00-pack-manifest.md` не-плейсхолдерный
+- **S** (state) = `status` в `00-pack-manifest.md` не-плейсхолдерный
 
-**Вердикт:** **partial** — статус известен, но edition/currentness неявны
+**Вердикт (таблица истинности):**
+- **addressed** = O ∧ E ∧ S
+- **missing** = ¬O ∧ ¬E ∧ ¬S
+- **partial** = любая другая комбинация
+
+Верификатор уже загружает `status` из манифеста в Шаге 1 — предыдущая версия координаты игнорировала эти же поля манифеста и держала `partial` как жёсткий потолок, из-за чего механический `addressed` был недостижим даже для полностью заполненного манифеста.
 
 ### D10 — ImprovementAndRefreshAdequacy
 
@@ -146,7 +153,7 @@ argument-hint: "<путь к pack или wp-контексту пакета>"
 
 | Координата | Статус | Маппинг (addressed/partial/missing) | Evidence / Комментарий |
 |---|---|---|---|
-| D1 DomainScopeAndUseAdequacy | — | 4/2/0 | .pfad-decision.md граница |
+| D1 DomainScopeAndUseAdequacy | — | 4/2/0 | строка «Граница:» в Финальном выборе .pfad-decision.md |
 | D2 DidacticEntryAndAdoptionAdequacy | — | missing(seed-expected) | педагогика — развитие |
 | D3 ScalableFormalityAndAssurancePathAdequacy | — | 4/2/0 | maturity-маркеры в 01B |
 | D4 CoreDependencyAndDomainBoundaryAdequacy | — | missing(seed-expected) | зависимости — mapping |
@@ -154,7 +161,7 @@ argument-hint: "<путь к pack или wp-контексту пакета>"
 | D6 DomainLexiconAndKindSettlementAdequacy | — | 4/2/0 | флаги O/D/S, таблица истинности |
 | D7 PracticeUtilityAndProblemResolutionAdequacy | — | missing(seed-expected) | практики — Ф7+ **КРИТ** |
 | D8 HeterogeneousCaseAndTransferAdequacy | — | missing(seed-expected) | трансфер — развитие |
-| D9 EditionStateAndCurrentnessAdequacy | — | 4/2/0 | маркер + дата |
+| D9 EditionStateAndCurrentnessAdequacy | — | 4/2/0 | флаги O/E/S манифеста (version/last_updated/status), таблица истинности |
 | D10 ImprovementAndRefreshAdequacy | — | missing(seed-expected) | operations — Ф8+ |
 | D11 DomainSoTAAlignmentAdequacy | — | 4/2/0 | SoTA-лист, ≥1 источник **КРИТ** |
 
