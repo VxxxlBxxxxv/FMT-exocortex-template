@@ -15,6 +15,9 @@
 
 **Fallback Chain:** DS → Pack → Base (SPF → FPF → ZP)
 **Pack = source-of-truth для доменного знания. DS меняется вслед за Pack.**
+**Лестница принципов (уровень специфичности):** ZPF → FPF → SPF → TPF → LPF
+где: ZPF/FPF/SPF-методология → Base · SPF-инстанс → Pack · TPF → DS + операционный слой агента · LPF → партикулярные практики роли (тест: без носителя данной роли — бессмысленны); детали → `memory/repo-type-rules.md`
+> Словарь ailev ↔ IWE (DPF ≈ Pack, переименование не планируется) → `memory/fpf-reference.md`.
 Детали типов, именование, измерения: → `memory/repo-type-rules.md`
 
 **Pack Creation Gate:** хочешь создать Pack → `/pack-new`. Структура Pack = `SPF/pack-template/`. Процесс = `SPF/process/01-11`. Имя = существительное-домен (не тема, не инструмент). Если `FPF/` или `SPF/` отсутствуют в рабочей директории — `/pack-new` клонирует их автоматически.
