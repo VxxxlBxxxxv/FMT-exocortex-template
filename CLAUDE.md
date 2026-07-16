@@ -48,7 +48,7 @@
    - Шаг 3-4. См. `memory/protocol-open.md` (детали).
 2. **Push:** «заливай» / «запуши» / «закрывай» → commit + push без доп. вопросов. Push ДО отчёта Закрытия. **При любом Close-протоколе (Quick/Day/Week):** `git status --short` по ВСЕМ репо сессии — незафиксированные изменения → commit + push ДО перехода к следующему шагу протокола.
 3. **Close:** Триггер Закрытия → протокол Закрытия → выполнить.
-4. **Pull-on-Touch:** `git pull --rebase` при первом **обращении** к репо за сессию (любое — `ls`/`Read`/`find`/`grep`/Edit/commit), один раз на репо, lazy. Применяется ко ВСЕМ git-репо в `{{HOME_DIR}}/IWE/*`, не только governance. Перед pull — `git status`: dirty → stash или пропустить с пометкой «вывод potentially stale»; rebase conflict → два варианта: (А) stash незафиксированных изменений + пометить вывод как potentially stale → продолжить; (Б) прервать сессию + отчёт пилоту. Default: вариант А. Без автоматического разрешения конфликта. Сетевой fail → работать с локальной копией, помечать выводы как potentially stale. Причина расширения с «изменения» на «обращения»: 5 мая 2026 ложный диагноз «Day Open пропущен» из-за чтения устаревшей локальной копии DS-strategy (origin был на 3 коммита впереди). Без Obsidian: см. §9.
+4. **Pull-on-Touch:** `git pull --rebase` при первом **обращении** к репо за сессию (любое — `ls`/`Read`/`find`/`grep`/Edit/commit), один раз на репо, lazy. Применяется ко ВСЕМ git-репо в `{{WORKSPACE_DIR}}/*`, не только governance. Перед pull — `git status`: dirty → stash или пропустить с пометкой «вывод potentially stale»; rebase conflict → два варианта: (А) stash незафиксированных изменений + пометить вывод как potentially stale → продолжить; (Б) прервать сессию + отчёт пилоту. Default: вариант А. Без автоматического разрешения конфликта. Сетевой fail → работать с локальной копией, помечать выводы как potentially stale. Причина расширения с «изменения» на «обращения»: 5 мая 2026 ложный диагноз «Day Open пропущен» из-за чтения устаревшей локальной копии DS-strategy (origin был на 3 коммита впереди). Без Obsidian: см. §9.
 5. **Чеклист-верификация (Haiku R23):** Quick Close и Day Close — sub-agent Haiku R23 (context isolation). Проверяет формальное соответствие чеклисту (все ли пункты закрыты, есть ли коммит, обновлён ли MEMORY.md), но не оценивает качество результата. Исключения: сессия ≤15 мин или без изменений файлов.
 6. **Hooks/Scripts Bypass Gate (БЛОКИРУЮЩЕЕ, S-33):** Без явного разрешения пользователя НЕ менять скрипты шаблона (`.claude/hooks/`, `.claude/scripts/`, `.iwe-runtime/`, `FMT-exocortex-template/`) и НЕ обходить хуки никаким способом (`--no-verify`, изменение флагов запуска, `git config core.fileMode false` без причины, переопределение `AI_CLI_EXTRA_FLAGS`). Если хук или скрипт IWE блокирует действие: (1) НЕ обходить — выполнять как задумано; (2) записать ошибку в `<governance-repo>/inbox/bugs/bug-YYYY-MM-DD-<тема>.md`; (3) сообщить пользователю что заблокировано и где bug-файл; (4) ждать инструкций. Исключение — пользователь явно говорит «обойди» / «игнорируй хук» / «измени скрипт». **Источник:** Дмитрий (пилот), 2026-04-28; ортогонально Extensions Gate (тот про «куда писать кастомизацию», этот — «что делать когда хук блокирует»).
 7. **Автономность (поведенческое):** НЕ спрашивать подтверждения — ни «добавить?», ни «продолжить?», ни «записать?», ни «хотите...?». Задание → выполни → отчитайся. Не заканчивать сообщение вопросом. Очевидные следствия (синхронизация, обновление связанных файлов) — делать сразу. Факт, проверяемый самостоятельно (grep, БД, конфиг), — проверять, а не спрашивать. **Исключения** (когда вопрос/согласование легитимны):
@@ -181,7 +181,7 @@ If you discover a discrepancy (file doesn't match plan, stale content, inconsist
 
 ## Working Directory
 
-`{{HOME_DIR}}/IWE/`
+`{{WORKSPACE_DIR}}/`
 
 ## Status Reporting — Agent Status Registry (РП-395)
 
@@ -189,7 +189,7 @@ If you discover a discrepancy (file doesn't match plan, stale content, inconsist
 
 **Командный режим (WP-398 Ф5):** если работаешь с файлами из командного репо (несколько участников в одном репо), передавай `repo="org/repo-name"` в `agent_status_update`. Это позволяет другим агентам команды видеть твои активные файлы и избегать конфликтов. Пример: `agent_status_update(agent="claude-code", status=working, task="WP-X фаза", files=["src/marathon.py"], repo="TserenTserenov/DS-strategy")`.
 
-**Fail-safe:** если не вызвал сам — детерминированно пишет `{{HOME_DIR}}/IWE/scripts/agent-status-report.sh <agent> <status> [task] [files-csv]` (Claude — из Stop-хука, Kimi — из `kimi-peer-adapter.sh`). Не отменяет primary.
+**Fail-safe:** если не вызвал сам — детерминированно пишет `{{WORKSPACE_DIR}}/scripts/agent-status-report.sh <agent> <status> [task] [files-csv]` (Claude — из Stop-хука, Kimi — из `kimi-peer-adapter.sh`). Не отменяет primary.
 
 ## WP-REGISTRY Naming — CRITICAL
 
