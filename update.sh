@@ -114,6 +114,13 @@ substitute_claude_placeholders() {
         case "$line" in \#*|"") continue ;; esac
         key="${line%%=*}"; value="${line#*=}"
         key=$(echo "$key" | tr -d '[:space:]')
+        # issue #316-fix2: значения в .exocortex.env процитированы с #223 —
+        # этот парсер читает файл строкой, не через `source`, поэтому кавычки
+        # остаются частью значения буквально (не синтаксис, а данные) и
+        # подставились бы в CLAUDE.md как есть, напр. {{TIMEZONE_DESC}} → "4:00 UTC".
+        # Тот же паттерн снятия кавычек, что уже применён к этому файлу в другом
+        # non-source парсере (см. ENV_WS/ENV_GOV ниже по файлу).
+        value=$(echo "$value" | tr -d '"' | tr -d "'")
         [ -z "$key" ] && continue
         declare "SUBST_$key=$value"
     done < "$env_file"
@@ -870,6 +877,10 @@ if [ -f "$ENV_FILE" ]; then
             value="${line#*=}"
             # Trim whitespace from key
             key=$(echo "$key" | tr -d '[:space:]')
+            # issue #316-fix2: см. тот же комментарий в substitute_claude_placeholders() —
+            # non-source парсер, кавычки из процитированных (#223) значений остаются
+            # буквально в строке и ломают DETECT_WS/[ -d ... ] ниже без снятия.
+            value=$(echo "$value" | tr -d '"' | tr -d "'")
             [ -z "$key" ] && continue
             # Export for use below (secrets: L4_DATABASE_URL etc. are loaded but not substituted into files)
             declare "ENV_$key=$value"
@@ -964,16 +975,19 @@ else
     DETECTED_WORKSPACE="$WORKSPACE_DIR"
     DETECTED_REPO="$(basename "$SCRIPT_DIR")"
 
+    # issue #316: значения ВСЕГДА в кавычках — тот же паттерн, что setup.sh
+    # применил для #223. Непроцитированное значение с пробелом (напр.
+    # TIMEZONE_DESC=4:00 UTC) ломает sourcing ('UTC: command not found').
     cat > "$ENV_FILE" <<ENVEOF
 # Exocortex configuration (auto-detected by update.sh — verify and fix values)
 # SECURITY: chmod 600. Listed in .gitignore. Do NOT commit this file.
-GITHUB_USER=your-username
-WORKSPACE_DIR=$DETECTED_WORKSPACE
-CLAUDE_PATH=$(command -v claude 2>/dev/null || echo 'claude')
-CLAUDE_PROJECT_SLUG=$(echo "$DETECTED_WORKSPACE" | tr '/' '-')
-TIMEZONE_HOUR=4
-TIMEZONE_DESC=4:00 UTC
-HOME_DIR=$HOME
+GITHUB_USER="your-username"
+WORKSPACE_DIR="$DETECTED_WORKSPACE"
+CLAUDE_PATH="$(command -v claude 2>/dev/null || echo 'claude')"
+CLAUDE_PROJECT_SLUG="$(echo "$DETECTED_WORKSPACE" | tr '/' '-')"
+TIMEZONE_HOUR="4"
+TIMEZONE_DESC="4:00 UTC"
+HOME_DIR="$HOME"
 
 # === Knowledge Gateway (T3+) — fill in if using personal Pack index ===
 L4_BACKEND=
