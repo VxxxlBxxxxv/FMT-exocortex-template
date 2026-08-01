@@ -174,6 +174,9 @@
       "path": ".claude/scripts/load-extensions.sh"
     },
     {
+      "path": ".claude/scripts/memory-drift-scan.py"
+    },
+    {
       "path": ".claude/scripts/wp-sync-bundle.sh"
     },
     {
@@ -435,6 +438,9 @@
       "path": ".githooks/pre-commit"
     },
     {
+      "path": ".github/workflows/cloud-scheduler.yml"
+    },
+    {
       "path": ".gitignore"
     },
     {
@@ -465,7 +471,13 @@
       "path": "docs/AGENT-FAULT-PROCESS.md"
     },
     {
+      "path": "docs/AGENT-VENDOR-SETUP.md"
+    },
+    {
       "path": "docs/BROWSER-CI-TEMPLATE.md"
+    },
+    {
+      "path": "docs/CLOUD-SCHEDULER.md"
     },
     {
       "path": "docs/DATA-POLICY.md"
@@ -475,6 +487,9 @@
     },
     {
       "path": "docs/IWE-HELP.md"
+    },
+    {
+      "path": "docs/KIMI-BROWSER-SETUP.md"
     },
     {
       "path": "docs/KIMI-SETUP.md"
@@ -505,6 +520,9 @@
     },
     {
       "path": "docs/SETUP-GUIDE.md"
+    },
+    {
+      "path": "docs/VERIFY-KNOWLEDGE-MCP.md"
     },
     {
       "path": "docs/adr/ADR-001-setup-in-template.md"
@@ -589,6 +607,9 @@
     },
     {
       "path": "extensions/agent-inbox/SPEC.md"
+    },
+    {
+      "path": "extensions/agent-inbox/scripts/config/pipeline-security-whitelist.yaml"
     },
     {
       "path": "extensions/agent-inbox/scripts/iwe-agent-dispatcher.py"
@@ -837,6 +858,12 @@
       "path": "memory/MEMORY.md"
     },
     {
+      "path": "memory/agent-architecture-framework.md"
+    },
+    {
+      "path": "memory/agent-vendor-connect-pattern.md"
+    },
+    {
       "path": "memory/checklists.md"
     },
     {
@@ -1021,6 +1048,9 @@
     },
     {
       "path": "roles/extractor/scripts/systemd/iwe-extractor-inbox-check.timer"
+    },
+    {
+      "path": "roles/extractor/scripts/wp429-extractor-prefilters.py"
     },
     {
       "path": "roles/role-boundaries.md"
@@ -1297,6 +1327,9 @@
     },
     {
       "path": "scripts/codex-peer-adapter.sh"
+    },
+    {
+      "path": "scripts/config/pipeline-security-whitelist.yaml"
     },
     {
       "path": "scripts/content-filter-apply.py"
@@ -1587,10 +1620,19 @@
       "path": "scripts/wp-list.py"
     },
     {
+      "path": "scripts/wp499-agent-coordination-test.sh"
+    },
+    {
       "path": "sessions/00-index.md"
     },
     {
       "path": "setup.sh"
+    },
+    {
+      "path": "setup/optional/setup-cloud-scheduler.sh"
+    },
+    {
+      "path": "setup/optional/setup-local-gateway.sh"
     },
     {
       "path": "setup/validate-template.sh"
@@ -1634,10 +1676,13 @@
     "scripts/tests/conftest.py",
     "scripts/tests/test_agent_dashboard.py",
     "scripts/tests/test_copy_to_aisystant.py",
+    "scripts/tests/test_create_wp_number_padding.py",
+    "scripts/tests/test_create_wp_weekplan_writer.py",
     "scripts/tests/test_day_close_prepare.py",
     "scripts/tests/test_delivery_content.py",
     "scripts/tests/test_delivery_formal.py",
     "scripts/tests/test_dry_run_gate.py",
+    "scripts/tests/test_install_hooks.py",
     "scripts/tests/test_manifest_coverage_local.py",
     "scripts/tests/test_skill_promote.py",
     "scripts/tests/test_translate_delta.py",

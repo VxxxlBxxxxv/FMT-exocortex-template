@@ -803,6 +803,14 @@ else
         git add -A
         git commit -m "Initial exocortex: DS-strategy governance hub"
 
+        # Enable secrets-check pre-commit hook (issue #317: install-iwe-paths.sh
+        # runs at step [4d], before this repo exists — its auto-enable loop can't
+        # see it on first setup.sh run, and update.sh never calls that script).
+        if [ -d "$MY_STRATEGY_DIR/.githooks" ]; then
+            git config core.hooksPath .githooks 2>/dev/null && \
+                echo "  Pre-commit hook enabled (.githooks/)" || true
+        fi
+
         if ! $CORE_ONLY; then
             # Create GitHub repo (full mode only)
             gh repo create "$GITHUB_USER/DS-strategy" --private --source=. --push 2>/dev/null || \
