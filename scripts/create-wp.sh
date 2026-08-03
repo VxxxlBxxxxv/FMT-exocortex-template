@@ -208,11 +208,52 @@ fi
 # Slug is dropped from the filename (lives in title: frontmatter); archive stub keeps it.
 WP_DIR="$INBOX/WP-${WP_ID}"
 WP_FILE="$WP_DIR/WP-${WP_ID}.md"
+ARCHIVE_DIR="$STRATEGY/archive/wp-contexts"
+ARCHIVE_STUB="$ARCHIVE_DIR/WP-${WP_ID}-${SLUG}.md"
 mkdir -p "$WP_DIR"
 
 echo "🚀 Создаю WP-${WP_ID}: $TITLE"
 echo "   Папка: inbox/WP-${WP_ID}/WP-${WP_ID}.md"
 echo "   Бюджет: $BUDGET | Приоритет: $PRIORITY"
+
+# --- Atomicity (Ф-script-contract-gate, Этап 2): шаги 1-4 пишут в 3 разных
+# места (inbox, REGISTRY, WeekPlan) без общей транзакции. Раньше отказ на шаге
+# 3/4 оставлял частично созданный WP и не считался ошибкой — падение WeekPlan
+# просто печаталось в stderr и скрипт продолжал к «✅ WP создан». Снимок +
+# откат ниже гарантируют: либо все 4 шага прошли, либо ни один след не остался.
+#
+# Снимки — файловые копии, не `$(cat file)`: command substitution обрезает
+# завершающий перевод строки, а `printf '%s' "$snapshot" > "$file"` на откате
+# его не возвращает — тихо портит форматирование REGISTRY/WeekPlan на КАЖДОМ
+# срабатывании отката (найдено код-ревью 03.08, оба файла seed сегодня
+# заканчиваются на \n). `cp` сохраняет содержимое байт-в-байт, включая случай
+# отсутствующего файла (тогда снимка нет — откат просто убирает файл, а не
+# создаёт пустой там, где раньше не было никакого).
+SNAPSHOT_DIR=$(mktemp -d)
+trap 'rm -rf "$SNAPSHOT_DIR"' EXIT
+REGISTRY_SNAPSHOT="$SNAPSHOT_DIR/registry.snapshot"
+[[ -f "$REGISTRY" ]] && cp "$REGISTRY" "$REGISTRY_SNAPSHOT"
+WEEKPLAN=$(find "$STRATEGY/current" -maxdepth 1 -name "WeekPlan*.md" 2>/dev/null | sort -r | head -1)
+WEEKPLAN_SNAPSHOT="$SNAPSHOT_DIR/weekplan.snapshot"
+[[ -n "$WEEKPLAN" ]] && cp "$WEEKPLAN" "$WEEKPLAN_SNAPSHOT"
+
+rollback_wp_creation() {
+  echo "↩️  Откат: WP-${WP_ID} не создан целиком, отменяю частичные записи" >&2
+  rm -rf "$WP_DIR"
+  rm -f "$ARCHIVE_STUB"
+  if [[ -f "$REGISTRY_SNAPSHOT" ]]; then
+    cp "$REGISTRY_SNAPSHOT" "$REGISTRY"
+  else
+    rm -f "$REGISTRY"
+  fi
+  if [[ -n "$WEEKPLAN" ]]; then
+    if [[ -f "$WEEKPLAN_SNAPSHOT" ]]; then
+      cp "$WEEKPLAN_SNAPSHOT" "$WEEKPLAN"
+    else
+      rm -f "$WEEKPLAN"
+    fi
+  fi
+}
 
 # --- Сформировать строки таблицы связок ---
 RELATED_ROWS="| — | — | — | нет связок |"
@@ -242,7 +283,7 @@ if [[ -n "$STATE" ]]; then
 fi
 FM_STAKE="${FM_STAKE}hypothesis: \"${HYPOTHESIS:-—}\""
 
-cat > "$WP_FILE" <<WPEOF
+if ! cat > "$WP_FILE" <<WPEOF
 ---
 wp: ${WP_NUM}
 title: "${TITLE}"
@@ -292,15 +333,19 @@ ${RELATED_ROWS}
 **Следующий шаг:** Открыть сессию — прочитать задачу, составить план
 **Контекст для следующей сессии:** РП только создан, нет контекста
 WPEOF
+then
+  echo "❌ Не удалось записать context file: $WP_FILE" >&2
+  rollback_wp_creation
+  exit 1
+fi
 
 echo "   ✅ $WP_FILE"
 
 # --- Шаг 2: archive stub ---
 echo "2/6 archive stub..."
 
-ARCHIVE_DIR="$STRATEGY/archive/wp-contexts"
-ARCHIVE_STUB="$ARCHIVE_DIR/WP-${WP_ID}-${SLUG}.md"
-cat > "$ARCHIVE_STUB" <<ARCHEOF
+mkdir -p "$ARCHIVE_DIR"
+if ! cat > "$ARCHIVE_STUB" <<ARCHEOF
 ---
 wp: ${WP_NUM}
 title: "${TITLE}"
@@ -312,6 +357,11 @@ status: pending
 
 *(заполняется при закрытии РП)*
 ARCHEOF
+then
+  echo "❌ Не удалось записать archive stub: $ARCHIVE_STUB" >&2
+  rollback_wp_creation
+  exit 1
+fi
 echo "   ✅ $ARCHIVE_STUB"
 
 # --- Шаг 3: WP-REGISTRY.md ---
@@ -410,6 +460,7 @@ with open(registry_path, "w", encoding="utf-8") as f:
 print("   ✅ REGISTRY: строка {} добавлена".format(wp_num))
 PYEOF
 then
+  rollback_wp_creation
   exit 1
 fi
 
@@ -420,19 +471,17 @@ fi
 # не голым числом (| N |) — grep должен принимать оба формата.
 if ! grep -qE "\| \*?\*?(WP-)?${WP_NUM}\*?\*? \|" "$REGISTRY"; then
   echo "❌ REGISTRY write verification FAILED: строка WP-${WP_NUM} не найдена после записи" >&2
+  rollback_wp_creation
   exit 1
 fi
 
 # --- Шаг 4: WeekPlan ---
 echo "4/6 WeekPlan..."
 
-# issue (2026-07-27, WP-507 registration): governance repos also name the file
-# "WeekPlan {year}-W{N} {date} (label).md" (night-cycle orchestrator), not just
-# "WeekPlan W{N}.md" — the old exact-prefix glob silently missed those files.
-WEEKPLAN=$(find "$STRATEGY/current" -maxdepth 1 -name "WeekPlan*.md" 2>/dev/null | sort -r | head -1)
-
+# WEEKPLAN уже найден выше (снимок для отката, issue WP-507 про формат имени файла
+# применён там же) — здесь используется тот же путь, не ищем повторно.
 if [[ -n "$WEEKPLAN" ]]; then
-  python3 - "$WEEKPLAN" "$WP_NUM" "$TITLE" "$PRIORITY" "$BUDGET" <<'PYEOF'
+  if ! python3 - "$WEEKPLAN" "$WP_NUM" "$TITLE" "$PRIORITY" "$BUDGET" <<'PYEOF'
 import sys, re
 weekplan_path, wp_num, title, priority, budget = sys.argv[1:6]
 
@@ -482,6 +531,11 @@ else:
         f.writelines(lines)
     print("   ✅ WeekPlan: строка WP-{} добавлена".format(wp_num))
 PYEOF
+  then
+    echo "❌ WeekPlan write FAILED — WP-${WP_NUM} не создан" >&2
+    rollback_wp_creation
+    exit 1
+  fi
 else
   echo "   ⚠️  WeekPlan не найден в current/ — добавить вручную" >&2
 fi

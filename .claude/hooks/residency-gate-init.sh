@@ -1,4 +1,5 @@
 #!/bin/bash
+# claude-hook: false — sourced consent library с обязательными аргументами
 # ResidencyGate Point A: Activation-time consent check
 # Runs when a function starts (launchd trigger, day-open, etc.)
 # Usage: source residency-gate-init.sh <function_id> <manifest_file>

@@ -418,9 +418,28 @@ echo "[1/6] Building generated runtime..."
 if $DRY_RUN; then
     bash "$TEMPLATE_DIR/setup/build-runtime.sh" --dry-run \
         --workspace "$WORKSPACE_DIR" --env-file "$ENV_FILE" 2>&1 | sed 's/^/  /'
+    # PIPESTATUS[0], not `if cmd | sed; then`: without `set -o pipefail` (not
+    # set anywhere in this script — changing that here would affect every
+    # other pipe below, out of scope for this fix) the pipeline's exit status
+    # is sed's, which is always 0. build-runtime.sh's own real failure (e.g.
+    # missing .exocortex.env on a first-ever dry-run before it's been written)
+    # printed an ERROR line right here but setup.sh kept going to a false
+    # "[DRY RUN] No changes made." success (found 03.08, Ф-script-contract-gate
+    # test_fresh_seed_reproduction.sh — a genuinely fresh checkout hits this
+    # exact path, so it's not a hypothetical).
+    build_runtime_rc=${PIPESTATUS[0]}
+    if [ "$build_runtime_rc" -ne 0 ]; then
+        echo "  ERROR: build-runtime.sh --dry-run failed (exit $build_runtime_rc)" >&2
+        exit 1
+    fi
 else
     bash "$TEMPLATE_DIR/setup/build-runtime.sh" \
         --workspace "$WORKSPACE_DIR" --env-file "$ENV_FILE" 2>&1 | sed 's/^/  /'
+    build_runtime_rc=${PIPESTATUS[0]}
+    if [ "$build_runtime_rc" -ne 0 ]; then
+        echo "  ERROR: build-runtime.sh failed (exit $build_runtime_rc)" >&2
+        exit 1
+    fi
 
     # Enable pre-commit hook for platform compatibility checks
     if [ -d "$TEMPLATE_DIR/.githooks" ]; then

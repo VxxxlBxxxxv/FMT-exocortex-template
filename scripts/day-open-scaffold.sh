@@ -978,7 +978,10 @@ render_yesterday() {
   # у пользователей шаблона без своего extension-файла просто не будет.
   if [ -x "$IWE/extensions/day-open.summary-extra.sh" ]; then
     local extra_summary
-    extra_summary=$("$IWE/extensions/day-open.summary-extra.sh" "$YDAY" 2>/dev/null)
+    if ! extra_summary=$("$IWE/extensions/day-open.summary-extra.sh" "$YDAY"); then
+      echo "day-open: extension day-open.summary-extra.sh failed; continuing without its output" >&2
+      extra_summary=""
+    fi
     [ -n "$extra_summary" ] && { echo "$extra_summary"; echo; }
   fi
   # Sessions consolidation (DAP1-B/1-C, WP-7): включить РП сессий вчерашнего дня

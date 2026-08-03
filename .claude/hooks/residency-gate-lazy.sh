@@ -1,4 +1,5 @@
 #!/bin/bash
+# claude-hook: false — consent CLI с четырьмя аргументами, не событие Claude
 # ResidencyGate Point B: Lazy consent check at data access time
 # Runs when a function tries to access specific data
 # Usage: residency-gate-lazy.sh <function_id> <data_type> <flow_direction> <need_name>
