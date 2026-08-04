@@ -1,0 +1,5 @@
+{
+  "excluded_paths": [
+    "docs/secondary-model-adapter-spec.md"
+  ]
+}
