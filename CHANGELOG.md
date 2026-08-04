@@ -112,6 +112,48 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 
 
+
+
+## [Unreleased] — обновлено 2026-08-04
+
+### Added
+
+- `041bd11` feat: promote day-open-pipeline.sh to platform (WP-7 orphan-semaphore quarantine)
+- `e680497` feat(WP-7 Этап 2): контрактные тесты доведены до реально проходящих + rollback create-wp.sh
+- `7291b9f` feat(WP-7 Этап 2): контрактные тесты с failure injection
+
+### Changed
+
+- `3d96d00` chore: перегенерация каталогов generate-catalogs.py
+- `867aa5d` docs(wp-452): Ф4 — связь с разделом 7 универсального руководства
+- `8cca208` chore(release): weekly auto-bump to v0.36.3
+- `e48389e` chore(week-close): синхронизация справочника FPF, список hot-файлов, восстановлен исполняемый бит контрактных тестов
+
+### Fixed
+
+- `720d30f` fix(#310,#321,#323,#347,#350): честный enforcement гейтов, доставка хуков, аудит промотированных копий
+- `80c4a25` fix(#348): образец params.yaml.example признан пользовательским пространством
+- `21d82ad` fix(#348,#310,#323): params.yaml перестал быть файлом шаблона; сторож неподключённых хуков
+- `f1a0798` fix(#343,#347,#350,#348): зелёный CI, бэкап памяти, четыре состояния планировщика, честное превью
+- `b804fb3` fix(peer): remove --add-dir from peer-session-finalize.sh synthesis call
+- `58a1fb0` fix(peer): portable mkdir-lock for kimi OAuth serialization, no lockf
+- `9233e65` fix(peer): drop kimi log-tail heuristic, add claude auth-failure detection
+- `d8dfacf` fix(peer): document sandbox setup for peer adapters
+- `e65e942` fix(session): quarantine dead-pid semaphores
+- `5b2fd66` fix(strategy-session-weekly): gate status:confirmed on strategy-session-checks-runner.sh (WP-484 Ф47)
+- `f457907` fix(wp7): deliver canonical protocol scripts
+- `1748a6f` fix(WP-7 Этап 2): фикстуры независимы от update.sh, откат сверяется побайтово
+- `945b7f8` fix(day-open): preserve extension hook diagnostics
+- `bb9656d` fix(#346): day-close calendar day follows install timezone, not global UTC
+- `14b4010` fix(#345): explicit non-hook classification for 4 orphan-warning files in .claude/hooks
+- `90d887f` fix(#344): preserve HEAD form across upgrade-simulation smoke rollback
+- `58666a7` fix(WP-7 Этап 2): доставка тестов гейта в манифест + честный smoke-тест setup.sh
+- `3280bef` fix(hindsight): убрать ключ из автозапуска, резолвить docker динамически, curl-healthcheck
+- `7e04b0b` fix(day-close): изоляция кодов возврата реиндексации + различение частичного отказа
+- `8a2e9da` fix(peer): restrict Claude adapter to text-only review
+- `b32160f` fix: добавить регрессионные тесты в update-manifest.json
+
+
 ## [0.36.3] — 2026-08-02
 
 ### Added

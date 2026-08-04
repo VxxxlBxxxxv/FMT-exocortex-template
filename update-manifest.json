@@ -3,6 +3,9 @@
   "description": "Манифест платформенных файлов FMT-exocortex-template. Используется update.sh для доставки обновлений.",
   "files": [
     {
+      "path": ".agentigore"
+    },
+    {
       "path": ".claude/agents/wp-sync-actualizer.md"
     },
     {
@@ -22,6 +25,9 @@
     },
     {
       "path": ".claude/detectors/detector_pattern_awareness.sh"
+    },
+    {
+      "path": ".claude/hooks/.orphan-allowlist"
     },
     {
       "path": ".claude/hooks/agent-trace-recorder.sh"
@@ -1305,6 +1311,9 @@
       "path": "scripts/check-open-sessions.sh"
     },
     {
+      "path": "scripts/check-orphan-hooks.sh"
+    },
+    {
       "path": "scripts/check-platform-compat.sh"
     },
     {
@@ -1732,6 +1741,7 @@
     "scripts/session-dispatcher-tsekh.py",
     "scripts/tests/conftest.py",
     "scripts/tests/test_agent_dashboard.py",
+    "scripts/tests/test_check_orphan_hooks.sh",
     "scripts/tests/test_copy_to_aisystant.py",
     "scripts/tests/test_create_wp_number_padding.py",
     "scripts/tests/test_create_wp_weekplan_writer.py",

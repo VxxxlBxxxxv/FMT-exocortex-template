@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # routing: helper  called-by=wp-gate  deterministic=true
 # see DP.SC.159, DP.ROLE.059
-# create-wp.sh — атомарное создание РП в 4 местах (inbox, REGISTRY, WeekPlan, Linear)
+# create-wp.sh — атомарное создание РП в локальных местах (inbox, REGISTRY, WeekPlan);
+# внешний трекер (Linear) — условный пост-шаг, только при подключённом MCP (issue #321)
 # see WP-297 Ф6.2 (<governance-repo>/inbox/WP-297-wp-lifecycle-architecture.md)
 # see DP.M.010, DP.ROLE.037
 #
@@ -599,10 +600,11 @@ else
   echo "   ⚠️  scripts/build-active-wp.py не найден (искали в \`$STRATEGY/scripts/\` и \`$IWE/FMT-exocortex-template/scripts/\`) — пересобрать вручную" >&2
 fi
 
-# --- Linear (ручной шаг) ---
+# --- Внешний трекер (условный пост-шаг, issue #321) ---
 echo ""
-echo "ℹ️  Linear: создать issue вручную или через MCP"
+echo "ℹ️  Внешний трекер (если подключён): создать issue вручную или через MCP"
 echo "   Linear MCP → create_issue title='WP-${WP_ID} ${TITLE}' teamId=TSR"
+echo "   MCP не подключён → штатно: отметить «внешний трекер: не подключён», локальная запись полна"
 
 # --- Consent file остаётся в папке WP для аудит-следа ---
 # Ранее consent file удалялся здесь; это ломало последующие wp-gate-check
@@ -617,4 +619,4 @@ echo "✅ WP-${WP_ID} создан: $TITLE"
 echo "   context: inbox/WP-${WP_ID}/WP-${WP_ID}.md"
 echo "   archive: archive/wp-contexts/WP-${WP_ID}-${SLUG}.md"
 echo "   Следующий шаг: заполнить «Проблема», «Артефакт», «Фазы» в context file"
-echo "   Не забыть: Linear issue"
+echo "   Не забыть: issue во внешнем трекере (если подключён)"

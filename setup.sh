@@ -108,10 +108,12 @@ if $VALIDATE_ONLY; then
     else
         echo "  ⚠ extensions/ не найдена (опционально)"
     fi
-    if [ -f "$SCRIPT_DIR/params.yaml" ]; then
-        echo "  ✓ params.yaml"
+    # issue #348: в репозитории лежит только образец; рабочий params.yaml создаётся
+    # build-runtime.sh в корне установки и под git-контроль шаблона не попадает.
+    if [ -f "$SCRIPT_DIR/params.yaml.example" ]; then
+        echo "  ✓ params.yaml.example (образец параметров)"
     else
-        echo "  ⚠ params.yaml не найден (опционально)"
+        echo "  ⚠ params.yaml.example не найден (опционально)"
     fi
 
     # Check MCP accessibility

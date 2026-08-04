@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Regression test for bug #338: create-wp.sh должен записать РП в ВСЕ 5 мест.
-# Проверка: inbox, WeekPlan, Strategy.md, WP-REGISTRY, build-active-wp.py
+# Regression test for bug #338: create-wp.sh должен записать РП во ВСЕ локальные места.
+# Проверка (5 пунктов): inbox, WeekPlan, Strategy.md, WP-REGISTRY, build-active-wp.py.
+# Внешний трекер сюда не входит — он условный пост-шаг (issue #321), не локальная запись.
 
 set -euo pipefail
 
