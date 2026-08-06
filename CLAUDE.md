@@ -146,7 +146,6 @@ Respond in Russian unless the user writes in English.
 
 ## Code Style — Engineering (DP.SC.172)
 
-При написании/правке кода — инженерный стиль craft-уровня (источник истины L0 — `engineering-code-style-base.md` в PACK-digital-platform). База = перечень запахов с «было/стало»; вкус = отсутствие запахов. Детектор контекста: «есть ли у кода будущий читатель?» Да → правила обязательны.
 
 **P-правила, short:** P0 перед коммитом — форматтер+линтер репо (механику закрывает инструмент); P1 тест без проверки наблюдаемого результата запрещён (`assert True` — запах); P2 третье повторение → функция, не `locals()[str]`; P3 мёртвую ветку/enum удалять, не «для совместимости»; P4 `except: pass` без логирования запрещён; P5 длинную функцию со смешанными обязанностями / булевы флаги-режимы — разбить. Граница: жёсткие запреты (`git add -A`, секреты) — в PACK-agent-rules (AR.*), не здесь. (Доставка/детекторы по агенту → `memory/reference/agent-core.md`.)
 
@@ -161,6 +160,7 @@ Respond in Russian unless the user writes in English.
 **Активная запись:** S-45 Agent Inbox (WP-324) — `inbox/agent/` + `iwe-agent-dispatcher.py`, промотировано в FMT `extensions/agent-inbox/`. Status: testing.
 
 ---
+
 ## 9. Авторское (только мой IWE)
 
 > Элаборации всех пунктов → `memory/reference/agent-core.md`.

@@ -13,12 +13,8 @@
 
 set -uo pipefail
 
-# The seed snapshot already resolved the root via iwe_resolve_root(); promoting this
-# file from the author's live copy silently reverted it to the IWE_ROOT-only fallback,
-# which ignores IWE_WORKSPACE (set by ~/.iwe-paths). Restored here so both copies agree.
-# Fail loudly if the library is missing: without `set -e` a failed source would let the
-# script continue, iwe_resolve_root would not exist, IWE would end up empty, and every
-# path would silently become /DS-strategy/… instead of stopping here.
+# A promoted runtime copy can set IWE_WORKSPACE via ~/.iwe-paths. Resolve it through
+# the shared library instead of silently falling back to IWE_ROOT-only behavior.
 # shellcheck source=lib/common.sh
 _PIPELINE_LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/common.sh"
 [ -f "$_PIPELINE_LIB" ] || { echo "ОШИБКА: не найден $_PIPELINE_LIB" >&2; exit 1; }
@@ -140,20 +136,19 @@ raise SystemExit(1)
 # --- Secrets (must load before the first tg_notify call below — WP-5 Ubuntu-audit
 # П2, 2026-07-22: TG_TOKEN/TG_CHAT used to be assigned after both the D2-dedup and
 # pipeline-started notifications, so those two silently no-op'd every run) ---
-AIST_ENV="$HOME/.config/aist/env"
-if [ -f "$AIST_ENV" ]; then
+source_env_if_present() {
+  [ -f "$1" ] || return 0
   set -a
-  source "$AIST_ENV"
+  source "$1"
   set +a
-fi
-
-# Anthropic API key for llm-proxy (WP-356)
-ANTHROPIC_ENV="$HOME/IWE/.secrets/anthropic_key.env"
-if [ -f "$ANTHROPIC_ENV" ]; then
-  set -a
-  source "$ANTHROPIC_ENV"
-  set +a
-fi
+}
+source_env_if_present "$HOME/.config/aist/env"
+source_env_if_present "$HOME/IWE/.secrets/anthropic_key.env"  # Anthropic API key for llm-proxy (WP-356)
+# WP-484 Ф50b named this file as the readable ANTHROPIC_API_KEY source for the
+# remote-gateway fallback below (line ~534) but never sourced it -- the fallback
+# chain silently resolved to empty and the authorized probe 401'd (found live
+# 2026-08-05 running --probe ahead of a scheduled test run).
+source_env_if_present "$HOME/.iwe/.proxy-env"
 
 TG_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
 TG_CHAT="${TELEGRAM_CHAT_ID:-}"
@@ -242,9 +237,21 @@ WP_REGISTRY="$IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/docs/WP-REGISTRY.md"
 # писал ни один механизм. update-derived-snapshot.py (шаг 1.5 выше) уже пишет сюда.
 CP_PROFILE="$IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/inbox/WP-425/cache/derived_snapshot.json"
 CALENDAR_OUT="$IWE/.tmp/calendar-$DATE.txt"
-LLM_PROXY_URL="${LLM_PROXY_URL:-http://localhost:18765}"
+LLM_PROXY_URL="${LLM_PROXY_URL:-https://iwe-llm-proxy-production.up.railway.app}"
 PROXY_PORT="${PROXY_PORT:-18765}"
 PROXY_PID=""
+# WP-484 Ф48b (04.08): default flipped from the Mac-only localhost:18765 (the
+# WP-149/504 "dead file" llm-proxy.py, superseded by auth-gateway.py at the
+# WP-400 cutover 09.06) to the properly-maintained Railway gateway. This
+# pipeline runs on either machine of the dual-machine pair (see note below) --
+# a Mac-local address is simply wrong on tsekh-1, and was the root cause of
+# the 30.07/02.08/04.08 stale-credential recurrences on the Mac. Local-only
+# branches below (spawn-if-missing, kill-on-port self-heal) only make sense
+# for an actual localhost target, so they're gated on PROXY_IS_LOCAL.
+case "$LLM_PROXY_URL" in
+  http://localhost:*|http://127.0.0.1:*) PROXY_IS_LOCAL=true ;;
+  *) PROXY_IS_LOCAL=false ;;
+esac
 
 # --- Helper: abort with notification + proxy cleanup ---
 abort() {
@@ -486,20 +493,24 @@ fi
 echo "=== 2. LLM Proxy healthcheck ==="
 PROXY_HEALTH=$(curl -s "${LLM_PROXY_URL}/v1/health" 2>/dev/null | grep -q "ok" && echo "ok" || echo "fail")
 if [ "$PROXY_HEALTH" != "ok" ]; then
-  # lsof (Mac) with ss fallback (NixOS server lacks lsof) — verified live: this
-  # machine has lsof but not ss, so a bare ss-only version (as copied without
-  # testing into month-open-night-run.sh:78) would silently break the Mac side
-  # of the exact dual-machine pair this pipeline is designed to run on. Only
-  # checking port occupancy either way, PID unused below.
-  if lsof -ti :"$PROXY_PORT" >/dev/null 2>&1 || ss -tln 2>/dev/null | grep -q ":$PROXY_PORT "; then
-    # Port already held by another process — likely a live proxy the check above
-    # missed on a transient blip. Spawning here would just crash into "Address
-    # already in use" and spam the error log without helping (found 2026-07-11).
-    echo "  Health check failed but port $PROXY_PORT is already held — not spawning a second proxy, just waiting."
+  if $PROXY_IS_LOCAL; then
+    # lsof (Mac) with ss fallback (NixOS server lacks lsof) — verified live: this
+    # machine has lsof but not ss, so a bare ss-only version (as copied without
+    # testing into month-open-night-run.sh:78) would silently break the Mac side
+    # of the exact dual-machine pair this pipeline is designed to run on. Only
+    # checking port occupancy either way, PID unused below.
+    if lsof -ti :"$PROXY_PORT" >/dev/null 2>&1 || ss -tln 2>/dev/null | grep -q ":$PROXY_PORT "; then
+      # Port already held by another process — likely a live proxy the check above
+      # missed on a transient blip. Spawning here would just crash into "Address
+      # already in use" and spam the error log without helping (found 2026-07-11).
+      echo "  Health check failed but port $PROXY_PORT is already held — not spawning a second proxy, just waiting."
+    else
+      echo "  Proxy not running. Starting via launcher (loads OPENROUTER_API_KEY from secrets)..."
+      bash "$IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/scripts/llm-proxy-launcher.sh" "$PROXY_PORT" &
+      PROXY_PID=$!
+    fi
   else
-    echo "  Proxy not running. Starting via launcher (loads OPENROUTER_API_KEY from secrets)..."
-    bash "$IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/scripts/llm-proxy-launcher.sh" "$PROXY_PORT" &
-    PROXY_PID=$!
+    echo "  Remote proxy ($LLM_PROXY_URL) failed health check — nothing local to spawn, just waiting/retrying."
   fi
   # Retry up to 10 times (20s total) — launcher needs extra time to source secrets + import
   for _i in 1 2 3 4 5 6 7 8 9 10; do
@@ -519,16 +530,61 @@ echo "  Proxy OK"
 # real call (2026-07-30 04:30 — 7/7 fill chunks failed with HTTP 401, day not
 # opened). Same request contract as day-open-llm-fill.py: no "model" field, the
 # proxy routes by verification_class.
+# WP-484 Ф50b (04.08): LLM_PROXY_SECRET was never actually provisioned anywhere
+# this pipeline runs -- confirmed live from tsekh-1. What IS already provisioned
+# and already authenticates against this same gateway: PROXY_SHARED_SECRET
+# (root-only /etc/iwe/env, used by iwe-llm-health/iwe-overnight-auditor) and
+# ANTHROPIC_API_KEY (~/.iwe/.proxy-env, tseren-readable -- the one this pipeline's
+# actual execution context can see). Falls back through what's really there
+# instead of requiring a secret nobody would ever provision under this exact name.
+LLM_PROXY_SECRET="${LLM_PROXY_SECRET:-${PROXY_SHARED_SECRET:-${ANTHROPIC_API_KEY:-}}}"
 AUTH_PROBE_ARGS=(-H 'content-type: application/json')
 [ -n "${LLM_PROXY_SECRET:-}" ] && AUTH_PROBE_ARGS+=(-H "X-IWE-Internal-Secret: ${LLM_PROXY_SECRET}")
+AUTH_PROBE_BODY='{"messages":[{"role":"user","content":"ping"}],"max_tokens":1,"verification_class":"trivial"}'
 AUTH_CODE=$(curl -s -o /dev/null -w '%{http_code}' -m 30 -X POST "${LLM_PROXY_URL}/v1/messages" \
-  "${AUTH_PROBE_ARGS[@]}" \
-  -d '{"messages":[{"role":"user","content":"ping"}],"max_tokens":1,"verification_class":"trivial"}' 2>/dev/null) || AUTH_CODE="000"
+  "${AUTH_PROBE_ARGS[@]}" -d "$AUTH_PROBE_BODY" 2>/dev/null) || AUTH_CODE="000"
 if [ "$AUTH_CODE" != "200" ]; then
-  tg_notify "🚨 Day Open aborted: LLM proxy on port $PROXY_PORT answers health but real calls fail (HTTP $AUTH_CODE) — stale credentials after key rotation? Restart the proxy."
-  abort "LLM Proxy authorized probe failed (HTTP $AUTH_CODE)"
+  if $PROXY_IS_LOCAL; then
+    # Self-heal (WP-484, found 2026-08-04): this probe first caught this failure mode
+    # on 2026-07-30 and has correctly fired on every recurrence since (2026-08-02 x3,
+    # 2026-08-04) -- but detection never had matching remediation, so the same
+    # process (confirmed 2026-08-04: same pid, 9 days uptime across all of the above)
+    # kept serving the stale credential until a human happened to restart it by hand.
+    # Kill the process holding the port and let launchd's KeepAlive respawn it fresh
+    # (re-sources the secrets file) -- same fix two independent peer-session
+    # diagnoses (2026-07-03, 2026-08-02) already landed on; retry the probe once
+    # before falling back to abort.
+    echo "  Authorized probe failed (HTTP $AUTH_CODE) — restarting local proxy and retrying once"
+    STALE_PIDS=$(lsof -ti :"$PROXY_PORT" 2>/dev/null || true)
+    for _pid in $STALE_PIDS; do kill "$_pid" 2>/dev/null || true; done
+    for _i in 1 2 3 4 5 6 7 8 9 10; do
+      sleep 2
+      curl -s "${LLM_PROXY_URL}/v1/health" 2>/dev/null | grep -q "ok" && break
+      echo "  Waiting for proxy respawn (attempt $_i/10)..."
+    done
+  else
+    # Remote gateway (WP-484 Ф48b, 04.08): no local process to kill -- Railway
+    # supervises its own restarts (railway.toml restartPolicyType=ON_FAILURE).
+    # A 401 here almost always means LLM_PROXY_SECRET is unset/wrong on this
+    # host (confirmed missing on tsekh-1 at cutover time), not a crashed
+    # process -- one short wait only covers a mid-deploy blip on Railway's side.
+    echo "  Authorized probe failed (HTTP $AUTH_CODE) on remote gateway — short wait and retry once"
+    sleep 5
+  fi
+  AUTH_CODE=$(curl -s -o /dev/null -w '%{http_code}' -m 30 -X POST "${LLM_PROXY_URL}/v1/messages" \
+    "${AUTH_PROBE_ARGS[@]}" -d "$AUTH_PROBE_BODY" 2>/dev/null) || AUTH_CODE="000"
+  if [ "$AUTH_CODE" != "200" ]; then
+    if $PROXY_IS_LOCAL; then
+      tg_notify "🚨 Day Open aborted: LLM proxy on port $PROXY_PORT still fails after restart (HTTP $AUTH_CODE) — credential itself is likely dead at the provider, needs manual rotation (WP-399), not just a process restart."
+    else
+      tg_notify "🚨 Day Open aborted: remote LLM proxy ($LLM_PROXY_URL) still fails (HTTP $AUTH_CODE) — check LLM_PROXY_SECRET on this host matches Railway's PROXY_SHARED_SECRET, or WP-399 key rotation."
+    fi
+    abort "LLM Proxy authorized probe failed after restart (HTTP $AUTH_CODE)"
+  fi
+  echo "  Proxy authorized probe OK after restart"
+else
+  echo "  Proxy authorized probe OK"
 fi
-echo "  Proxy authorized probe OK"
 
 # ============================================
 # 3. Scaffold
@@ -614,7 +670,8 @@ python3 "$IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/scripts/day-open-llm-fill.py" 
   --fleeting-notes "$IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/inbox/fleeting-notes.md" \
   --priorities "$IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/current/priorities.yaml" \
   --out "$DAYPLAN_PATH" \
-  --proxy-url "$LLM_PROXY_URL" 2> "$FILL_ERR_TMP" || FILL_EXIT=$?
+  --proxy-url "$LLM_PROXY_URL" \
+  --proxy-secret "$LLM_PROXY_SECRET" 2> "$FILL_ERR_TMP" || FILL_EXIT=$?
 cat "$FILL_ERR_TMP" >&2
 { echo "=== LLM Fill $(date '+%H:%M:%S') exit=$FILL_EXIT ==="; cat "$FILL_ERR_TMP"; } >> "$DAY_OPEN_LOG"
 if [ "$FILL_EXIT" -eq 2 ]; then
