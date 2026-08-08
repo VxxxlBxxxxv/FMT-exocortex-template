@@ -473,9 +473,9 @@ else
         -e "s|{{IWE_TEMPLATE}}|$IWE_TEMPLATE_PATH|g" \
         -e "s|{{IWE_RUNTIME}}|$IWE_RUNTIME_PATH|g" \
         "$WORKSPACE_DIR/CLAUDE.md"
-    # Save base copies for 3-way merge on future updates (substituted version)
+    # Workspace merge base is substituted. The template repo must never receive
+    # this copy: doing so publishes install paths when update.sh commits the fork.
     cp "$WORKSPACE_DIR/CLAUDE.md" "$WORKSPACE_DIR/.claude.md.base"
-    cp "$WORKSPACE_DIR/CLAUDE.md" "$TEMPLATE_DIR/.claude.md.base"  # legacy compat for update.sh
     echo "  Copied to $WORKSPACE_DIR/CLAUDE.md (+ merge base, substituted)"
 fi
 

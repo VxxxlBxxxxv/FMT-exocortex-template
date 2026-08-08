@@ -75,6 +75,38 @@ grep -q "$WP_ID" "$TMPDIR/strategy/docs/WP-REGISTRY.md" ||
 
 echo "✓ create-wp.sh works end-to-end against a fresh seed checkout ($WP_ID)"
 
+# issue #364: both shipped registries expose the writer's six-column schema,
+# and an existing four-column install is migrated without dropping Активация.
+for registry in \
+  "$TEMPLATE_ROOT/seed/strategy/docs/WP-REGISTRY.md" \
+  "$TEMPLATE_ROOT/templates/strategy-skeleton/docs/WP-REGISTRY.md"; do
+  grep -qE '^\| # \| P \| Название \| Ст \| Репо \| Бюджет \|' "$registry" ||
+    { echo "FAIL: non-canonical shipped registry schema: $registry" >&2; exit 1; }
+done
+
+LEGACY_STRATEGY="$TMPDIR/legacy-strategy"
+cp -R "$TEMPLATE_ROOT/seed/strategy" "$LEGACY_STRATEGY"
+cat > "$LEGACY_STRATEGY/docs/WP-REGISTRY.md" <<'EOF'
+# Legacy registry
+
+| # | Название | Статус | Активация |
+|---|----------|--------|-----------|
+| 7 | **Старый РП** | 🔄 | 2026-07-01: начат |
+EOF
+IWE_GOVERNANCE_REPO=legacy-strategy bash "$TEMPLATE_ROOT/scripts/create-wp.sh" \
+  --title "Legacy Migration Smoke" --budget 1h --priority P4 --no-consent-check \
+  >"$TMPDIR/legacy-create.out" 2>&1 || {
+    cat "$TMPDIR/legacy-create.out" >&2
+    echo "FAIL: create-wp.sh did not migrate a legacy registry" >&2
+    exit 1
+  }
+grep -qE '^\| # \| Название \| Статус \| Активация \| P \| Репо \| Бюджет \|' \
+  "$LEGACY_STRATEGY/docs/WP-REGISTRY.md" ||
+  { echo "FAIL: legacy registry did not gain canonical columns" >&2; exit 1; }
+grep -q '2026-07-01: начат' "$LEGACY_STRATEGY/docs/WP-REGISTRY.md" ||
+  { echo "FAIL: legacy Активация value was lost" >&2; exit 1; }
+echo "✓ Shipped registries are canonical; legacy schema migrates without data loss"
+
 # --- Part 2: setup.sh --dry-run against a full disposable copy of the template ---
 
 SETUP_TMP=$(mktemp -d)
