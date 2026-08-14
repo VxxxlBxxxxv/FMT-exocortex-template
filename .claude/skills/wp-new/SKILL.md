@@ -72,9 +72,9 @@ gates_rationale: "операционный скилл; WP Gate применим 
 
 Прочитай текущий бюджет недели из WeekPlan. Предупреди если превышение.
 
-## Шаг 4. Запись — запустить `scripts/create-wp.sh`
+## Шаг 4. Запись — запустить `$IWE_SCRIPTS/create-wp.sh`
 
-Все шаги ниже автоматизированы скриптом `scripts/create-wp.sh`. Скрипт пишет в 4 места:
+Все шаги ниже автоматизированы скриптом `$IWE_SCRIPTS/create-wp.sh`. Скрипт пишет в 4 места:
 
 1. **`inbox/WP-{N}/WP-{N}.md`** → context file (всегда папка — WP-434, см. INBOX-CONVENTION)
 2. **`docs/WP-REGISTRY.md`** → новая строка таблицы
@@ -92,7 +92,7 @@ gates_rationale: "операционный скилл; WP Gate применим 
 **Синтаксис скрипта:**
 ```bash
 touch ~/.claude/state/wp-consent-{N}   # WP Gate — обязательно перед запуском
-bash scripts/create-wp.sh \
+bash "$IWE_SCRIPTS/create-wp.sh" \
   --title "Название РП" \
   --budget 5h \
   --priority P2 \

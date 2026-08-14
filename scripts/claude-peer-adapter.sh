@@ -17,6 +17,16 @@
 
 set -euo pipefail
 
+# Claude Code can access its macOS Keychain credentials only outside Codex's
+# seatbelt. Running the adapter inside that sandbox produced intermittent blank
+# output that looked like success. A caller must use the approved external
+# route (`sandbox_permissions=require_escalated` in Codex); do not retry this
+# branch or ask the pilot to run /login.
+if [ "${CODEX_SANDBOX:-}" = "seatbelt" ]; then
+  echo "ERROR: Claude peer adapter must run outside the Codex sandbox to access macOS Keychain. Re-run through the approved external route; /login is not required." >&2
+  exit 69
+fi
+
 # CLAUDE_BIN auto-detect: env override → PATH → user-local fallbacks.
 # Системные пути (homebrew, /usr/local/bin) обычно в PATH и подхватываются через command -v.
 CLAUDE_BIN="${CLAUDE_BIN:-$(command -v claude 2>/dev/null || true)}"
@@ -45,7 +55,9 @@ MODEL_ARG=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -p)              shift ;;
-    --model)         MODEL_ARG=("--model" "$2"); shift 2 ;;
+    --model)
+      [ $# -ge 2 ] || { echo "ERROR: --model requires a value" >&2; exit 1; }
+      MODEL_ARG=("--model" "$2"); shift 2 ;;
     --add-dir)
       echo "ERROR: --add-dir is disabled for claude-peer-adapter.sh. Put a minimal text projection in stdin instead." >&2
       exit 64
@@ -54,7 +66,12 @@ while [[ $# -gt 0 ]]; do
       echo "ERROR: permission mode is fixed to dontAsk for claude-peer-adapter.sh." >&2
       exit 64
       ;;
-    *)               shift ;;
+    # WP-516 Ф5: неизвестный флаг — явная ошибка (§0в.1 whitelist: -p, --model,
+    # --add-dir; у claude --add-dir и --permission-mode запрещены отдельно, выше).
+    *)
+      echo "ERROR: unknown flag '$1'. Known: -p, --model" >&2
+      exit 1
+      ;;
   esac
 done
 
@@ -74,6 +91,33 @@ done
 #
 # perl alarm 300: 5-minute hard timeout, same as kimi-peer-adapter.sh.
 # On timeout: SIGALRM → exit 142 → caller sees exit≠0 + empty file → reports to pilot.
+#
+# WP-7 Ф64 (12.08, six independent reproductions across sessions, root-caused
+# live in WP-524 Ф3): the old default of 2 assumed one turn for internal
+# planning + one for delivery is always enough — DISPROVEN by direct bisection
+# against the exact failing prompt from sessions/2026-08/12/.../wp520-witness-
+# race-index-null/00-writer.md (recovered via git history, original session
+# files since archived): --max-turns 2 → "Reached max turns (2)"; --max-turns
+# 15 → still "Reached max turns (15)" after 77s; --max-turns 25 → succeeds in
+# ~54s with a full, on-topic multi-part answer. Also ruled out by the same
+# bisection: --allowedTools "" is NOT the cause (removing it reproduces the
+# identical failure) — the original "empty toolset confuses the model"
+# hypothesis (WP-7 Ф64 "Гипотеза") does not hold. The real bottleneck is turn
+# budget on multi-part diagnostic/structured prompts, not tool access or
+# content policy. Trivial prompts still exit in 1-2 turns (verified earlier in
+# Ф64) — raising the ceiling costs nothing on the easy path.
+CLAUDE_PEER_MAX_TURNS="${CLAUDE_PEER_MAX_TURNS:-40}"
+case "$CLAUDE_PEER_MAX_TURNS" in
+  ''|*[!0-9]*)
+    echo "ERROR: CLAUDE_PEER_MAX_TURNS must be a positive integer." >&2
+    exit 64
+    ;;
+esac
+[ "$CLAUDE_PEER_MAX_TURNS" -ge 2 ] || {
+  echo "ERROR: CLAUDE_PEER_MAX_TURNS must be at least 2 to reserve a response turn." >&2
+  exit 64
+}
+
 CLAUDE_STDERR="$(mktemp)"
 trap 'rm -f "$CLAUDE_STDERR"' EXIT
 
@@ -82,7 +126,7 @@ CLAUDE_OUTPUT=$(perl -e 'alarm 300; exec @ARGV' -- \
   --safe-mode \
   --allowedTools "" \
   --permission-mode dontAsk \
-  --max-turns 1 \
+  --max-turns "$CLAUDE_PEER_MAX_TURNS" \
   --no-session-persistence \
   ${MODEL_ARG[@]+"${MODEL_ARG[@]}"} \
   "$@" 2>"$CLAUDE_STDERR") && CLAUDE_EXIT=0 || CLAUDE_EXIT=$?
@@ -103,7 +147,9 @@ if grep -qE "$AUTH_PATTERN" "$CLAUDE_STDERR" 2>/dev/null || \
     echo "--- claude stderr (tail) ---" >&2
     tail -20 "$CLAUDE_STDERR" >&2
   fi
-  exit 4
+  # WP-516 Ф5: канонический код 6 = auth failure (§0в.1); ранее был 4,
+  # что конфликтовало с фактическим «add-dir error» у kimi/codex-адаптеров.
+  exit 6
 fi
 
 if [ "$CLAUDE_EXIT" -ne 0 ]; then
@@ -112,10 +158,28 @@ if [ "$CLAUDE_EXIT" -ne 0 ]; then
   exit "$CLAUDE_EXIT"
 fi
 
-if [ -z "$CLAUDE_OUTPUT" ]; then
-  echo "ERROR: Claude peer call returned no response." >&2
+if ! printf '%s' "$CLAUDE_OUTPUT" | grep -q '[[:alnum:]]'; then
+  echo "ERROR: Claude peer call returned no substantive response." >&2
   [ -s "$CLAUDE_STDERR" ] && tail -20 "$CLAUDE_STDERR" >&2
-  exit 5
+  # WP-516 Ф5: канонический код 7 = empty response after trimming (§0в.1);
+  # ранее был 5, что переопределяло каноническое «pidfile lock».
+  exit 7
+fi
+
+# WP-516 Ф5 (§0в.1): stdout обязан начинаться с frontmatter; ответ без
+# frontmatter = нарушение формата → exit 1 с диагностикой.
+# Проверка — для peer-реплик turn-loop. Служебные вызовы писателя
+# (review/verify/synth), чей вывод — НЕ peer-реплика, отключают её
+# через IWE_PEER_PLAIN=1 (слой IWE-интеграции, §0в.1).
+if [ "${IWE_PEER_PLAIN:-0}" != "1" ]; then
+  # awk одним процессом: 'sed | head' под pipefail ловит SIGPIPE на длинной
+  # валидной реплике и роняет адаптер без диагностики (review-02, WP-516 Ф5).
+  _FIRST_LINE=$(printf '%s\n' "$CLAUDE_OUTPUT" | awk 'length { print; exit }')
+  _FM_FENCES=$(printf '%s\n' "$CLAUDE_OUTPUT" | grep -c '^---$' || true)
+  if [ "$_FIRST_LINE" != "---" ] || [ "${_FM_FENCES:-0}" -lt 2 ]; then
+    echo "ERROR: peer response missing frontmatter (first non-empty line must be '---' with a closing '---')." >&2
+    exit 1
+  fi
 fi
 
 printf '%s\n' "$CLAUDE_OUTPUT"
