@@ -27,7 +27,14 @@ set -uo pipefail
 # Load unified environment: WORKSPACE_DIR, IWE_ROOT, IWE_SCRIPTS, etc.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_SCRIPTS_DIR="$SCRIPT_DIR"
-source "$TEMPLATE_SCRIPTS_DIR/lib/common.sh"
+# issue #455: a stale promoted copy without lib/ next to it used to degrade
+# silently (set -uo pipefail, no -e) — every path resolved to root, and the
+# scheduler-state check quietly took the wrong branch for three weeks before
+# anyone noticed. Missing the library is fatal now, not a silent no-op.
+source "$TEMPLATE_SCRIPTS_DIR/lib/common.sh" || {
+    echo "FATAL: lib/common.sh not found next to $0 — промотированная копия устарела, обновите её вместе с шаблоном" >&2
+    exit 1
+}
 # issue #329: old fallback assumed $SCRIPT_DIR/.. is always the workspace root —
 # false for a promoted copy at <governance-repo>/scripts/, which doubled the repo
 # name into every path. iwe_resolve_root() uses env-var precedence instead of
@@ -106,11 +113,29 @@ YDAY_MONTH_RU="${MONTH_NAMES[$YDAY_MNUM]}"
 # fields and cannot occur in a meaningful config value.
 _YAML_KEYS=()
 _YAML_VALS=()
-if [ -f "$CONFIG" ] && command -v python3 >/dev/null 2>&1; then
+# Cold review 2026-08-19 (Codex, Critical): under `set -u`, referencing
+# _RESOLVED_PYTHON3 below when $CONFIG is absent (the "no config" branch never
+# runs, so the variable is never assigned) crashed the whole script instead of
+# the intended silent-empty-arrays fallback. Initialized unconditionally here,
+# before the config check, so it's always defined either way.
+_RESOLVED_PYTHON3=""
+if [ -f "$CONFIG" ]; then
+  # WP-529 (continuation, 19.08): the F6 shared resolver (scripts/lib/find-python3.sh)
+  # is invoked here, inside the existing [ -f "$CONFIG" ] guard, not at script
+  # top-level — this branch is already conditional on the config existing, and a
+  # top-level resolve would run PyYAML detection even for invocations that never
+  # reach a yaml-dependent path (peer-session 2026-08-19-29, codex turn 1: lazy
+  # placement, not unconditional). No bare-python3 fallback on resolver failure:
+  # the resolver's own first candidate IS bare `python3` from PATH — if it
+  # still failed, PATH's python3 already lacks yaml too, so falling back to it
+  # would just reproduce the exact defect this migration fixes.
+  _RESOLVED_PYTHON3=$("$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/find-python3.sh" 2>/dev/null) || _RESOLVED_PYTHON3=""
+fi
+if [ -n "$_RESOLVED_PYTHON3" ]; then
   while IFS=$'\x1f' read -r k v; do
     _YAML_KEYS+=("$k")
     _YAML_VALS+=("$v")
-  done < <(python3 -c "
+  done < <("$_RESOLVED_PYTHON3" -c "
 import yaml, sys
 
 def flatten(d, prefix=''):
@@ -1073,11 +1098,17 @@ render_yesterday() {
     # Fallback: сканировать sessions напрямую за вчера если DayReport отсутствует
     local sessions_dir="$IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/sessions"
     local found=0
+    # WP-529 (continuation, 19.08): resolved once here, not inside the loop —
+    # this whole branch only runs when DayReport is missing (rare fallback), and
+    # resolving once before iterating avoids re-running find-python3.sh's full
+    # candidate walk on every session_dir.
+    local _resolved_python3
+    _resolved_python3=$("$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/find-python3.sh" 2>/dev/null) || _resolved_python3=""
     for session_dir in "$sessions_dir/${YDAY:0:7}"/${YDAY}-*/; do
       [ -d "$session_dir" ] || continue
-      if [ -f "$session_dir/meta.yaml" ]; then
+      if [ -f "$session_dir/meta.yaml" ] && [ -n "$_resolved_python3" ]; then
         local wp_id
-        wp_id=$(python3 -c "import yaml; d=yaml.safe_load(open('$session_dir/meta.yaml')); print(d.get('task_id','') or '')" 2>/dev/null)
+        wp_id=$("$_resolved_python3" -c "import yaml; d=yaml.safe_load(open('$session_dir/meta.yaml')); print(d.get('task_id','') or '')" 2>/dev/null)
         if [ -n "$wp_id" ]; then
           echo "- $wp_id"
           found=1

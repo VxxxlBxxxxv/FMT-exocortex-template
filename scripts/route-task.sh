@@ -41,11 +41,17 @@ die() {
 
 warn() { echo "WARN: $*" >&2; }
 
+# Evgenii Red Team review 2026-08-19 (defect #5): this used to probe bare
+# `python3` directly instead of the shared resolver every other PyYAML
+# consumer switched to in F6 (#453/#463) — on Apple Silicon the resolver
+# finds the Homebrew python3 with PyYAML while PATH's own `python3` can be
+# a different, yaml-less interpreter, so this script reported "PyYAML not
+# found" on machines where it was actually available. RESOLVED_PYTHON3 is set
+# once here and reused by every `python3 -` call below instead of each one
+# deriving its own bare `python3`.
+RESOLVER="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/find-python3.sh"
 require_python() {
-    if ! command -v python3 &>/dev/null; then
-        die "python3 not found — required for catalog lookup" 1
-    fi
-    if ! python3 -c "import yaml" &>/dev/null; then
+    if ! RESOLVED_PYTHON3=$("$RESOLVER"); then
         die "PyYAML not found — required for catalog lookup (pip install pyyaml)" 1
     fi
 }
@@ -102,7 +108,7 @@ lookup_skill() {
     local skill_name="$1"
     require_python
     require_catalog
-    python3 - "$CATALOG" "$skill_name" << 'PYEOF'
+    "$RESOLVED_PYTHON3" - "$CATALOG" "$skill_name" << 'PYEOF'
 import sys, yaml
 
 catalog_path, skill_name = sys.argv[1], sys.argv[2]
@@ -314,7 +320,7 @@ dispatch_skill() {
 show_list() {
     require_python
     require_catalog
-    python3 - "$CATALOG" << 'PYEOF'
+    "$RESOLVED_PYTHON3" - "$CATALOG" << 'PYEOF'
 import sys, yaml
 
 with open(sys.argv[1]) as f:
@@ -342,7 +348,7 @@ PYEOF
 validate_catalog() {
     require_python
     require_catalog
-    python3 - "$CATALOG" << 'PYEOF'
+    "$RESOLVED_PYTHON3" - "$CATALOG" << 'PYEOF'
 import sys, yaml
 
 VALID = {"script", "haiku", "sonnet", "opus", "mcp-direct"}
