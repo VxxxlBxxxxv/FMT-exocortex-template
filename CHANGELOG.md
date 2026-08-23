@@ -138,6 +138,36 @@ Refs: WP-NNN
 
 
 
+
+
+
+
+
+## [0.38.7] — 2026-08-22
+### Added
+- `90fa53b` feat(day-open): ship a default day-open.checks.md — the Checks step must have something to run on a fresh install (WP-529 F7) (#509)
+- `4500dda` feat(day-open): контракт доставки Day Open графа (WP-529 Ф7) + un-red main (Ф4 tests) (#504)
+- `9fa32ce` feat(week-close): проактивный сторож каденции архивации карточек (WP-545 Ф3)
+- `86a1c01` feat(day-close): чек-лист — синхронизация рабочих копий ↔ GitHub кроме живых сессий (поручение пилота 21.08)
+- `a16106a` feat(hooks): git add -A/-u/. guard in destructive-guard.sh (WP-544 Ф1 Д5) (#497)
+- `f6d4132` feat(hooks): расширить защиту от необратимых действий (WP-544 Ф1) (#495)
+- `8112b1a` feat(update.sh): параллелизация скачивания манифеста + skip-if-hash-matches
+### Fixed
+- update.sh: доставка update.sh — только самообновлением Шага 0 (issue #505: cp затирал работающий скрипт, подстановка запекала личные пути в его sed-шаблоны); канал резолвится ДО самообновления; deprecated_files не может пересекаться с git-деревом (10 живых файлов удалялись после no-change update); релизная цепочка замкнута (анти-рекурсия workflow_run), дайджест анонсирует только существующие теги; Bash 3.2 фиксы тестовой обвязки (эта запись — PR #511)
+- `621e5ba` fix(release): bump commit now syncs the README badge and rebuilds the manifest — weekly release can go green without a manual follow-up (WP-529) (#510)
+- `de34d6d` fix(wp545): решения пилота по находкам 1 и 3 (хвост 5/5 приложения)
+- `9630b5a` fix(wp545): починить счётчик в r-questionnaire.md (хвост 5/5, находка 2)
+- `c8d20e8` fix(update.sh): закрыть 2 тестовых долга ревью параллелизации (WP-546 Ф5)
+- `7996b69` fix(update.sh): 5 находок независимого ревью параллелизации (WP-546 Ф4)
+- `e129754` fix(session-guard): select_semaphore() -- строгая конъюнкция wp+slug
+- `d0f9a4d` fix(wp529): Ф9 — python3-resolver contract + bash 3.2 compat (2 confirmed sites) (#494)
+- `52a5189` fix(update): shellcheck-safe comment + real unbound-variable bug it caught
+- `7fd3837` fix(update): restore integrity-mismatch message + fix curl shim for -K batch mode
+- `0958b5f` test(wp529): fail-closed tests for update.sh parallel fetch (Ф4)
+- `68d8d88` fix(day-open,calendar,manifest): closes #477, #489, #486
+### Changed
+- `7566a1d` chore(release): weekly auto-bump to v0.38.7
+
 ## [0.38.6] — 2026-08-20
 
 ### Added

@@ -275,6 +275,43 @@ extract_strategy_context() {
   echo "не найден"
 }
 
+# issue #477: mandatory_daily_wps used to be a plain instruction line telling
+# the LLM to "apply" the config key — an LLM reading day-rhythm-config.yaml
+# can't distinguish a commented-out example from an active setting, so the
+# example in the shipped config (still commented out on a fresh install) was
+# read as if active. This extractor uses the same PyYAML resolver as
+# read_yaml() above (_RESOLVED_PYTHON3), so a commented key is invisible to
+# it exactly like every other read_yaml() call — nothing LLM-interpreted.
+# List-of-objects shape (wp+min_minutes / category+min_count) doesn't fit
+# read_yaml()'s flatten(), hence a dedicated extractor rather than reuse.
+extract_mandatory_daily_wps() {
+  if [ -z "$_RESOLVED_PYTHON3" ]; then
+    echo ""
+    return 0
+  fi
+  "$_RESOLVED_PYTHON3" -c "
+import yaml, sys
+try:
+    with open('$CONFIG') as f:
+        d = yaml.safe_load(f) or {}
+    items = d.get('mandatory_daily_wps') or []
+    for item in items:
+        if not isinstance(item, dict):
+            print(f'skip: not a dict: {item!r}', file=sys.stderr)
+            continue
+        if 'wp' in item:
+            print(f\"WP-{item['wp']} (min {item.get('min_minutes', '?')} мин)\")
+        elif 'category' in item:
+            print(f\"категория «{item['category']}» (min {item.get('min_count', '?')} шт.)\")
+        else:
+            print(f'skip: neither wp nor category key: {item!r}', file=sys.stderr)
+except Exception as e:
+    # Same explicit-sentinel principle as read_yaml() above (bug-2026-06-05 class):
+    # a parse failure must not look identical to "key legitimately absent".
+    print(f'extract_mandatory_daily_wps: config read failed: {e}', file=sys.stderr)
+"
+}
+
 read_morning_priorities() {
   local prio_file="$IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/current/priorities.yaml"
 
@@ -1240,6 +1277,7 @@ SWEEP_WP_LIST=$(echo "$SWEEP_WP_FULL" \
 DAY_CLOSE_CARRY_OVER=$(extract_day_close_carry_over "$YDAY" | sed 's/^/  /')
 STRATEGY_CONTEXT=$(extract_strategy_context "$WEEK_NUM" | sed 's/^/  /')
 MORNING_PRIORITIES=$(read_morning_priorities | sed 's/^/  /')
+MANDATORY_DAILY_WPS=$(extract_mandatory_daily_wps 2>/dev/null)
 
 # Captured once (not inlined via $(...) in the heredoc below) so render_attention()
 # can read the same rendered text later without re-running server-news.sh a second
@@ -1289,7 +1327,7 @@ $SELF_DEV_BLOCK
 ЗАПРЕЩЕНО: включать в план РП, закрытые вчера (есть в «закрыто вчера» + ✅ в REGISTRY). Например, WP-362 закрыт — его нет в плане.
 
 После priorities.yaml — дополнить из carry-over и SWEEP_WP_LIST теми РП, которых нет в priorities.yaml и которые ещё open.
-Применить mandatory_daily_wps + daily_checkpoint_wps из day-rhythm-config.yaml.
+Каждый РП из «Обязательные ежедневные РП» ниже (если секция не пуста) ОБЯЗАН быть в таблице — источник уже разрешён детерминированно, не текстом конфига.
 KE-строка: bash $TEMPLATE_SCRIPTS_DIR/ke-queue-stats.sh --dayplan-row (реальный бюджет, не литерал «1h»).
 Active WPs to include (из sweep + WeekPlan union): $SWEEP_WP_LIST
 -->
@@ -1299,6 +1337,9 @@ ${MORNING_PRIORITIES:-  (не задано — обнови current/priorities.y
 
 **Стратегические приоритеты (из Strategy Session W${WEEK_NUM}):**
 ${STRATEGY_CONTEXT:-не найдены}
+
+**Обязательные ежедневные РП (mandatory_daily_wps):**
+${MANDATORY_DAILY_WPS:-  (не задано — day-rhythm-config.yaml не содержит активного ключа mandatory_daily_wps)}
 
 | 🚦 | ТВС | # | РП | h | Статус |
 |----|-----|---|-----|---|--------|

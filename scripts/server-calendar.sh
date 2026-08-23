@@ -14,7 +14,8 @@
 # Требует:
 #   env: GOOGLE_REFRESH_TOKEN, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 #   или файл ~/.secrets/google-calendar (строки KEY=VALUE)
-#   config: day-rhythm-config.yaml → calendar_ids
+#   config: day-rhythm-config.yaml → calendar_ids (пустой список = все
+#     доступные календари через calendarList, отсутствующий ключ = ошибка)
 #
 # Использование:
 #   bash server-calendar.sh YYYY-MM-DD [CONFIG_PATH]
@@ -90,22 +91,79 @@ if [[ -z "$ACCESS_TOKEN" ]]; then
 fi
 
 # --- Читаем calendar_ids из конфига ---
-CALENDAR_IDS=$($PYTHON3 -c "
+# issue #489: пустой calendar_ids документирован как "все доступные календари",
+# не как "не настроено" — sentinel различает отсутствие ключа (MISSING) от
+# явного пустого списка (пустой stdout, но не MISSING).
+CONFIG_READ=$($PYTHON3 -c "
 import yaml, sys
 try:
-    with open('$CONFIG') as f: d = yaml.safe_load(f)
-    ids = d.get('calendar_ids') or d.get('day_open', {}).get('calendar_ids', [])
+    with open('$CONFIG') as f: d = yaml.safe_load(f) or {}
+    if 'calendar_ids' in d:
+        ids = d.get('calendar_ids')
+    elif 'calendar_ids' in d.get('day_open', {}):
+        ids = d['day_open']['calendar_ids']
+    else:
+        print('MISSING')
+        sys.exit(0)
     for cid in (ids or []):
         print(cid)
 except Exception as e:
     print(f'server-calendar: config read failed: {e}', file=sys.stderr)
+    print('MISSING')
 ")
 
-if [[ -z "$CALENDAR_IDS" ]]; then
-  echo "📅 **Календарь ($DATE):** ⚠️ PENDING — calendar_ids не найдены в конфиге ($CONFIG)"
+if [[ "$CONFIG_READ" == "MISSING" ]]; then
+  echo "📅 **Календарь ($DATE):** ⚠️ PENDING — ключ calendar_ids отсутствует в конфиге ($CONFIG)"
   echo ""
   echo "⏱ Свободных блоков ≥1h: **не определено**"
   exit 0
+fi
+
+CALENDAR_IDS="$CONFIG_READ"
+
+if [[ -z "$CALENDAR_IDS" ]]; then
+  # Пустой список = документированное "все доступные календари" (day-rhythm-config.yaml
+  # комментарий), не ошибка конфигурации — запрашиваем полный список у Google.
+  CALENDAR_IDS=$($PYTHON3 << PYEOF
+import subprocess, urllib.parse, json, sys
+access_token = "${ACCESS_TOKEN}"
+url = "https://www.googleapis.com/calendar/v3/users/me/calendarList"
+page_token = ""
+ids = []
+while True:
+    params = "minAccessRole=reader"
+    if page_token:
+        params += f"&pageToken={urllib.parse.quote(page_token)}"
+    result = subprocess.run(
+        ["curl", "-s", "-H", f"Authorization: Bearer {access_token}", f"{url}?{params}"],
+        capture_output=True, text=True, timeout=15
+    )
+    if result.returncode != 0:
+        print(f"server-calendar: calendarList curl failed: {result.stderr}", file=sys.stderr)
+        break
+    try:
+        data = json.loads(result.stdout)
+    except Exception as e:
+        print(f"server-calendar: calendarList parse failed: {e}", file=sys.stderr)
+        break
+    if "error" in data:
+        print(f"server-calendar: calendarList API error: {data['error'].get('message', data['error'])}", file=sys.stderr)
+        break
+    for item in data.get("items", []):
+        ids.append(item["id"])
+    page_token = data.get("nextPageToken", "")
+    if not page_token:
+        break
+for cid in ids:
+    print(cid)
+PYEOF
+  )
+  if [[ -z "$CALENDAR_IDS" ]]; then
+    echo "📅 **Календарь ($DATE):** ⚠️ PENDING — calendar_ids пуст (все доступные календари), но автоопределение через calendarList не вернуло ни одного календаря"
+    echo ""
+    echo "⏱ Свободных блоков ≥1h: **не определено**"
+    exit 0
+  fi
 fi
 
 # --- Временной диапазон ---
