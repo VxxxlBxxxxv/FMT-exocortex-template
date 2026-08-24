@@ -131,6 +131,10 @@ SETUP_EXPLICIT_INCLUDE=(
 # real release would have shipped a template without its own test gate and
 # nobody would have noticed until a user hit the bug the gate exists to catch.
 SCRIPT_CONTRACT_EXPLICIT_INCLUDE=(
+    # 2026-08-23 (v0.38.7 матрица, находка 4): check-python-resolver-contract.sh
+    # доставляется, а его обязательный baseline сидел в excluded — на установке
+    # строго из манифеста сторож падал rc=2. Ratchet-снимок — часть поставки.
+    "scripts/tests/fixtures/python-resolver-baseline.txt"
     "scripts/tests/test_create_wp_registry_coherence.sh"
     "scripts/tests/test_check_orphan_hooks.sh"
     "scripts/tests/test_capture_bus_detector_timeout.sh"
@@ -313,9 +317,15 @@ delivered_now = {e['path'] for e in data['files']}
 # git HEAD ships with every fresh clone — deprecating it makes update.sh
 # delete what the canon still distributes, leaving clones with tracked
 # deletions. Deprecated may only list paths git no longer carries.
-tracked_now = set(subprocess.run(
+# 2026-08-22 (Codex peer-review): git ls-files без проверки кода возврата —
+# при сбое git tracked_now молча становился пустым, и фильтр «deprecated ∩
+# дерево» деградировал fail-open. Сбой git = отказ генерации (fail-closed).
+_ls = subprocess.run(
     ['git', 'ls-files'], capture_output=True, text=True, cwd='$SCRIPT_DIR'
-).stdout.splitlines())
+)
+if _ls.returncode != 0:
+    sys.exit('generate-manifest: git ls-files failed: ' + _ls.stderr.strip())
+tracked_now = set(_ls.stdout.splitlines())
 kept, dropped = [], []
 for entry in data['deprecated_files']:
     (dropped if entry.get('path') in delivered_now or entry.get('path') in tracked_now else kept).append(entry)

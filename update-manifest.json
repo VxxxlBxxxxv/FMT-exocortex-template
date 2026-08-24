@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "version": "0.38.7",
+  "version": "0.38.8",
   "description": "Манифест платформенных файлов FMT-exocortex-template. Используется update.sh для доставки обновлений.",
   "files": [
     {
@@ -657,7 +657,7 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "3e23c9ca0b8b46d8bb5f9c98a5ced1f27ca94516ac80a06da9616408c6b4e1ad"
+      "sha256": "4e95705bf3606c4d63027a9f2b30a6ebbc7d141410e736a478afa5bbfd849d82"
     },
     {
       "path": "CLAUDE.md",
@@ -985,7 +985,7 @@
     },
     {
       "path": "generate-manifest.sh",
-      "sha256": "dcb50518ecd9a13491d87f8f2bf060f1e8b2f84007e7c753aad0764c710cc961"
+      "sha256": "08dab8e3387acc51f14d8d1f02ba1f86ade86970700e5367e442423042a54a70"
     },
     {
       "path": "guide-kit/.gitignore",
@@ -2392,6 +2392,10 @@
       "sha256": "f2ae015d394a447778e1ed75ecfa16d80fe98e1164655b3431940c7e783d206c"
     },
     {
+      "path": "scripts/tests/fixtures/python-resolver-baseline.txt",
+      "sha256": "6f1c7bd4afdcc899d875cc162e66b418bcacdbe356836ce56676e0b541afc94f"
+    },
+    {
       "path": "scripts/tests/lib/capture_fixture.sh",
       "sha256": "edf6eba925d890e2aa52541be8fff27fb48ab11f5c7c69a8a3b1b001408978cd"
     },
@@ -2525,7 +2529,7 @@
     },
     {
       "path": "scripts/tests/test_update_build_runtime_fail_closed.sh",
-      "sha256": "cf3d6a0132c4265691f22adfb49f405e378161ee3029c41d5ce59d2d7139fc73"
+      "sha256": "69cb3b529071b3612e9a9224c4a2ac5698e35aa2e1ce78a26241c7da9c9ac926"
     },
     {
       "path": "scripts/tests/test_update_delivers_python_resolver_before_roles.sh",
@@ -2577,7 +2581,7 @@
     },
     {
       "path": "scripts/verify-manifest.sh",
-      "sha256": "613546c9b12201bd1bac9fef97c159586bdf08cb7fd947d93ed50856196c557a"
+      "sha256": "224777b7b735b0b1be3048957b10738cd4eefb88dd30fbced42322c7d223747d"
     },
     {
       "path": "scripts/week-draft-append.sh",
@@ -2605,7 +2609,7 @@
     },
     {
       "path": "setup.sh",
-      "sha256": "e73a22e88b5f4150a43938d48e6b5024fddfb7fa7e9c640e9d9dee02c42c1a70"
+      "sha256": "0b1a77f34d84bba032b11875e3de043dd49b37b2b1bfb231bb13081f31d60090"
     },
     {
       "path": "setup/build-runtime.sh",
@@ -2645,7 +2649,7 @@
     },
     {
       "path": "update.sh",
-      "sha256": "632590a53e7e297d62ef687eac310c8ce9fca7ed67f088bc9f8202da595d1f12"
+      "sha256": "084f5b44c007db2f5dfb75bf4c47dc2667bf942fa8fd522a7b4d080613616cff"
     }
   ],
   "excluded_paths": [
@@ -2670,7 +2674,6 @@
     "scripts/iwe-trace.py",
     "scripts/session-dispatcher-tsekh.py",
     "scripts/tests/conftest.py",
-    "scripts/tests/fixtures/python-resolver-baseline.txt",
     "scripts/tests/lib/extract-update-download-batch.sh",
     "scripts/tests/test_agent_dashboard.py",
     "scripts/tests/test_copy_to_aisystant.py",
@@ -2687,6 +2690,7 @@
     "scripts/tests/test_pending_phases_sweep.sh",
     "scripts/tests/test_release_receipt.sh",
     "scripts/tests/test_residency_gate_skill_adapter.py",
+    "scripts/tests/test_setup_runtime_isolation.sh",
     "scripts/tests/test_skill_promote.py",
     "scripts/tests/test_translate_delta.py",
     "scripts/tests/test_translate_parse.py",
@@ -2723,6 +2727,7 @@
     "setup/test-update-issue-226.sh",
     "setup/test-update-release-channel.sh",
     "setup/test-update-self-overwrite.sh",
+    "setup/test-update-step0-staged-rename.sh",
     "setup/ux-walkthrough-prompt.md"
   ],
   "deprecated_files": [

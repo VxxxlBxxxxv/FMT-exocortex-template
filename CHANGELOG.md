@@ -143,6 +143,12 @@ Refs: WP-NNN
 
 
 
+## [0.38.8] — 2026-08-23
+### Fixed
+- `8364a30` fix(update,setup): fail-closed release channel (#501), Step 0 double negative control, resolver-baseline delivery, IWE_RUNTIME isolation (WP-529 F13, v0.38.7 matrix) (#519)
+- `c36bd90` fix(release,manifest): pin release tag to the validated SHA; fail-closed manifest verification (post-v0.38.7 peer review) (#518)
+- `fdd7a55` fix(update): Step 0 self-update replaces the running script via staged rename, not cp (issue #505 residual) (#517)
+
 ## [0.38.7] — 2026-08-22
 ### Added
 - `90fa53b` feat(day-open): ship a default day-open.checks.md — the Checks step must have something to run on a fresh install (WP-529 F7) (#509)
