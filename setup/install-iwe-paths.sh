@@ -65,6 +65,7 @@ cat > "$IWE_ENV_FILE" <<IWEENV_EOF
 # Do not edit manually — changes will be lost.
 
 export IWE_WORKSPACE="$WORKSPACE_DIR"
+export IWE_ROOT="\$IWE_WORKSPACE"
 export IWE_TEMPLATE="\$IWE_WORKSPACE/FMT-exocortex-template"
 export IWE_SCRIPTS="\$IWE_TEMPLATE/scripts"
 export IWE_ROLES="\$IWE_TEMPLATE/roles"
@@ -73,6 +74,17 @@ export IWE_GOVERNANCE_REPO="$GOVERNANCE_REPO"
 IWEENV_EOF
 
 $QUIET || echo "  ✓ $IWE_ENV_FILE written (workspace=$WORKSPACE_DIR)"
+
+# WP-529 Ф94 (peer-session 2026-09-08-32): $HOME/.iwe-paths was the ORIGINAL
+# canonical file (Round 5, pre-WP-219) before the source-of-truth moved to
+# $WORKSPACE_DIR/.iwe-paths above. Installs from that era can still have a
+# real (non-symlink) file there that nothing regenerates or reads anymore —
+# flag it so custom edits to it don't silently stop mattering unnoticed.
+LEGACY_IWE_PATHS="$HOME/.iwe-paths"
+if [ -f "$LEGACY_IWE_PATHS" ] && [ ! -L "$LEGACY_IWE_PATHS" ] && [ "$LEGACY_IWE_PATHS" != "$IWE_ENV_FILE" ]; then
+    $QUIET || echo "  ⚠ Найден устаревший $LEGACY_IWE_PATHS (до WP-219) — больше не читается ни одним скриптом."
+    $QUIET || echo "    Актуальный файл: $IWE_ENV_FILE. Проверьте $LEGACY_IWE_PATHS на предмет ручных правок и удалите его вручную."
+fi
 
 # Replace both the legacy $HOME/.iwe-paths one-liner and any older managed
 # block. Marker presence alone is not proof that it sources this workspace.

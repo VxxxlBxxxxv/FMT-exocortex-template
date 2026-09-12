@@ -59,9 +59,21 @@ REPO_DIR="$(dirname "$SCRIPT_DIR")"
 WORKSPACE="${IWE_WORKSPACE:-$HOME/IWE}/${IWE_GOVERNANCE_REPO:-DS-strategy}"
 
 # Guard: IWE_GOVERNANCE_REPO mismatch (Claude peer-review, 2026-05-26)
-EXPECTED_GOV=$(grep 'IWE_GOVERNANCE_REPO=' "$HOME/.iwe-paths" 2>/dev/null | sed 's/.*="//;s/"$//' || echo "DS-strategy")
+# WP-529 Ф94 (peer-session 2026-09-08-32, Evgenii's report): $HOME/.iwe-paths
+# is a legacy path install-iwe-paths.sh stopped writing (canonical file is
+# $WORKSPACE_DIR/.iwe-paths, see WORKSPACE above). Read the current path, and
+# read it without a pipe: `grep|sed || echo` masked grep's exit code behind
+# sed's (sed exits 0 on empty stdin), so the "|| echo DS-strategy" fallback
+# never fired and EXPECTED_GOV silently ended up empty instead.
+IWE_PATHS_FILE="${IWE_WORKSPACE:-$HOME/IWE}/.iwe-paths"
+# `|| true` guards against awk's own exit code (e.g. file not found) tripping
+# `set -e` on this assignment — not a pipe, so no exit-code-masking risk;
+# the value fallback below is the actual default, this only keeps the script
+# alive to reach it.
+EXPECTED_GOV=$(awk -F'"' '/^export IWE_GOVERNANCE_REPO=/{print $2; exit}' "$IWE_PATHS_FILE" 2>/dev/null || true)
+EXPECTED_GOV="${EXPECTED_GOV:-DS-strategy}"
 if [ "${IWE_GOVERNANCE_REPO:-}" ] && [ "$IWE_GOVERNANCE_REPO" != "$EXPECTED_GOV" ]; then
-    echo "WARN: IWE_GOVERNANCE_REPO=$IWE_GOVERNANCE_REPO, expected $EXPECTED_GOV (from ~/.iwe-paths)" >&2
+    echo "WARN: IWE_GOVERNANCE_REPO=$IWE_GOVERNANCE_REPO, expected $EXPECTED_GOV (from $IWE_PATHS_FILE)" >&2
 fi
 
 # WP-529 F6 (Evgenii post-update defect #1, 18.08): update.sh reinstalls
@@ -307,8 +319,39 @@ acquire_lock() {
 }
 
 # Читаем strategy_day из конфига (L4 Personal)
-RHYTHM_CONFIG="$HOME/.claude/projects/-Users-$(whoami)-IWE/memory/day-rhythm-config.yaml"
-STRATEGY_DAY_NAME=$(grep 'strategy_day:' "$RHYTHM_CONFIG" 2>/dev/null | awk '{print $2}' || echo "monday")
+# issue #729: раньше единственным источником был auto-memory Claude Code по
+# литеральному пути "-Users-$(whoami)-IWE" — ломается молча, если workspace
+# не буквально ~/IWE (симлинк или другой путь на Linux/WSL), а fallback на
+# monday ничем не сигнализировал об ошибке. Governance-репо копия — тот же
+# источник, что уже читают day-open-scaffold.sh и server-calendar.sh, и она
+# не зависит от workspace-пути. Функция вынесена отдельно ради регрессионного
+# теста (scripts/tests/test_issue_729_rhythm_config_resolve.sh).
+resolve_rhythm_config() {
+    local ws="$1" iwe_workspace="$2"
+    local rhythm_config="$ws/exocortex/day-rhythm-config.yaml"
+    if [ ! -f "$rhythm_config" ]; then
+        # Fallback: auto-memory Claude Code, путь выводим из РЕАЛЬНОГО workspace
+        # (pwd -P разворачивает симлинки), не из literal "~/IWE".
+        local ws_real
+        ws_real="$(cd "${iwe_workspace:-$HOME/IWE}" 2>/dev/null && pwd -P || true)"
+        if [ -n "$ws_real" ]; then
+            # tr '/_.' '-', не sed 's#/#-#g': Claude Code слугифицирует путь,
+            # заменяя на "-" также "_" и "." (см. memory-exocortex-sync.sh) —
+            # sed-only вариант молча ломался бы для workspace-путей с "." или "_".
+            local ws_slug
+            ws_slug="$(printf '%s' "$ws_real" | tr '/_.' '-')"
+            rhythm_config="$HOME/.claude/projects/${ws_slug}/memory/day-rhythm-config.yaml"
+        fi
+    fi
+    printf '%s\n' "$rhythm_config"
+}
+
+RHYTHM_CONFIG="$(resolve_rhythm_config "$WORKSPACE" "${IWE_WORKSPACE:-}")"
+STRATEGY_DAY_NAME=$(grep 'strategy_day:' "$RHYTHM_CONFIG" 2>/dev/null | awk '{print $2}')
+if [ -z "$STRATEGY_DAY_NAME" ]; then
+    log "WARN: strategy_day not found in $RHYTHM_CONFIG — fallback: monday"
+    STRATEGY_DAY_NAME="monday"
+fi
 # Конвертируем имя дня в номер (1=Mon..7=Sun)
 case "$STRATEGY_DAY_NAME" in
     monday)    STRATEGY_DAY_NUM=1 ;;

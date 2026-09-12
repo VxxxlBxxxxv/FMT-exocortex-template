@@ -68,7 +68,7 @@ fi
    - N.N = мультипликатор как одно число `~2.75x` (НЕ диапазон `~2.5-3x` — hook fail)
    - НЕ писать "aggregate" перед "РП" (hook regex ищет `~Xh РП`)
 
-5. **Mandatory check** — проверить наличие в плане: WP-7 (техдолг бота, ≥30 мин) + ≥1 контентный РП.
+5. **Mandatory check** — проверить наличие в плане: каждый РП из `day-rhythm-config.yaml → mandatory_daily_wps` (если список пуст или файла нет — пропустить) + ≥1 контентный РП.
 
 5a. **Здоровье платформы (валидация формата)** — секция `<details><summary>Здоровье ...</summary>` ОБЯЗАНА содержать markdown-таблицу с **числовыми ячейками** ИЛИ явный текст «нет данных». Hook regex: `\| *[0-9]|нет данных`. Например:
    ```markdown
@@ -87,11 +87,11 @@ fi
 ### Шаг 7 — сохранение и коммит
 
 ```bash
-cd "${IWE_WORKSPACE:-$HOME/IWE}/{{GOVERNANCE_REPO}}"
-git add current/DayPlan*.md
-git commit -m "day-plan: $DATE автономный полный (strategist morning)"
-git pull --rebase  # на случай если Mac тоже что-то закоммитил
-git push
+REPO_DIR="${IWE_WORKSPACE:-$HOME/IWE}/{{GOVERNANCE_REPO}}"
+git -C "$REPO_DIR" add current/DayPlan*.md
+git -C "$REPO_DIR" commit -m "day-plan: $DATE автономный полный (strategist morning)"
+git -C "$REPO_DIR" pull --rebase  # на случай если Mac тоже что-то закоммитил
+git -C "$REPO_DIR" push
 ```
 
 ## АВТОНОМНЫЙ РЕЖИМ (БЛОКИРУЮЩЕЕ)

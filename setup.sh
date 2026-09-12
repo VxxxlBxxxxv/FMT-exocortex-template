@@ -277,7 +277,7 @@ if [ -n "${SETUP_CI:-}" ]; then
     WORKSPACE_DIR="${WORKSPACE_DIR/#\~/$HOME}"
     CLAUDE_PATH="${CLAUDE_PATH:-claude}"
     TIMEZONE_HOUR="${TIMEZONE_HOUR:-4}"
-    TIMEZONE_DESC="${TIMEZONE_DESC:-4:00 UTC}"
+    TIMEZONE_DESC="${TIMEZONE_DESC:-4:00 (местное время)}"
     echo "  [CI] GITHUB_USER=$GITHUB_USER WORKSPACE_DIR=$WORKSPACE_DIR"
 else
     read -p "GitHub username (или Enter для пропуска): " GITHUB_USER
@@ -292,16 +292,16 @@ else
         # Core: используем defaults, не спрашиваем Claude-специфичные параметры
         CLAUDE_PATH="${AI_CLI:-claude}"
         TIMEZONE_HOUR="4"
-        TIMEZONE_DESC="4:00 UTC"
+        TIMEZONE_DESC="4:00 (местное время)"
     else
         read -p "Claude CLI path [$(command -v claude || echo '/opt/homebrew/bin/claude')]: " CLAUDE_PATH
         CLAUDE_PATH="${CLAUDE_PATH:-$(command -v claude || echo '/opt/homebrew/bin/claude')}"
 
-        read -p "Strategist launch hour (UTC, 0-23) [4]: " TIMEZONE_HOUR
+        read -p "Strategist launch hour, местное время машины (0-23) [4]: " TIMEZONE_HOUR
         TIMEZONE_HOUR="${TIMEZONE_HOUR:-4}"
 
-        read -p "Timezone description (e.g. '7:00 MSK') [${TIMEZONE_HOUR}:00 UTC]: " TIMEZONE_DESC
-        TIMEZONE_DESC="${TIMEZONE_DESC:-${TIMEZONE_HOUR}:00 UTC}"
+        read -p "Timezone description (e.g. '7:00 MSK') [${TIMEZONE_HOUR}:00 (местное время)]: " TIMEZONE_DESC
+        TIMEZONE_DESC="${TIMEZONE_DESC:-${TIMEZONE_HOUR}:00 (местное время)}"
     fi
 fi
 
@@ -417,7 +417,7 @@ if $CORE_ONLY; then
     echo "  Mode:           core (offline)"
 else
     echo "  Claude path:    $CLAUDE_PATH"
-    echo "  Schedule hour:  $TIMEZONE_HOUR (UTC)"
+    echo "  Schedule hour:  $TIMEZONE_HOUR (местное время)"
     echo "  Time desc:      $TIMEZONE_DESC"
 fi
 echo "  Home dir:       $HOME_DIR"
@@ -478,6 +478,7 @@ USER_NAME="$USER_NAME"
 GOVERNANCE_REPO="$GOVERNANCE_REPO"
 IWE_TEMPLATE="$IWE_TEMPLATE_PATH"
 IWE_RUNTIME="$IWE_RUNTIME_PATH"
+IWE_SCRIPTS="$IWE_TEMPLATE_PATH/scripts"
 
 # === Platform LLM Proxy (optional own API key for unlimited usage) ===
 PLATFORM_LLM_PROXY_URL=https://llm.aisystant.com/v1
@@ -723,6 +724,18 @@ echo "[4c] Configuring .mcp.json..."
 MCP_TEMPLATE="$TEMPLATE_DIR/.mcp.json"
 MCP_DEST="$WORKSPACE_DIR/.mcp.json"
 MCP_USER_EXT="$WORKSPACE_DIR/extensions/mcp-user.json"
+
+# WP-7 Ф133 (live user report, Ruslan, 2026-09-09): extensions/ was already
+# read here (MCP_USER_EXT above) and by day-open-hooks-runner.sh's step 0,
+# but setup.sh never created it — day-open-hooks.sh's fail-closed contract
+# ("every install ships extensions/") aborted the canonical Day Open
+# pipeline on every fresh install. Empty is sufficient: find_day_open_hook_files
+# only requires the directory to exist, not to be non-empty.
+if $DRY_RUN; then
+    echo "  [DRY RUN] Would create $WORKSPACE_DIR/extensions"
+else
+    mkdir -p "$WORKSPACE_DIR/extensions"
+fi
 
 if $DRY_RUN; then
     _IWE_TIER=$(check_user_tier)
@@ -1221,7 +1234,7 @@ else
         echo "  3. Ask Claude: «Проведём первую стратегическую сессию»"
         echo ""
         echo "Strategist will run automatically:"
-        echo "  - Morning ($TIMEZONE_DESC): strategy (Mon) / day-plan (Tue-Sun)"
+        echo "  - Morning at $TIMEZONE_DESC: strategy (Mon) / day-plan (Tue-Sun)"
         echo "  - Sunday night: week review"
     fi
     echo ""

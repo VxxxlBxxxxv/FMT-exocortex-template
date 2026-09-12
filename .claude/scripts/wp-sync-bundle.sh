@@ -191,12 +191,20 @@ registry_status_column() {
   local header
   header=$(grep -E '^\|[[:space:]]*#[[:space:]]*\|' "$REGISTRY_FILE" 2>/dev/null | head -1)
   [[ -z "$header" ]] && return 1
-  awk -F'|' -v h="$header" 'BEGIN {
+  # issue #717 follow-up (найдено при regression-тестах на этой же фазе, тот
+  # же класс бага, другой сбой): под некоторыми локалями (напр. en_US.UTF-8
+  # на macOS/awk-BWK 20200816) `==` в awk между двумя РАЗНЫМИ кириллическими
+  # строками возвращал true — не проблема регистра, а порча самого сравнения
+  # многобайтовых строк на уровне locale-aware коллации. `tolower()` для
+  # кириллицы при этом тоже locale-зависим (под голым `C` не сворачивает
+  # регистр вообще). Решение — не полагаться ни на `tolower()`, ни на
+  # locale-aware `==`: перечислить оба регистра литералом И считать байты под
+  # `LC_ALL=C`, где `==` — простое побайтовое сравнение без коллации.
+  LC_ALL=C awk -F'|' -v h="$header" 'BEGIN {
     n = split(h, cells, "|")
     for (i = 1; i <= n; i++) {
       c = cells[i]; gsub(/^[ \t]+|[ \t]+$/, "", c)
-      lc = tolower(c)
-      if (lc == "статус" || lc == "ст") { print i; exit }
+      if (c == "Статус" || c == "статус" || c == "СТАТУС" || c == "Ст" || c == "ст") { print i; exit }
     }
   }'
 }
@@ -213,6 +221,10 @@ registry_status() {
     echo "_некорректный номер РП: ${1}_"
     return
   fi
+  # issue #715: ведущие нули (WP-038) не совпадали с голым "38" в реестре —
+  # нормализуем ДО построения regex поиска строки. `10#` держит базу 10
+  # явно (иначе bash читает "038" как некорректный восьмеричный литерал).
+  num=$((10#$num))
   if [[ ! -f "$REGISTRY_FILE" ]]; then
     echo "_нет файла REGISTRY_"
     return
@@ -222,16 +234,27 @@ registry_status() {
   # "открыт как спин-офф WP-47" в статусе WP-49 возвращал статус WP-49 при
   # запросе WP-47). Строка опознаётся по СВОЕЙ первой ячейке (номер РП),
   # тем же приёмом, что ROW_RE в build-active-wp.py.
-  local line
-  line=$(grep -E "^\|[[:space:]]*(~~)?(\*\*)?${num}(\*\*)?(~~)?[[:space:]]*\|" "$REGISTRY_FILE" 2>/dev/null | head -1 || true)
-  if [[ -z "$line" ]]; then
+  # issue #716: пометка рядом с номером ("13★") не проходила прежний шаблон
+  # (требовал пробел/pipe сразу после числа) — поиск перескакивал на другую
+  # строку с тем же номером (например зачёркнутую предыдущую итерацию).
+  # `[^0-9|]*` разрешает произвольный суффикс между числом и разделителем
+  # колонки, но не цифру — иначе "13" совпал бы и с "138".
+  local regex="^\|[[:space:]]*(~~)?(\*\*)?${num}(\*\*)?(~~)?[^0-9|]*[[:space:]]*\|"
+  local match_count
+  match_count=$(grep -cE "$regex" "$REGISTRY_FILE" 2>/dev/null || true)
+  match_count=${match_count:-0}
+  if [[ "$match_count" -eq 0 ]]; then
     echo "_не в реестре_"
     return
   fi
-  if echo "$line" | grep -qE '~~'; then
-    echo "~~done~~ (зачёркнут)"
-    return
+  if [[ "$match_count" -gt 1 ]]; then
+    # issue #716: раньше молчаливый `head -1` без предупреждения мог отдать
+    # ПРОТИВОПОЛОЖНЫЙ действительности статус — теперь неоднозначность хотя
+    # бы видна в stderr, вместо тихой уверенной ошибки на первой строке.
+    echo "неоднозначно: $match_count совпадений по номеру ${num} в реестре, взята первая строка" >&2
   fi
+  local line
+  line=$(grep -E "$regex" "$REGISTRY_FILE" 2>/dev/null | head -1)
   local status_col status_cell
   status_col=$(registry_status_column)
   if [[ -z "$status_col" ]]; then
@@ -239,22 +262,48 @@ registry_status() {
     return
   fi
   # Статус берётся из СВОЕЙ ячейки, не грепом эмодзи по всей строке —
-  # эмодзи в описании соседней колонки раньше мог перебить вердикт.
+  # эмодзи в описании соседней колонки раньше мог перебить вердикт (issue #473).
   status_cell=$(echo "$line" | awk -F'|' -v col="$status_col" '{ v=$col; gsub(/^[ \t]+|[ \t]+$/, "", v); print v }')
-  if echo "$status_cell" | grep -q '✅'; then
-    echo "✅ done"
-  elif echo "$status_cell" | grep -q '🔄'; then
-    echo "🔄 in_progress"
-  elif echo "$status_cell" | grep -q '⏳'; then
-    echo "⏳ pending"
-  elif echo "$status_cell" | grep -q '📦'; then
-    echo "📦 archived"
-  elif echo "$status_cell" | grep -q '⏹'; then
-    echo "⏹ снят"
-  elif echo "$status_cell" | grep -q '🔁'; then
-    echo "🔁 свёрнут в спринт"
+  # issue #717: обычный `grep -q 'ЭМОДЗИ'` зависит от локали/сборки grep — на
+  # части машин (напр. GNU grep 3.0 + en_US.UTF-8) многобайтовый literal
+  # молча не матчился, хотя байты совпадали, и вся ось статуса слепла тихо.
+  # `LC_ALL=C grep -F` сравнивает как байтовую fixed-строку, не парсит эмодзи
+  # как regex-класс символов — не зависит от локали сборки. Область действия
+  # — только эти вызовы, не весь скрипт (глобальный `export LC_ALL=C` рискует
+  # сломать сортировку/срез многобайтовых строк в других местах файла, не
+  # относящихся к этой функции).
+  local resolved=""
+  if   LC_ALL=C grep -qF '✅' <<<"$status_cell"; then resolved="✅ done"
+  elif LC_ALL=C grep -qF '🔄' <<<"$status_cell"; then resolved="🔄 in_progress"
+  elif LC_ALL=C grep -qF '⏳' <<<"$status_cell"; then resolved="⏳ pending"
+  elif LC_ALL=C grep -qF '📦' <<<"$status_cell"; then resolved="📦 archived"
+  elif LC_ALL=C grep -qF '⏸' <<<"$status_cell"; then resolved="⏸ paused"
+  elif LC_ALL=C grep -qF '⏹' <<<"$status_cell"; then resolved="⏹ снят"
+  elif LC_ALL=C grep -qF '🔁' <<<"$status_cell"; then resolved="🔁 свёрнут в спринт"
+  fi
+  if [[ -n "$resolved" ]]; then
+    echo "$resolved"
+    return
+  fi
+  local text_status
+  text_status=$(echo "$status_cell" | grep -oE '(done|in_progress|pending|paused|archived|closed|open)' | head -1 || true)
+  if [[ -n "$text_status" ]]; then
+    echo "$text_status"
+    return
+  fi
+  # issue #714: зачёркивание — фолбэк ПОСЛЕ того, как своя колонка статуса не
+  # дала ответа, не проверка по всей строке раньше чтения колонки. Раньше
+  # зачёркнутое НАЗВАНИЕ при активном статусе в колонке (например 📦) давало
+  # ложный "~~done~~" — своя колонка теперь всегда главнее оформления строки.
+  # issue #713: код возврата пайплайна `grep | head` брался от `head`,
+  # который всегда завершается успешно даже на пустом входе — `||` был
+  # недостижим, и пустой результат утекал наружу как есть. Промежуточная
+  # переменная (text_status выше) — единственный надёжный способ отличить
+  # "нашли" от "не нашли" на пустом выводе grep.
+  if echo "$line" | grep -qE '~~'; then
+    echo "~~done~~ (зачёркнут)"
   else
-    echo "$status_cell" | grep -oE '(done|in_progress|pending|closed|open)' | head -1 || echo "_статус неизвестен_"
+    echo "_статус неизвестен_"
   fi
 }
 
@@ -358,7 +407,12 @@ main() {
 
   local input="$1"
 
-  # Self-test mode (diagnostic — see WP-294 Ф7)
+  # Self-test / canary mode (diagnostic — see WP-294 Ф7; extended issue #718:
+  # a canary that only checks file lookup passes even when the registry
+  # itself is unreadable or the WP's status cell can't be resolved — exactly
+  # the class of "plausible result instead of a loud failure" the issue
+  # describes. An explicit WP-N argument makes this usable as an
+  # update.sh --check canary against a known-good WP, not just a diagnostic.)
   if [[ "$input" == "--self-test" ]]; then
     echo "=== WP Sync Bundle Self-Test ==="
     echo "IWE_WORKSPACE: $IWE_WORKSPACE"
@@ -370,9 +424,18 @@ main() {
       echo "REGISTRY_FILE: MISSING"
       exit 1
     fi
-    # Find any real WP from inbox instead of hardcoded number
+
     local test_num=""
-    if [[ -d "$INBOX_DIR" ]]; then
+    if [[ $# -ge 2 && -n "${2:-}" ]]; then
+      test_num=$(normalize_wp_num "$2")
+      if ! echo "$test_num" | grep -qE '^[0-9]+$'; then
+        log_err "Неверный формат canary WP: '$2'. Ожидается WP-N или N."
+        exit 2
+      fi
+    fi
+    # No explicit WP given — find any real one from inbox (diagnostic default,
+    # unchanged from prior behavior).
+    if [[ -z "$test_num" && -d "$INBOX_DIR" ]]; then
       local first_wp
       first_wp=$(find "$INBOX_DIR" -maxdepth 1 -name "WP-*.md" 2>/dev/null | sort | head -1 || true)
       if [[ -n "$first_wp" ]]; then
@@ -386,15 +449,29 @@ main() {
       echo "WP lookup: SKIP (no WP files found in inbox or registry)"
       exit 0
     fi
+
     local test_file
     test_file=$(find_wp_file "$test_num")
     if [[ -n "$test_file" ]]; then
       echo "WP-${test_num} lookup: OK ($test_file)"
-      exit 0
     else
       echo "WP-${test_num} lookup: FAIL"
       exit 1
     fi
+
+    # registry_status() is the part update.sh's silent-drift class of bug
+    # (issue #718) actually cares about — a WP file can exist while the
+    # registry row it's supposed to have is empty, stale, or unparseable.
+    local status
+    status=$(registry_status "$test_num")
+    echo "WP-${test_num} registry_status: $status"
+    case "$status" in
+      _не\ в\ реестре_|_статус\ неизвестен_|_колонка\ статуса\ не\ найдена*|_нет\ файла\ REGISTRY_|_некорректный\ номер\ РП*)
+        echo "Canary FAILED: registry status unresolved for WP-${test_num}: $status" >&2
+        exit 1
+        ;;
+    esac
+    exit 0
   fi
 
   local wp_num

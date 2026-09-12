@@ -23,6 +23,10 @@ EXIT_TAINTED=4   # peer-session 2026-08-21-09: grep-fallback manifest parsing ra
                  # a real operational error (network/conflict/runtime) still
                  # takes priority over this code, it never masks one.
 EXIT_CONFLICT=49
+EXIT_CANARY_FAILED=5   # issue #718: --check's registry-sync canary (see run_sync_canary)
+                       # found the WP-Registry unreadable/unparseable for a real WP —
+                       # a silently lost fix in that path would look identical to a
+                       # healthy one without this check.
 EXIT_GENERAL=1
 GITHUB_API_AUTH_FAILURE=90
 GITHUB_API_INVALID_TOKEN=91
@@ -46,9 +50,14 @@ API_BASE="https://api.github.com/repos/$REPO"
 CHECK_ONLY=false
 AUTO_YES=false
 FAST_CHECK=false
-# Stage B opt-ins (WP-7 F71): по умолчанию оба выключены — без флагов конвейер
-# только наблюдает (stage A) и ничего не пишет в пользовательские файлы.
+# Stage B opt-ins (WP-7 F71, поведение settings-merge скорректировано issue
+# #738): по умолчанию (без флагов, интерактивный запуск) оба выключены —
+# конвейер только наблюдает (stage A) и ничего не пишет в пользовательские
+# файлы. --yes включает settings-merge автоматически (см. ниже, после разбора
+# аргументов) — доказанно аддитивное слияние не рискованнее остального,
+# что --yes уже применяет без подтверждения.
 APPLY_SETTINGS_MERGE=false
+NO_SETTINGS_MERGE=false
 REFRESH_STALE=false
 
 # #533: governance compatibility entrypoints are upgraded as one ownership
@@ -94,6 +103,7 @@ for arg in "$@"; do
         --fast)             FAST_CHECK=true ;;
         --yes)              AUTO_YES=true ;;
         --apply-settings-merge) APPLY_SETTINGS_MERGE=true ;;
+        --no-settings-merge)    NO_SETTINGS_MERGE=true ;;
         --refresh-stale)    REFRESH_STALE=true ;;
         --version)          echo "exocortex-update v$VERSION"; exit 0 ;;
         --help|-h)
@@ -102,8 +112,9 @@ for arg in "$@"; do
             echo "Options:"
             echo "  --check     Показать доступные обновления без применения"
             echo "  --fast      С --check: сравнить только версию манифеста (без скачивания 300+ файлов, issue #230)"
-            echo "  --yes       Применить обновления без подтверждения"
-            echo "  --apply-settings-merge  Применить слияние settings.json (бэкап + пост-валидация; без флага — только предпросмотр)"
+            echo "  --yes       Применить обновления без подтверждения (включает settings.json merge, см. --no-settings-merge)"
+            echo "  --apply-settings-merge  Применить слияние settings.json отдельно от --yes (бэкап + пост-валидация; без флага и без --yes — только предпросмотр)"
+            echo "  --no-settings-merge     С --yes: НЕ применять слияние settings.json (оставить только предпросмотр, старое поведение --yes)"
             echo "  --refresh-stale         author_mode: обновить файлы «отстал от шаблона, правок нет» (бэкап; блок при «неизвестно» > 0)"
             echo "  --version   Версия скрипта"
             echo "  --help      Эта справка"
@@ -111,6 +122,24 @@ for arg in "$@"; do
             ;;
     esac
 done
+
+# issue #738: --apply-settings-merge оставался opt-in даже под --yes, поэтому
+# автоматический `update.sh --yes` доставлял новые файлы хуков в .claude/hooks/,
+# но не регистрировал их в settings.json — блокирующие защитные хуки
+# (destructive-guard.sh, pull-on-touch.sh) молча оставались выключены.
+# Слияние доказанно только аддитивное (settings-merge-preview.py: union по
+# hooks/permissions, при конфликте побеждает значение пользователя, ничего
+# существующего не перезаписывается и не удаляется) — не более рискованно,
+# чем остальное, что --yes уже применяет без подтверждения. Явный
+# --apply-settings-merge остаётся отдельной ручкой для запуска слияния без
+# остального --yes-конвейера (например, повторный прогон после --check).
+# --no-settings-merge — явный opt-out для тех, кто сознательно держал
+# settings.json под ручным контролем и гонял --yes только ради остального
+# конвейера (Codex, ревью этого фикса, ход 3): сохраняет старое поведение
+# --yes точечно, без отказа от автоприменения остальных обновлений.
+if [ "$AUTO_YES" = "true" ] && [ "$NO_SETTINGS_MERGE" != "true" ]; then
+    APPLY_SETTINGS_MERGE=true
+fi
 
 # === Cross-platform sed -i ===
 if sed --version >/dev/null 2>&1; then
@@ -1581,6 +1610,65 @@ run_post_apply_backfills_or_die() {
     echo ""
     echo "Executor catalog (upgrade backfill)..."
     backfill_executor_catalog || true
+
+    echo ""
+    echo "Knowledge Extractor feeders (upgrade backfill)..."
+    backfill_extractor_feeders || true
+}
+
+# WP-5 F55 (High finding of F54, 03.09): setup.sh got the extractor feeders
+# step, update.sh did not -- so every already-configured machine (the ones
+# where the gap actually showed up) kept getting updates with the capture
+# pipeline still not scheduled, forever. Runs from the post-apply chain, which
+# also fires in the TOTAL_CHANGES=0 recovery branches, so an install that is
+# otherwise up to date still gets its feeders. Re-running is safe: the feeders
+# script skips an unchanged, already-loaded launchd job instead of unload/load
+# (which would kill a run in flight at exactly 06:00/21:00).
+backfill_extractor_feeders() {
+    local feeders="$SCRIPT_DIR/scripts/setup-extractor-feeders.sh"
+    local governance_repo="${EFFECTIVE_GOVERNANCE_REPO:-}"
+    local feeders_output
+
+    # Two steps, not one: `local x="$(f)"` would swallow a failing f, and an
+    # empty repo name silently becomes the wrong default one level down.
+    if [ -z "$governance_repo" ] && ! governance_repo=$(effective_governance_repo); then
+        echo "  ○ Экстрактор: governance-репозиторий не определён, backfill пропущен."
+        return 0
+    fi
+
+    if [ "${IWE_SKIP_EXTRACTOR_FEEDERS:-0}" = "1" ]; then
+        echo "  ○ Экстрактор: пропущен (IWE_SKIP_EXTRACTOR_FEEDERS=1)."
+        return 0
+    fi
+    if [ ! -f "$feeders" ]; then
+        echo "  ○ Экстрактор: scripts/setup-extractor-feeders.sh не найден, backfill пропущен."
+        return 0
+    fi
+    # The feeders script exits 1 without the CLI; on update that is a normal
+    # state (CLI not installed yet), not an update failure -- say what to run
+    # later instead of printing its error.
+    if ! command -v claude >/dev/null 2>&1; then
+        echo "  ○ Экстрактор: claude CLI не установлен — расписание не заводим."
+        echo "    После установки CLI: bash $feeders"
+        return 0
+    fi
+
+    # --schedule-only, not install: an update may add the periodic job, but must
+    # not redo the install-time decisions (the global git hook template, the
+    # init.templateDir pointer, seeding fleeting-notes) on every single run.
+    # IWE_WORKSPACE is deliberately not passed: the feeders script never reads
+    # it, so passing it would only pretend the workspace is configurable here.
+    if feeders_output=$(
+        IWE_GOVERNANCE_REPO="$governance_repo" \
+        IWE_RUNTIME="$WORKSPACE_DIR/.iwe-runtime" \
+        bash "$feeders" --schedule-only 2>&1); then
+        printf '%s\n' "$feeders_output" | sed 's/^/  /'
+        return 0
+    fi
+
+    printf '%s\n' "$feeders_output" | sed 's/^/  /' >&2
+    echo "  ⚠ Экстрактор не запустится автоматически — повторите вручную: bash $feeders" >&2
+    return 1
 }
 
 record_rule_workspace_state() {
@@ -1695,6 +1783,52 @@ assert_self_unmutated() {
         echo "ОШИБКА: update.sh мутировал в режиме --check — это баг!" >&2
         exit 1
     fi
+}
+
+# run_sync_canary — issue #718: a mechanism that fails open (delivers a
+# plausible-looking result instead of a loud error) can silently lose a fix
+# for weeks before anyone notices, e.g. #717. wp-sync-bundle.sh --self-test
+# already exercises the exact code path every WP Gate sync relies on
+# (registry lookup + status-cell resolution); running it here catches a
+# broken/unreadable registry the same day an update runs, not weeks later.
+# No governance repo configured, or wp-sync-bundle.sh missing — SKIP, not
+# FAIL: those are separate, already-diagnosed conditions elsewhere in
+# update.sh, not a canary regression.
+run_sync_canary() {
+    local governance_repo
+    governance_repo=$(effective_governance_repo) || { echo "  ℹ Canary (реестр РП): SKIP (governance repo не определён)"; return 0; }
+
+    # effective_governance_repo() always returns a name (default DS-strategy)
+    # even when that directory doesn't exist yet — a fresh install before the
+    # pilot's first governance repo is set up. wp-sync-bundle.sh hard-exits 1
+    # in that case ("Governance repo с WP-REGISTRY.md не найден"), which
+    # run_sync_canary would otherwise report as a canary FAILURE rather than
+    # the "not configured yet" SKIP it actually is.
+    if [ ! -f "$WORKSPACE_DIR/$governance_repo/docs/WP-REGISTRY.md" ]; then
+        echo "  ℹ Canary (реестр РП): SKIP ($governance_repo/docs/WP-REGISTRY.md ещё не существует)"
+        return 0
+    fi
+
+    local sync_bundle="$WORKSPACE_DIR/$governance_repo/.claude/scripts/wp-sync-bundle.sh"
+    if [ ! -x "$sync_bundle" ]; then
+        sync_bundle="$SCRIPT_DIR/.claude/scripts/wp-sync-bundle.sh"
+    fi
+    if [ ! -x "$sync_bundle" ]; then
+        echo "  ℹ Canary (реестр РП): SKIP (wp-sync-bundle.sh не найден)"
+        return 0
+    fi
+
+    local canary_output canary_status
+    canary_output=$(IWE_WORKSPACE="$WORKSPACE_DIR" IWE_GOVERNANCE_REPO="$governance_repo" \
+        bash "$sync_bundle" --self-test 2>&1)
+    canary_status=$?
+    if [ "$canary_status" -eq 0 ]; then
+        echo "  ✓ Canary (реестр РП): OK"
+        return 0
+    fi
+    echo "  ✗ Canary (реестр РП) FAILED — реестр WP-Registry нечитаем или статус не резолвится:" >&2
+    echo "$canary_output" | sed 's/^/    /' >&2
+    return "$EXIT_CANARY_FAILED"
 }
 
 # exit_clean — the shared exit for every "this run completed with no
@@ -2308,7 +2442,17 @@ sync_workspace_claude_md() {
         WS_BASE="$WORKSPACE_DIR/.claude.md.base"
         WS_CURRENT="$WORKSPACE_DIR/CLAUDE.md"
 
-        if [ -f "$WS_BASE" ] && [ -f "$WS_CURRENT" ] && command -v git >/dev/null 2>&1; then
+        # issue #711: a previous run left unresolved <<<<<<< markers in
+        # $WS_CURRENT (pilot hasn't touched the file yet). Running
+        # `git merge-file` again would 3-way-merge a file that already
+        # contains literal marker lines as if they were real content —
+        # confusing nested markers at best. Re-surface the same warning
+        # without attempting a new merge; base stays untouched either way.
+        if [ -f "$WS_CURRENT" ] && grep -q '^<<<<<<<' "$WS_CURRENT" 2>/dev/null; then
+            echo "  ~ $WS_CURRENT (неразрешённый конфликт с прошлого запуска — сначала разрешите маркеры вручную)"
+            CLAUDE_CONFLICT_DETECTED=true
+            CLAUDE_CONFLICT_FILES+=("$WS_CURRENT")
+        elif [ -f "$WS_BASE" ] && [ -f "$WS_CURRENT" ] && command -v git >/dev/null 2>&1; then
             WS_MERGE_TMP="$TMPDIR_UPDATE/ws-claude-merge.md"
             cp "$WS_CURRENT" "$WS_MERGE_TMP"
             if git merge-file -p "$WS_MERGE_TMP" "$WS_BASE" "$WS_NEW" > "$TMPDIR_UPDATE/ws-claude-merged.md" 2>/dev/null; then
@@ -2325,17 +2469,24 @@ sync_workspace_claude_md() {
             else
                 WS_CONFLICTS=$(grep -c '^<<<<<<<' "$TMPDIR_UPDATE/ws-claude-merged.md" 2>/dev/null || true); WS_CONFLICTS=${WS_CONFLICTS:-0}
                 cp "$TMPDIR_UPDATE/ws-claude-merged.md" "$WS_CURRENT"
-                cp "$WS_NEW" "$WS_BASE"
                 CLAUDE_CONFLICTS=$((CLAUDE_CONFLICTS + WS_CONFLICTS))
                 if [ "$WS_CONFLICTS" -gt 0 ]; then
                     # issue #226: don't abort here — a CLAUDE.md conflict is an isolated
                     # artifact, not a reason to skip the rest of the delivery (memory/hooks/
                     # skills propagation, repair-pass, commit). Warn now, fail at the end.
+                    # issue #711: do NOT advance $WS_BASE here (unlike the no-conflict
+                    # branch below) — advancing it made the next run's `diff -q
+                    # "$WORKSPACE_DIR/.claude.md.base" "$WS_NEW"` gate at the top of this
+                    # function succeed even though $WS_CURRENT still had unresolved
+                    # <<<<<<< markers, so update.sh reported "Всё актуально" on a corrupt
+                    # file. Base now advances only once the markers are gone (see the
+                    # pre-check above, which takes over on the next run).
                     echo "  ~ $WS_CURRENT ($WS_CONFLICTS конфликтов — разрешите вручную)"
                     echo "    Конфликты обозначены <<<<<<< / ======= / >>>>>>>"
                     CLAUDE_CONFLICT_DETECTED=true
                     CLAUDE_CONFLICT_FILES+=("$WS_CURRENT")
                 else
+                    cp "$WS_NEW" "$WS_BASE"
                     echo "  ✓ $WS_CURRENT обновлён (3-way merge)"
                 fi
             fi
@@ -3200,6 +3351,9 @@ if $CHECK_ONLY; then
     echo "Режим --check: изменения не применяются."
     echo "Для применения: bash update.sh"
     assert_self_unmutated
+    if ! run_sync_canary; then
+        exit "$EXIT_CANARY_FAILED"
+    fi
     exit_clean
 fi
 
@@ -3519,6 +3673,16 @@ if [ -f "$ENV_FILE" ]; then
             ENV_IWE_TEMPLATE="$SCRIPT_DIR"
         fi
 
+        # === Auto-add IWE_SCRIPTS (peer-session 2026-09-08-32, Evgenii's Day
+        # Open report) === Was never in placeholders: before this fix, so no
+        # generated plist could ever carry it — the launchd jobs silently ran
+        # without it (strategist.sh:357-366 fell back to the free-form prompt).
+        if ! grep -q '^IWE_SCRIPTS=' "$ENV_FILE" 2>/dev/null; then
+            echo "IWE_SCRIPTS=$SCRIPT_DIR/scripts" >> "$ENV_FILE"
+            echo "  ✓ Добавлено IWE_SCRIPTS=$SCRIPT_DIR/scripts в .exocortex.env (WP-529 Ф94)"
+            ENV_IWE_SCRIPTS="$SCRIPT_DIR/scripts"
+        fi
+
         # === WP-273 Этап 2: IWE_RUNTIME для Generated runtime architecture (F) ===
         if ! grep -q '^IWE_RUNTIME=' "$ENV_FILE" 2>/dev/null; then
             DETECT_WS_RT="${ENV_WORKSPACE_DIR:-$WORKSPACE_DIR}"
@@ -3593,7 +3757,7 @@ WORKSPACE_DIR="$DETECTED_WORKSPACE"
 CLAUDE_PATH="$(command -v claude 2>/dev/null || echo 'claude')"
 CLAUDE_PROJECT_SLUG="$(echo "$DETECTED_WORKSPACE" | tr '/' '-')"
 TIMEZONE_HOUR="4"
-TIMEZONE_DESC="4:00 UTC"
+TIMEZONE_DESC="4:00 (местное время)"
 HOME_DIR="$HOME"
 
 # === Knowledge Gateway (T3+) — fill in if using personal Pack index ===
@@ -3794,6 +3958,18 @@ fi
 
 # (Step 6b removed — repo rename no longer supported, no link migration needed)
 
+# === Step 6b2: Self-heal missing extensions/ (WP-7 Ф133) ===
+# setup.sh never created $WORKSPACE_DIR/extensions/ before this fix (only
+# read from it — MCP_USER below, day-open-hooks-runner.sh step 0), so every
+# install that ran setup.sh before this fix landed and will never re-run
+# setup.sh is stuck without it. day-open-hooks.sh's fail-closed contract
+# ("every install ships extensions/") then aborts the canonical Day Open
+# pipeline on every single run — confirmed live (Ruslan, 2026-09-09).
+# Idempotent no-op once the directory exists, same as any other self-heal.
+if ! $CHECK_ONLY; then
+    mkdir -p "$WORKSPACE_DIR/extensions"
+fi
+
 MCP_TEMPLATE="$SCRIPT_DIR/.mcp.json"
 MCP_WORKSPACE="$WORKSPACE_DIR/.mcp.json"
 MCP_USER="$WORKSPACE_DIR/extensions/mcp-user.json"
@@ -3893,11 +4069,21 @@ done
 if $ROLES_CHANGED && command -v launchctl >/dev/null 2>&1; then
     echo ""
     echo "Роли обновлены. Переустановка..."
-    # Source ~/.iwe-paths (если есть) — гарантирует IWE_RUNTIME/IWE_TEMPLATE в env для install.sh
-    [ -f "$HOME/.iwe-paths" ] && . "$HOME/.iwe-paths"
+    # WP-529 Ф94 (peer-session 2026-09-08-32): $HOME/.iwe-paths is a legacy
+    # path install-iwe-paths.sh stopped writing — sourcing it here silently
+    # no-op'd (`[ -f ... ] && .` is not an error if the file is absent), so
+    # role installers ran without IWE_RUNTIME/IWE_TEMPLATE/IWE_SCRIPTS in
+    # their environment. update.sh already knows all of these; pass them
+    # explicitly instead of relying on a file that may not exist.
+    ROLE_REINSTALL_GOV="${EFFECTIVE_GOVERNANCE_REPO:-$(effective_governance_repo)}"
     for role_dir in "$SCRIPT_DIR"/roles/*/; do
         [ -f "$role_dir/install.sh" ] && [ -f "$role_dir/role.yaml" ] || continue
         if grep -q 'auto:.*true' "$role_dir/role.yaml" 2>/dev/null; then
+            IWE_WORKSPACE="$WORKSPACE_DIR" \
+            IWE_TEMPLATE="$SCRIPT_DIR" \
+            IWE_SCRIPTS="$SCRIPT_DIR/scripts" \
+            IWE_RUNTIME="$WORKSPACE_DIR/.iwe-runtime" \
+            IWE_GOVERNANCE_REPO="$ROLE_REINSTALL_GOV" \
             bash "$role_dir/install.sh" 2>/dev/null && \
                 echo "  ✓ $(basename "$role_dir") переустановлен" || \
                 echo "  ○ $(basename "$role_dir"): переустановите вручную"
@@ -3976,7 +4162,10 @@ for base in L1_DIRS:
     for root, dirs, files in os.walk(full_base):
         for fname in files:
             full = os.path.join(root, fname)
-            rel = os.path.relpath(full, script_dir)
+            # issue #680: manifest paths always use "/" (JSON convention);
+            # os.path.relpath returns "\" on Windows, so every file compared
+            # false-orphan there without this normalization.
+            rel = os.path.relpath(full, script_dir).replace(os.sep, "/")
             if rel not in all_known and not _locally_excluded(rel):
                 tag = "[maybe-L3]" if "extensions/" in rel else "[orphan]"
                 orphans.append((tag, rel))
