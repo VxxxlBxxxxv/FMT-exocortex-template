@@ -77,17 +77,26 @@ iwe_sha256() {
   fi
 }
 
+# iwe_file_mtime_epoch FILE — epoch mtime without letting GNU stat parse the
+# BSD `-f` form as a filesystem query (which yields prose, not a timestamp).
+iwe_file_mtime_epoch() {
+  local file="$1"
+  if stat --version >/dev/null 2>&1; then
+    stat -c %Y "$file"
+  else
+    stat -f %m "$file"
+  fi
+}
+
 # iwe_file_mtime_date FILE — дата YYYY-MM-DD без смешивания stdout двух
 # несовместимых stat-реализаций. GNU и BSD ветки выбираются явно (#300).
 iwe_file_mtime_date() {
   local file="$1" epoch
-  if stat --version >/dev/null 2>&1; then
-    epoch=$(stat -c %Y "$file") || return 1
-    date -d "@$epoch" +%Y-%m-%d
-  else
-    epoch=$(stat -f %m "$file") || return 1
-    date -r "$epoch" +%Y-%m-%d
+  epoch=$(iwe_file_mtime_epoch "$file") || return 1
+  if date -d "@$epoch" +%Y-%m-%d 2>/dev/null; then
+    return 0
   fi
+  date -r "$epoch" +%Y-%m-%d
 }
 
 # iwe_resolve_governance_repo [EXPLICIT] — canonical governance-repo name.
@@ -181,6 +190,34 @@ iwe_scheduler_deployment_evidence() {
   find "$HOME/logs/synchronizer" -maxdepth 1 -iname "*scheduler*.log" 2>/dev/null | grep -q . && return 0
   return 1
 }
+
+# iwe_feedback_triage_deployment_evidence — is the optional feedback-triage
+# role actually installed? setup-agent-workspace.sh always creates its data
+# directory with only .gitkeep, so directory existence is not deployment.
+iwe_feedback_triage_deployment_evidence() {
+  local root="${IWE_ROOT:-${IWE_WORKSPACE:-}}" gov
+  [ -n "$root" ] || return 1
+  gov="$(iwe_resolve_governance_repo)"
+
+  find "$root/DS-agent-workspace/scheduler/feedback-triage" -maxdepth 1 \
+    -type f -name '*.md' 2>/dev/null | grep -q . && return 0
+  find "$HOME/logs/synchronizer" -maxdepth 1 \
+    -type f -iname '*feedback-watchdog*.log' 2>/dev/null | grep -q . && return 0
+  find "$root/$gov/logs" -maxdepth 1 \
+    -type f -iname 'feedback-triage*.log' 2>/dev/null | grep -q . && return 0
+  find "$HOME/Library/LaunchAgents" -maxdepth 1 \
+    \( -iname '*feedback*triage*.plist' -o -iname '*feedback*watchdog*.plist' \) \
+    2>/dev/null | grep -q . && return 0
+  find "$HOME/.config/systemd/user" -maxdepth 1 \
+    \( -iname '*feedback*triage*.timer' -o -iname '*feedback*watchdog*.timer' \) \
+    2>/dev/null | grep -q . && return 0
+  if command -v crontab >/dev/null 2>&1 \
+    && crontab -l 2>/dev/null | grep -qiE 'feedback[-_](triage|watchdog)'; then
+    return 0
+  fi
+  return 1
+}
+
 
 # iwe_scheduler_state — prints exactly one of:
 #   active            — a unit is registered and live with this OS's launcher

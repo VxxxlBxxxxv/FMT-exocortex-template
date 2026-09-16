@@ -188,7 +188,11 @@ WGET_FILE_OPTIONS = frozenset(
 )
 GH_DIRECT_FILE_OPTIONS = frozenset(("--input", "--body-file", "--notes-file"))
 GH_FIELD_FILE_OPTIONS = frozenset(("-F", "--field"))
-MCP_TOOL_NAME = re.compile(r"mcp__[A-Za-z0-9_.-]+__[A-Za-z0-9_.-]+\Z")
+# MCP runtimes do not expose one stable server/tool delimiter: Claude Code
+# emits mcp__server__tool, while mounted gateway routes emit
+# mcp__server_tool. Validate the full normalized identifier instead of
+# requiring the Claude-specific second "__".
+MCP_TOOL_NAME = re.compile(r"mcp__[A-Za-z0-9_.-]+\Z")
 
 # Commands whose normal output is the entire environment or an entire secret
 # store in cleartext, independent of any recognizable value shape - a

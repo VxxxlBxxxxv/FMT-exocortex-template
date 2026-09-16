@@ -93,6 +93,9 @@ TRIAGE_FILE="$IWE/DS-agent-workspace/scheduler/feedback-triage/$DATE.md"
 if [ ! -d "$IWE/DS-agent-workspace/scheduler" ]; then
   TRIAGE_STATUS="disabled"
   TRIAGE_REASON="DS-agent-workspace/scheduler not present — feedback-triage subsystem not installed"
+elif ! iwe_feedback_triage_deployment_evidence; then
+  TRIAGE_STATUS="disabled"
+  TRIAGE_REASON="feedback-triage role not deployed; empty data directory is only an optional workspace scaffold"
 elif [ -f "$TRIAGE_FILE" ]; then
   TRIAGE_STATUS="ok"
 else
