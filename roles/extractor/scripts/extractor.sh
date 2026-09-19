@@ -375,8 +375,26 @@ commit_extractor_changes() {
     # via `[ -e ... ] || continue` on a repo/run where e.g. inbox/captures/
     # didn't exist yet -- reintroducing the exact Scope-gate block this whole
     # function exists to avoid, with no warning.
+    #
+    # Follow-up fix: the same static list survived below in `git add` and
+    # `git commit --only`. `git status`/`git diff` tolerate a pathspec that
+    # matches nothing, but `git add` treats it as fatal -- so on any repo
+    # without the monthly rotation dir (inbox/captures/) staging died with
+    # "pathspec did not match any files", nothing was ever committed, and the
+    # scheduler kept re-running inbox-check every dispatch instead of every 3h
+    # (mark_interval only fires on success). Both now reuse the same
+    # porcelain-derived list as the scope registration, which additionally
+    # guarantees the staged set matches the scope-gate set exactly.
     local changed_paths
-    changed_paths=$(awk '{print substr($0, 4)}' <<< "$target_changes")
+    changed_paths=$(awk '{ p = substr($0, 4); i = index(p, " -> "); if (i) p = substr(p, i + 4); print p }' <<< "$target_changes")
+
+    local -a changed_path_list=()
+    mapfile -t changed_path_list <<< "$changed_paths"
+    if [ "${#changed_path_list[@]}" -eq 0 ]; then
+        log "WARN: no concrete paths derived from status output for $repo_name; skipping commit"
+        EXTRACTOR_COMMIT_RESULT="blocked"
+        return 0
+    fi
 
     local scope_agent="extractor" scope_reason="commit-$$" scope_opened=0
     if extractor_scope_open_and_note "$strategy_dir" "$scope_agent" "$scope_reason" "$changed_paths"; then
@@ -387,7 +405,7 @@ commit_extractor_changes() {
 
     # `git commit --only` does not discover a brand-new report directory. Stage only
     # extractor-owned paths; `--only` below still leaves every foreign staged path intact.
-    if ! git -C "$strategy_dir" add -- inbox/captures.md inbox/captures/ inbox/extraction-reports/ >> "$LOG_FILE" 2>&1; then
+    if ! git -C "$strategy_dir" add -- "${changed_path_list[@]}" >> "$LOG_FILE" 2>&1; then
         log "WARN: cannot stage extractor changes for $repo_name"
         EXTRACTOR_COMMIT_RESULT="failed"
         [ "$scope_opened" -eq 1 ] && extractor_scope_close "$strategy_dir" "$scope_agent" "$scope_reason"
@@ -396,7 +414,7 @@ commit_extractor_changes() {
 
     if ! git -C "$strategy_dir" commit --only \
         -m "inbox-check: extraction report $DATE" -- \
-        inbox/captures.md inbox/captures/ inbox/extraction-reports/ >> "$LOG_FILE" 2>&1; then
+        "${changed_path_list[@]}" >> "$LOG_FILE" 2>&1; then
         log "WARN: git commit failed for $repo_name"
         EXTRACTOR_COMMIT_RESULT="failed"
         [ "$scope_opened" -eq 1 ] && extractor_scope_close "$strategy_dir" "$scope_agent" "$scope_reason"
