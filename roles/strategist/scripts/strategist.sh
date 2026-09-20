@@ -115,11 +115,19 @@ elif [ -x "$HOME/.npm-global/bin/claude" ]; then
 else
     CLAUDE_PATH="{{CLAUDE_PATH}}"  # fallback: build-runtime должен был подставить
 fi
-if [ ! -x "$CLAUDE_PATH" ]; then
-    echo "[$(date '+%H:%M:%S')] ERROR: claude CLI не найден (CLAUDE_CLI_PATH/PATH/~/.local/bin/~/.npm-global/fallback='$CLAUDE_PATH')." >&2
+CLAUDE_TIMEOUT=1800  # 30 мин — защита от зависания Claude CLI
+
+# AI CLI: переопределение через переменные окружения (см. extractor.sh)
+AI_CLI="${AI_CLI:-$CLAUDE_PATH}"
+AI_CLI_PROMPT_FLAG="${AI_CLI_PROMPT_FLAG:--p}"
+
+# AR.293: гейт проверяет эффективную программу ($AI_CLI), не литерал CLAUDE_PATH —
+# иначе override остаётся декоративным, когда claude физически отсутствует, но
+# AI_CLI указывает на реально установленную другую программу.
+if ! command -v "$AI_CLI" >/dev/null 2>&1 && [ ! -x "$AI_CLI" ]; then
+    echo "[$(date '+%H:%M:%S')] ERROR: $AI_CLI CLI не найден (AI_CLI/CLAUDE_CLI_PATH/PATH/~/.local/bin/~/.npm-global/fallback='$AI_CLI')." >&2
     exit 127
 fi
-CLAUDE_TIMEOUT=1800  # 30 мин — защита от зависания Claude CLI
 
 # macOS не имеет GNU timeout — используем perl fallback
 if ! command -v timeout &>/dev/null; then
@@ -250,10 +258,20 @@ ${prompt}"
     # дефолт — проверенный mcp__claude_ai_Google_Calendar. Неизвестные имена в
     # whitelist безвредны — просто никогда не совпадут.
     local calendar_mcp="${IWE_CALENDAR_MCP_SERVERS:-mcp__claude_ai_Google_Calendar}"
-    timeout "$CLAUDE_TIMEOUT" "$CLAUDE_PATH" \
-        "${model_args[@]}" \
-        --allowedTools "Read,Write,Edit,Glob,Grep,Bash,${calendar_mcp}" \
-        -p "$prompt" \
+    # AR.293: AI_CLI_EXTRA_FLAGS — точка подмены на случай, когда AI_CLI указывает
+    # не на Claude Code (--model/--allowedTools — его флаги, не переносимы как есть).
+    # Дефолт воспроизводит прежнее поведение один в один.
+    local extra_flags
+    if [ -n "${AI_CLI_EXTRA_FLAGS:-}" ]; then
+        # намеренный word-splitting единой override-строки — тот же контракт,
+        # что уже принят в extractor.sh
+        read -ra extra_flags <<< "$AI_CLI_EXTRA_FLAGS"
+    else
+        extra_flags=("${model_args[@]}" --allowedTools "Read,Write,Edit,Glob,Grep,Bash,${calendar_mcp}")
+    fi
+    timeout "$CLAUDE_TIMEOUT" "$AI_CLI" \
+        "${extra_flags[@]}" \
+        $AI_CLI_PROMPT_FLAG "$prompt" \
         >> "$LOG_FILE" 2>&1 || rc=$?
 
     if [ $rc -eq 124 ]; then
@@ -272,8 +290,20 @@ ${prompt}"
     if git -C "$WORKSPACE" diff --quiet origin/main..HEAD 2>/dev/null; then
         log "No unpushed commits"
     else
-        git -C "$WORKSPACE" pull --rebase >> "$LOG_FILE" 2>&1 && log "Pulled (rebase)" || log "WARN: pull --rebase failed"
-        git -C "$WORKSPACE" push >> "$LOG_FILE" 2>&1 && log "Pushed to GitHub" || log "WARN: git push failed"
+        # WP-7 Ф101: raw pull --rebase + push on a checkout shared with
+        # concurrent agent sessions routinely hit a dirty tree or a
+        # non-fast-forward push and silently dropped the commit (found via a
+        # W36 week-review that never reached origin/main). ds-publish.sh
+        # isolates this exact commit into a disposable worktree instead of
+        # waiting for a clean window.
+        local push_sha
+        push_sha=$(git -C "$WORKSPACE" rev-parse HEAD)
+        if bash "$WORKSPACE/scripts/ds-publish.sh" "$WORKSPACE" normal \
+            --reason "strategist: $command_file" --from-commit "$push_sha" >> "$LOG_FILE" 2>&1; then
+            log "Pushed to GitHub"
+        else
+            log "WARN: ds-publish.sh failed — публикация не удалась"
+        fi
     fi
 
     # Очистить staging area после Claude сессии (предотвращает staging leak в следующие скрипты)
@@ -316,6 +346,45 @@ acquire_lock() {
     fi
     echo $$ > "$lockdir/pid" || { rm -rf "$lockdir"; log "ERROR: failed to write PID for $scenario"; exit 1; }
     add_exit_cleanup "rm -rf \"$lockdir\" 2>/dev/null"
+}
+
+# issue #840: git-diff-feed and session-close-feed (extractor.sh) and this
+# note-review step all read-modify-write the same shared inbox/captures.md.
+# acquire_lock() above only serializes note-review against a second
+# note-review run (own $LOG_DIR/locks) -- it never intersects extractor.sh's
+# separate TMPDIR-based lock, so the two scripts could still race on the
+# same file. Shares that exact lock dir/var so both writers contend for the
+# same resource instead of two disjoint namespaces.
+acquire_captures_write_lock() {
+    local lock_dir="${IWE_EXTRACTOR_FEED_LOCK_DIR:-${TMPDIR:-/tmp}/iwe-extractor-session-close-feed.lock}"
+    local waited=0
+    while true; do
+        if mkdir "$lock_dir" 2>/dev/null; then
+            printf '%s\n' "$$" > "$lock_dir/pid"
+            add_exit_cleanup "rm -f '$lock_dir/pid' 2>/dev/null; rmdir '$lock_dir' 2>/dev/null"
+            return 0
+        fi
+        local owner_pid=""
+        [ -f "$lock_dir/pid" ] && owner_pid=$(tr -d '[:space:]' < "$lock_dir/pid")
+        # Mirrors acquire_inbox_lock() (extractor.sh) exactly: only reclaim
+        # when the pid file is present and non-empty. A missing/empty pid
+        # file means another writer's mkdir has landed but its own pid write
+        # has not (a real, if narrow, gap -- see extractor.sh's own mkdir/
+        # printf pair) -- reclaiming there would steal a lock someone else
+        # already holds (TOCTOU), reintroducing the exact race #840 fixes.
+        # Cold-review (same session) caught this asymmetry before deploy.
+        if [ -n "$owner_pid" ] && { ! [[ "$owner_pid" =~ ^[0-9]+$ ]] || ! kill -0 "$owner_pid" 2>/dev/null; }; then
+            rm -f "$lock_dir/pid"
+            rmdir "$lock_dir" 2>/dev/null
+            continue
+        fi
+        if [ "$waited" -ge 30 ]; then
+            log "WARN: captures.md lock unavailable after ${waited}s (pid: ${owner_pid:-mid-acquire}) — proceeding without it"
+            return 1
+        fi
+        sleep 1
+        waited=$((waited + 1))
+    done
 }
 
 # Читаем strategy_day из конфига (L4 Personal)
@@ -467,6 +536,7 @@ case "$1" in
         BOLD_NEW_BEFORE=$(grep -vc '🔄' <(grep '^\*\*' "$FLEETING" 2>/dev/null) 2>/dev/null || true); BOLD_NEW_BEFORE=${BOLD_NEW_BEFORE:-0}
         log "Canary: $BOLD_BEFORE bold total ($BOLD_NEW_BEFORE new, $(( BOLD_BEFORE - BOLD_NEW_BEFORE )) deferred 🔄)"
 
+        acquire_captures_write_lock || true
         run_claude "note-review" "claude-haiku-4-5-20251001"
 
         # Canary: count bold notes after (needs to be visible for alert at line ~274)
@@ -517,9 +587,21 @@ case "$1" in
         # If cleanup made changes, commit and push
         if ! git -C "$WORKSPACE" diff --quiet -- inbox/fleeting-notes.md archive/notes/Notes-Archive.md 2>/dev/null; then
             git -C "$WORKSPACE" add inbox/fleeting-notes.md archive/notes/Notes-Archive.md
-            git -C "$WORKSPACE" commit -m "chore: auto-cleanup processed notes from fleeting-notes.md" >> "$LOG_FILE" 2>&1 || true
-            git -C "$WORKSPACE" pull --rebase >> "$LOG_FILE" 2>&1 && log "Cleanup: pulled (rebase)" || log "WARN: cleanup pull --rebase failed"
-            git -C "$WORKSPACE" push >> "$LOG_FILE" 2>&1 && log "Cleanup: pushed" || log "WARN: cleanup push failed"
+            # WP-7 Ф101: same ds-publish.sh move as the main push block above,
+            # plus an explicit commit-result check — `|| true` here used to
+            # swallow a failed commit while still reporting "Cleanup: pushed"
+            # for a commit that never happened.
+            if git -C "$WORKSPACE" commit -m "chore: auto-cleanup processed notes from fleeting-notes.md" >> "$LOG_FILE" 2>&1; then
+                cleanup_sha=$(git -C "$WORKSPACE" rev-parse HEAD)
+                if bash "$WORKSPACE/scripts/ds-publish.sh" "$WORKSPACE" normal \
+                    --reason "strategist: cleanup" --from-commit "$cleanup_sha" >> "$LOG_FILE" 2>&1; then
+                    log "Cleanup: pushed"
+                else
+                    log "WARN: cleanup ds-publish.sh failed"
+                fi
+            else
+                log "WARN: cleanup git commit failed"
+            fi
         else
             log "Cleanup: no changes to commit"
         fi

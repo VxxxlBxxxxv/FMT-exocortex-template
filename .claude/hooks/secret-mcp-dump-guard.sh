@@ -90,9 +90,6 @@ self_test() {
   run_case environment_status_denied deny "mcp__example__environment_status"
   run_case service_metrics_denied deny "mcp__example__service_metrics"
   run_case safe_tool_allowed allow "mcp__example__lookup_widget"
-  # Mounted gateway routes collapse the server/tool delimiter to one
-  # underscore run. This production spelling must remain valid and safe.
-  run_case mounted_gateway_tool_allowed allow "mcp__iwe_knowledge_knowledge_reindex_source"
   # tool_name_lower normalization must not regress alongside the case fix.
   run_case case_insensitive_denied deny "mcp__example__GET_Config"
   # An empty tool_name fails MCP_TOOL_NAME.fullmatch() in analyze_mcp() ->

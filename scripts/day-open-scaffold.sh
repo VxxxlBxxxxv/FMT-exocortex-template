@@ -43,7 +43,7 @@ IWE="$(iwe_resolve_root)"
 IWE_ROOT="$IWE"
 export IWE_ROOT IWE
 DATE="${1:-$(date +%Y-%m-%d)}"
-CONFIG="$IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/exocortex/day-rhythm-config.yaml"
+CONFIG="$IWE/memory/day-rhythm-config.yaml"
 PARAMS_FILE="$IWE/params.yaml"
 MULTIPLIER_ENABLED="true"
 if [ -f "$PARAMS_FILE" ] && grep -qE '^multiplier_enabled:[[:space:]]*false([[:space:]]*(#.*)?)?$' "$PARAMS_FILE"; then
@@ -475,11 +475,6 @@ render_world() {
 # --- Section: Здоровье платформы (feedback-triage report) ---
 render_bot_qa() {
   local file="$IWE/DS-agent-workspace/scheduler/feedback-triage/$DATE.md"
-  local scheduler_report="$IWE/DS-agent-workspace/scheduler/reports/SchedulerReport $DATE.md"
-  local scheduler_summary=""
-  if [ -f "$scheduler_report" ]; then
-    scheduler_summary=$(sed -n '/^## /{s/^## //;p;q;}' "$scheduler_report" 2>/dev/null)
-  fi
   if [ -f "$file" ]; then
     awk '/^\*\*Дельта/,/^### ✏️/' "$file" 2>/dev/null | head -40
     echo
@@ -488,23 +483,15 @@ render_bot_qa() {
     if [ "${TRIAGE_PF:-unknown}" = "fail" ]; then
       echo "**Дельта:** ⚠️ Отчёт feedback-triage за $DATE отсутствует. Scheduler, вероятно, не запущен (простой ≥1 дня)."
     elif [ "${TRIAGE_PF:-unknown}" = "disabled" ]; then
-      if [ -n "$scheduler_summary" ]; then
-        echo "**Дельта:** отчёт планировщика за $DATE: $scheduler_summary; feedback-triage не установлен на этой машине"
-      else
-        echo "**Дельта:** feedback-triage не установлен на этой машине; отчёт планировщика за $DATE отсутствует"
-      fi
+      echo "**Дельта:** feedback-triage не установлен на этой машине"
     else
       echo "**Дельта:** нет данных (отчёт за $DATE отсутствует)"
     fi
     echo
     echo "| Метрика | Значение |"
     echo "|---------|----------|"
-    echo "| Сегодня | не применимо (роль feedback-triage не развёрнута) |"
-    echo "| Urgent | не применимо (роль feedback-triage не развёрнута) |"
-    if [ -f "$scheduler_report" ]; then
-      echo
-      echo "*Отчёт планировщика: \`$scheduler_report\`*"
-    fi
+    echo "| Сегодня | нет данных |"
+    echo "| Urgent | нет данных |"
   fi
   echo
   # Шаг 5 SKILL: core smoke синхронно. Раньше оставлялся PENDING-placeholder (bug-2026-06-12).
@@ -728,20 +715,10 @@ render_iwe_status() {
   local triage_file="$IWE/DS-agent-workspace/scheduler/feedback-triage/$DATE.md"
   local watchdog_log="$HOME/logs/synchronizer/feedback-watchdog-$DATE.log"
   local feedback_triage_log="$IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/logs/feedback-triage.log"
-  local scheduler_report="$IWE/DS-agent-workspace/scheduler/reports/SchedulerReport $DATE.md"
-  local feedback_triage_today=false
-  if [ -f "$feedback_triage_log" ] \
-    && [ "$(iwe_file_mtime_date "$feedback_triage_log" 2>/dev/null)" = "$DATE" ]; then
-    feedback_triage_today=true
-  fi
   local last_watchdog_log
   last_watchdog_log=$(ls -t "$HOME/logs/synchronizer/feedback-watchdog-"*.log 2>/dev/null | head -1 || echo "")
   local last_feedback_triage_log
   last_feedback_triage_log=$(ls -t "$IWE/${IWE_GOVERNANCE_REPO:-DS-strategy}/logs/feedback-triage"*.log 2>/dev/null | head -1 || echo "")
-  local triage_deployed=false
-  if iwe_feedback_triage_deployment_evidence; then
-    triage_deployed=true
-  fi
   # issue #261: старая маска ловила только legacy-метки (iwe.scheduler и т.п.), под которые
   # не попадают ни current per-role юниты, ни даже шаблонный com.exocortex.scheduler.plist.
   # WP-5 Ubuntu-audit факт #4: launchctl unconditionally also meant Linux always saw this
@@ -766,15 +743,9 @@ render_iwe_status() {
     in_grace_window=true
   fi
 
-  if [ -f "$triage_file" ] || [ -f "$watchdog_log" ] || [ "$feedback_triage_today" = "true" ]; then
-    # Mode B-1: датированный отчёт либо журнал с mtime за сегодня есть → норм.
+  if [ -f "$triage_file" ] || [ -f "$watchdog_log" ] || [ -f "$feedback_triage_log" ]; then
+    # Mode B-1: отчёт/лог за сегодня есть → норм
     echo "| Scheduler/триаж | 🟢 | отчёт/лог за $DATE присутствует (Mode B норм) |"
-  elif [ "$triage_deployed" = "false" ]; then
-    if [ -f "$scheduler_report" ]; then
-      echo "| Scheduler/триаж | ⚪ | отчёт планировщика за $DATE присутствует; роль feedback-triage не развёрнута на этой машине |"
-    else
-      echo "| Scheduler/триаж | 🟡 | отчёт планировщика за $DATE отсутствует; роль feedback-triage не развёрнута на этой машине |"
-    fi
   elif [ "$scheduler_state" = "not_deployed" ]; then
     # issue #347: планировщик здесь никогда не разворачивали — нет ни юнита, ни
     # crontab-записи, ни единого лога за всю историю. Это не авария, а не-установка:
@@ -797,7 +768,7 @@ render_iwe_status() {
       last_log_file="$last_watchdog_log"
     fi
     if [ -n "$last_log_file" ]; then
-      last_log_age_days=$(( ( $(date +%s) - $(iwe_file_mtime_epoch "$last_log_file" 2>/dev/null || echo 0) ) / 86400 ))
+      last_log_age_days=$(( ( $(date +%s) - $(stat -f %m "$last_log_file" 2>/dev/null || stat -c %Y "$last_log_file" 2>/dev/null || echo 0) ) / 86400 ))
     fi
     if [ "$last_log_age_days" -le 1 ] || [ "$last_log_age_days" -eq -1 ]; then
       echo "| Scheduler/триаж | 🟢 | Mode B: feedback-triage зарегистрирован, последний лог присутствует (нет жалоб = тишина) |"
@@ -816,9 +787,9 @@ render_iwe_status() {
     # Mode A: cron не запущен (нет юнита в launchctl) + нет свежих логов
     local last_log_age_days="∞"
     if [ -n "$last_feedback_triage_log" ]; then
-      last_log_age_days=$(( ( $(date +%s) - $(iwe_file_mtime_epoch "$last_feedback_triage_log" 2>/dev/null || echo 0) ) / 86400 ))
+      last_log_age_days=$(( ( $(date +%s) - $(stat -f %m "$last_feedback_triage_log" 2>/dev/null || stat -c %Y "$last_feedback_triage_log" 2>/dev/null || echo 0) ) / 86400 ))
     elif [ -n "$last_watchdog_log" ]; then
-      last_log_age_days=$(( ( $(date +%s) - $(iwe_file_mtime_epoch "$last_watchdog_log" 2>/dev/null || echo 0) ) / 86400 ))
+      last_log_age_days=$(( ( $(date +%s) - $(stat -f %m "$last_watchdog_log" 2>/dev/null || stat -c %Y "$last_watchdog_log" 2>/dev/null || echo 0) ) / 86400 ))
     fi
     # issue #347: строка светофора не называла способ подавления — пользователь узнавал
     # о маркере, только читая исходник этого скрипта.

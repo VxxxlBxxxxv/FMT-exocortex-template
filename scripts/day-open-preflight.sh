@@ -52,9 +52,14 @@ fi
 SCOUT_STATUS="unknown"
 SCOUT_REASON=""
 BACKLOG_FILE="$IWE/DS-agent-workspace/scout/backlog.yaml"
-if [ ! -d "$IWE/DS-agent-workspace" ]; then
+# issue #827: DS-agent-workspace can exist for an unrelated subsystem
+# (e.g. feedback-triage) while Scout itself was never set up — check
+# Scout's own scout/ subdirectory, not just the parent repo's presence,
+# or a host without Scout falls through into the ok/fail branches below
+# and shows a misleading 🟡 instead of "not installed".
+if [ ! -d "$IWE/DS-agent-workspace/scout" ]; then
   SCOUT_STATUS="disabled"
-  SCOUT_REASON="DS-agent-workspace repo not present — Scout subsystem not installed"
+  SCOUT_REASON="DS-agent-workspace/scout not present — Scout subsystem not installed"
 fi
 HAS_PENDING=false
 if [ -f "$BACKLOG_FILE" ] && grep -q "status: pending" "$BACKLOG_FILE" 2>/dev/null; then
@@ -93,9 +98,6 @@ TRIAGE_FILE="$IWE/DS-agent-workspace/scheduler/feedback-triage/$DATE.md"
 if [ ! -d "$IWE/DS-agent-workspace/scheduler" ]; then
   TRIAGE_STATUS="disabled"
   TRIAGE_REASON="DS-agent-workspace/scheduler not present — feedback-triage subsystem not installed"
-elif ! iwe_feedback_triage_deployment_evidence; then
-  TRIAGE_STATUS="disabled"
-  TRIAGE_REASON="feedback-triage role not deployed; empty data directory is only an optional workspace scaffold"
 elif [ -f "$TRIAGE_FILE" ]; then
   TRIAGE_STATUS="ok"
 else

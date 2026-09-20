@@ -12,7 +12,7 @@ DAYPLAN_FILE="$_IWE/{{GOVERNANCE_REPO}}/current/DayPlan $DATE.md"
 
 # Если файла нет — создать через scaffold (если доступен)
 if [ ! -f "$DAYPLAN_FILE" ]; then
-  _SCAFFOLD="$_IWE/scripts/day-open-scaffold.sh"
+  _SCAFFOLD="${IWE_SCRIPTS:-$_IWE/FMT-exocortex-template/scripts}/day-open-scaffold.sh"
   if [ -f "$_SCAFFOLD" ]; then
     bash "$_SCAFFOLD" "$DATE" > "$DAYPLAN_FILE"
     SCAFFOLD_EXIT=$?
@@ -22,7 +22,7 @@ if [ ! -f "$DAYPLAN_FILE" ]; then
       exit 0
     fi
   else
-    echo "WARN: day-open-scaffold.sh not found at $_IWE/scripts/ — создаю минимальный DayPlan, PENDING-маркеры заполнит LLM"
+    echo "WARN: day-open-scaffold.sh not found at $_SCAFFOLD — создаю минимальный DayPlan, PENDING-маркеры заполнит LLM"
     cat > "$DAYPLAN_FILE" <<FRONTMATTER
 ---
 type: daily-plan
@@ -74,8 +74,8 @@ fi
    ```markdown
    | Метрика | Значение |
    |---------|----------|
-   | Triage 7d | 0 |
-   | Open Issues | 0 |
+   | Triage 7d | <реальное число> |
+   | Open Issues | <реальное число или «не проверено»> |
    ```
    Светофор-таблица (`| Scheduler | 🟢 | ...`) **не проходит** валидацию (после pipe идёт буква, не цифра).
 
@@ -109,13 +109,14 @@ git -C "$REPO_DIR" push
 - MEMORY: `~/.claude/projects/{{CLAUDE_PROJECT_SLUG}}/memory/`
 - Skill: `{{WORKSPACE_DIR}}/.claude/skills/day-open/SKILL.md`
 - Templates: `~/.claude/projects/{{CLAUDE_PROJECT_SLUG}}/memory/templates-dayplan.md`
-- Scaffold: `{{WORKSPACE_DIR}}/scripts/day-open-scaffold.sh`
+- Scaffold: `{{WORKSPACE_DIR}}/FMT-exocortex-template/scripts/day-open-scaffold.sh` (резолвится через `$IWE_SCRIPTS`)
 - Extensions: `{{WORKSPACE_DIR}}/extensions/day-open.before.md`, `.after.md`, `.checks.md`
 
 ## Если что-то отсутствует
 
 - Файлы или репо нет → log warning, продолжай с тем что есть. НЕ падай.
-- Calendar: на сервере его нет (Mac-only). Секцию пометь «Календарь недоступен на сервере».
+- Calendar: не ставь ложный диагноз «Mac-only». Сначала пробуй доступный серверный скрипт / MCP / fallback-путь; если проверить нельзя — пиши «календарь не проверен», а не «недоступен».
+- GitHub Issues: ложный ноль хуже, чем «не проверено». Считай реально через `gh issue list` / GitHub API; если проверить нельзя — пиши «не проверено», а не `0`.
 - Видео: если scaffold нашёл 0 файлов — секция «нет новых видео сегодня».
 
 Результат: DayPlan в `current/` с заполненными PENDING-секциями, закоммичен и запушен.

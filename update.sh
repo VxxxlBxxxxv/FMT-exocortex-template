@@ -44,6 +44,21 @@ BRANCH="main"
 # (author/dev workflow) — a failed release lookup aborts fail-closed (#501),
 # it never falls back to main automatically.
 UPDATE_CHANNEL="${IWE_UPDATE_CHANNEL:-release}"
+# WP-529 F26: an unknown channel used to fall through to the main branch
+# silently — a typo (IWE_UPDATE_CHANNEL=realese) delivered unreleased main to a
+# user who explicitly asked for the pinned release. Fail closed and name the
+# accepted values instead of guessing which one was meant.
+case "$UPDATE_CHANNEL" in
+    release|main) ;;
+    *)
+        echo "✗ Неизвестный канал обновления: IWE_UPDATE_CHANNEL='$UPDATE_CHANNEL'" >&2
+        echo "  Допустимые значения:" >&2
+        echo "    release — последний опубликованный выпуск (по умолчанию)" >&2
+        echo "    main    — движущаяся ветка разработки (только для автора)" >&2
+        echo "  Обновление остановлено: неизвестное значение раньше молча уводило на main." >&2
+        exit "$EXIT_USAGE"
+        ;;
+esac
 RAW_BASE="https://raw.githubusercontent.com/$REPO/$BRANCH"
 API_BASE="https://api.github.com/repos/$REPO"
 
@@ -148,10 +163,27 @@ else
     sed_inplace() { sed -i '' "$@"; }
 fi
 
+# issue #755: `A 2>/dev/null | cut ... || B` never ran B on a missing `shasum`
+# (Alpine/busybox and similar minimal images have neither `shasum` nor
+# `perl`) -- `cut`'s own exit code (0, even on empty stdin) is what `||`
+# checked, not shasum's. hash_file() silently returned "" for every file, both
+# sides of every comparison in this script came out equal ("" = ""), and the
+# whole run finished EXIT=0 having verified nothing (754 files reported as
+# "unchanged" on one real report, 100% false). Fail loudly here, once, up
+# front, instead of at each of the dozens of call sites below.
+if ! command -v shasum >/dev/null 2>&1 && ! command -v sha256sum >/dev/null 2>&1; then
+    echo "ОШИБКА: ни shasum, ни sha256sum не найдены — проверка целостности файлов невозможна." >&2
+    echo "  Установите coreutils (sha256sum) или perl (даёт shasum) и повторите." >&2
+    exit "$EXIT_RUNTIME"
+fi
+
 # === Cross-platform hash ===
 hash_file() {
-    shasum -a 256 "$1" 2>/dev/null | cut -d' ' -f1 || \
-    sha256sum "$1" 2>/dev/null | cut -d' ' -f1
+    if command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$1" | cut -d' ' -f1
+    else
+        sha256sum "$1" | cut -d' ' -f1
+    fi
 }
 
 # === Cross-platform Python resolution (issue #402) ===
@@ -607,6 +639,102 @@ RULES_BACKUP_RUN=""
 RULES_SAFE_TO_UPDATE="|"
 UPDATE_INCOMPLETE_MARKER="$SCRIPT_DIR/.update-incomplete"
 UPDATE_TRANSACTION_STARTED=false
+
+# issue #768: a full update.sh run, launched from a disposable copy of the
+# workspace, silently retargeted the REAL ~/Library/LaunchAgents and
+# ~/.zshenv onto the copy — WORKSPACE_DIR correctly points at the copy, but
+# nothing checks whether host-global resources (a real per-user shell rc
+# file, real launchd jobs) already belong to a DIFFERENT, already-configured
+# workspace before rewriting them. Absence of evidence is not evidence of
+# being the primary install — this only detects a conflict with a workspace
+# already on record; a virgin machine still lets the first run claim
+# ownership (peer-session 2026-09-10-09-fmt-issues-triage, Kimi+Codex).
+HOST_GLOBAL_OWNER_CONFLICT=false
+HOST_GLOBAL_OWNER_CONFLICT_REASON=""
+
+canonical_workspace_path() {
+    if [ -d "$1" ]; then
+        (cd "$1" 2>/dev/null && pwd -P)
+    else
+        printf '%s\n' "${1%/}"
+    fi
+}
+
+mark_host_global_conflict() {
+    if [ -n "$HOST_GLOBAL_OWNER_CONFLICT_REASON" ]; then
+        HOST_GLOBAL_OWNER_CONFLICT_REASON="$HOST_GLOBAL_OWNER_CONFLICT_REASON; $1"
+    else
+        HOST_GLOBAL_OWNER_CONFLICT_REASON="$1"
+    fi
+    HOST_GLOBAL_OWNER_CONFLICT=true
+}
+
+detect_host_global_owner_conflict() {
+    local current_root existing_root plist plist_root zsh_roots
+    current_root="$(canonical_workspace_path "$WORKSPACE_DIR")"
+
+    if [ -f "$HOME/.zshenv" ]; then
+        zsh_roots=$(awk '
+          /^# IWE environment \(WP-219, DP.FM.009\):/ { managed=1; next }
+          managed && /^_IWE_ROOT="/ {
+              value=$0
+              sub(/^_IWE_ROOT="/, "", value)
+              sub(/"$/, "", value)
+              print value
+          }
+          managed && /^unset _IWE_ROOT$/ { managed=0 }
+        ' "$HOME/.zshenv")
+
+        while IFS= read -r existing_root; do
+            [ -n "$existing_root" ] || continue
+            if [ "$(canonical_workspace_path "$existing_root")" != "$current_root" ]; then
+                mark_host_global_conflict "~/.zshenv points to $existing_root"
+            fi
+        done <<EOF
+$zsh_roots
+EOF
+    fi
+
+    # Only IWE-owned launchd job names — an unrelated ~/Library/LaunchAgents
+    # entry with a similar prefix from another tool is not this contract.
+    for plist in \
+        "$HOME/Library/LaunchAgents"/com.exocortex.*.plist \
+        "$HOME/Library/LaunchAgents"/com.strategist.*.plist \
+        "$HOME/Library/LaunchAgents"/com.extractor.*.plist
+    do
+        [ -f "$plist" ] || continue
+
+        if [ -x /usr/libexec/PlistBuddy ]; then
+            plist_root=$(/usr/libexec/PlistBuddy \
+                -c 'Print :EnvironmentVariables:IWE_WORKSPACE' \
+                "$plist" 2>/dev/null || true)
+        elif command -v plutil >/dev/null 2>&1; then
+            plist_root=$(plutil -extract EnvironmentVariables.IWE_WORKSPACE raw -o - \
+                "$plist" 2>/dev/null || true)
+        else
+            plist_root=""
+        fi
+
+        if [ -z "$plist_root" ]; then
+            # Neither parser available, or the key isn't there — cannot prove
+            # this plist belongs to the current workspace. Fail closed: treat
+            # as a conflict rather than silently assume ownership.
+            mark_host_global_conflict "$(basename "$plist"): владелец не определён"
+        elif [ "$(canonical_workspace_path "$plist_root")" != "$current_root" ]; then
+            mark_host_global_conflict "$(basename "$plist") points to $plist_root"
+        fi
+    done
+}
+
+if [ "${IWE_ALLOW_FOREIGN_WORKSPACE:-0}" != "1" ]; then
+    detect_host_global_owner_conflict
+fi
+if $HOST_GLOBAL_OWNER_CONFLICT; then
+    echo "⚠ Host-global ресурсы IWE (~/.zshenv, launchd) принадлежат другому или неопределённому workspace:"
+    echo "  $HOST_GLOBAL_OWNER_CONFLICT_REASON"
+    echo "  ~/.zshenv и планировщики задач НЕ будут изменены этим прогоном."
+    echo "  Если это осознанный перенос основной установки: IWE_ALLOW_FOREIGN_WORKSPACE=1 bash update.sh"
+fi
 
 # WP-529 F6 (peer-session 2026-08-19-01, Evgenii post-update defect #5):
 # build-runtime is part of the update transaction. Its failure used to be
@@ -1560,9 +1688,16 @@ run_post_apply_backfills_or_die() {
         return 1
     fi
 
+    local install_paths_args=(
+        --workspace "$WORKSPACE_DIR"
+        --governance "$EFFECTIVE_GOVERNANCE_REPO"
+        --quiet
+    )
+    # issue #768: a foreign/unowned host-global state must not have its real
+    # ~/.zshenv rewritten to point at this WORKSPACE_DIR.
+    $HOST_GLOBAL_OWNER_CONFLICT && install_paths_args+=(--skip-zshenv)
     bash "$SCRIPT_DIR/setup/install-iwe-paths.sh" \
-        --workspace "$WORKSPACE_DIR" --governance "$EFFECTIVE_GOVERNANCE_REPO" \
-        --quiet 2>&1 | sed 's/^/  /'
+        "${install_paths_args[@]}" 2>&1 | sed 's/^/  /'
     local install_paths_status="${PIPESTATUS[0]}"
     if [ "$install_paths_status" -ne 0 ]; then
         echo "  ⚠ install-iwe-paths.sh завершился с ошибкой (exit $install_paths_status). Запустите вручную: bash $SCRIPT_DIR/setup/install-iwe-paths.sh --workspace $WORKSPACE_DIR --governance $EFFECTIVE_GOVERNANCE_REPO"
@@ -1640,6 +1775,13 @@ backfill_extractor_feeders() {
         echo "  ○ Экстрактор: пропущен (IWE_SKIP_EXTRACTOR_FEEDERS=1)."
         return 0
     fi
+    # issue #768: the feeders script schedules a real launchd job under the
+    # current user's real $HOME — a foreign/unowned host-global state must
+    # not have that job's workspace pointer rewritten onto this copy.
+    if $HOST_GLOBAL_OWNER_CONFLICT; then
+        echo "  ○ Экстрактор: host-global расписание не изменено — $HOST_GLOBAL_OWNER_CONFLICT_REASON"
+        return 0
+    fi
     if [ ! -f "$feeders" ]; then
         echo "  ○ Экстрактор: scripts/setup-extractor-feeders.sh не найден, backfill пропущен."
         return 0
@@ -1656,9 +1798,11 @@ backfill_extractor_feeders() {
     # --schedule-only, not install: an update may add the periodic job, but must
     # not redo the install-time decisions (the global git hook template, the
     # init.templateDir pointer, seeding fleeting-notes) on every single run.
-    # IWE_WORKSPACE is deliberately not passed: the feeders script never reads
-    # it, so passing it would only pretend the workspace is configurable here.
+    # IWE_WORKSPACE now passed (issue #768 fix) — the feeders script used to
+    # hardcode $HOME/IWE regardless, which is exactly what let it silently
+    # retarget a real host-global launchd job onto a disposable copy.
     if feeders_output=$(
+        IWE_WORKSPACE="$WORKSPACE_DIR" \
         IWE_GOVERNANCE_REPO="$governance_repo" \
         IWE_RUNTIME="$WORKSPACE_DIR/.iwe-runtime" \
         bash "$feeders" --schedule-only 2>&1); then
@@ -2629,7 +2773,21 @@ else
     # every file below counts as unverified (INTEGRITY_TAINTED, not merely
     # "checked composition only" as the old comment claimed).
     INTEGRITY_TAINTED=true
-    echo "⚠ Python недоступен — только состав файлов сверяется, содержимое НЕ проверяется по контрольной сумме." >&2
+    # WP-529 F26: одна строка в общем потоке вывода терялась между десятками
+    # других — пользователь узнавал о работе без проверки целостности только по
+    # коду возврата 4, если вообще на него смотрел. Рамка и явные последствия
+    # делают деградацию заметной в момент, когда она происходит.
+    echo "" >&2
+    echo "┌──────────────────────────────────────────────────────────────────┐" >&2
+    echo "│ ⚠  ОБНОВЛЕНИЕ БЕЗ ПРОВЕРКИ ЦЕЛОСТНОСТИ                           │" >&2
+    echo "└──────────────────────────────────────────────────────────────────┘" >&2
+    echo "  Python недоступен, поэтому контрольные суммы SHA-256 не проверяются." >&2
+    echo "  Сверяется только состав файлов: подменённое или повреждённое" >&2
+    echo "  содержимое в этом режиме обнаружено НЕ будет." >&2
+    echo "  Обновление завершится с кодом $EXIT_TAINTED вместо 0 — это не ошибка," >&2
+    echo "  а отметка, что проверка целостности не выполнялась." >&2
+    echo "  Как вернуть полную проверку: установите python3 и повторите запуск." >&2
+    echo "" >&2
 
     # High 2 fail-closed guard (peer-session 2026-08-21-12, Codex, revised
     # after cold-context review found the first version tautological — the
@@ -3663,12 +3821,12 @@ if [ -f "$ENV_FILE" ]; then
                 DETECTED_GOV="${IWE_GOVERNANCE_REPO:-DS-strategy}"
                 echo "  ⚠ Governance repo не найден в $DETECT_WS — fallback ${IWE_GOVERNANCE_REPO:-DS-strategy}. Проверьте .exocortex.env вручную."
             fi
-            echo "GOVERNANCE_REPO=$DETECTED_GOV" >> "$ENV_FILE"
+            echo "GOVERNANCE_REPO=\"$DETECTED_GOV\"" >> "$ENV_FILE"
             echo "  ✓ Добавлено GOVERNANCE_REPO=$DETECTED_GOV в .exocortex.env (миграция 0.28.5)"
             ENV_GOVERNANCE_REPO="$DETECTED_GOV"
         fi
         if ! grep -q '^IWE_TEMPLATE=' "$ENV_FILE" 2>/dev/null; then
-            echo "IWE_TEMPLATE=$SCRIPT_DIR" >> "$ENV_FILE"
+            echo "IWE_TEMPLATE=\"$SCRIPT_DIR\"" >> "$ENV_FILE"
             echo "  ✓ Добавлено IWE_TEMPLATE=$SCRIPT_DIR в .exocortex.env (миграция 0.28.5)"
             ENV_IWE_TEMPLATE="$SCRIPT_DIR"
         fi
@@ -3678,7 +3836,7 @@ if [ -f "$ENV_FILE" ]; then
         # generated plist could ever carry it — the launchd jobs silently ran
         # without it (strategist.sh:357-366 fell back to the free-form prompt).
         if ! grep -q '^IWE_SCRIPTS=' "$ENV_FILE" 2>/dev/null; then
-            echo "IWE_SCRIPTS=$SCRIPT_DIR/scripts" >> "$ENV_FILE"
+            echo "IWE_SCRIPTS=\"$SCRIPT_DIR/scripts\"" >> "$ENV_FILE"
             echo "  ✓ Добавлено IWE_SCRIPTS=$SCRIPT_DIR/scripts в .exocortex.env (WP-529 Ф94)"
             ENV_IWE_SCRIPTS="$SCRIPT_DIR/scripts"
         fi
@@ -3686,7 +3844,7 @@ if [ -f "$ENV_FILE" ]; then
         # === WP-273 Этап 2: IWE_RUNTIME для Generated runtime architecture (F) ===
         if ! grep -q '^IWE_RUNTIME=' "$ENV_FILE" 2>/dev/null; then
             DETECT_WS_RT="${ENV_WORKSPACE_DIR:-$WORKSPACE_DIR}"
-            echo "IWE_RUNTIME=$DETECT_WS_RT/.iwe-runtime" >> "$ENV_FILE"
+            echo "IWE_RUNTIME=\"$DETECT_WS_RT/.iwe-runtime\"" >> "$ENV_FILE"
             echo "  ✓ Добавлено IWE_RUNTIME=$DETECT_WS_RT/.iwe-runtime (миграция WP-273 → 0.29.0)"
             ENV_IWE_RUNTIME="$DETECT_WS_RT/.iwe-runtime"
         fi
@@ -3703,6 +3861,34 @@ if [ -f "$ENV_FILE" ]; then
                 echo "  ✓ Добавлено USER_NAME=$DETECTED_USER_NAME в .exocortex.env (WP-5 Ф43)"
             fi
         fi
+
+        # === Re-quote unquoted values in existing .exocortex.env (issue #781) ===
+        # #223/#316 приучили setup.sh/update.sh писать значения в кавычках, но
+        # ни один путь не чинил уже существующий файл, созданный до фикса —
+        # `TIMEZONE_DESC=4:00 UTC` без кавычек ломает любой `source
+        # .exocortex.env` (bash трактует хвост после пробела как команду,
+        # `UTC: command not found`, rc 127). Чиним только значения, где
+        # реально нет пробела в написанном виде разбор строкой (line-parser
+        # выше) уже подтвердил валидный KEY — просто дописываем кавычки туда,
+        # где их ещё нет. Список расширен ревью после первого фикса (#786):
+        # GOVERNANCE_REPO/IWE_TEMPLATE/IWE_SCRIPTS/IWE_RUNTIME писались этим
+        # же update.sh без кавычек чуть ниже по файлу (миграции 0.28.5/WP-273/
+        # WP-529) — тот же класс дефекта на путях с пробелом.
+        for _key in TIMEZONE_DESC GITHUB_USER WORKSPACE_DIR CLAUDE_PATH \
+                    CLAUDE_PROJECT_SLUG HOME_DIR USER_NAME \
+                    GOVERNANCE_REPO IWE_TEMPLATE IWE_SCRIPTS IWE_RUNTIME; do
+            _raw_line=$(grep -E "^${_key}=" "$ENV_FILE" 2>/dev/null | head -1)
+            [ -z "$_raw_line" ] && continue
+            _raw_value="${_raw_line#*=}"
+            case "$_raw_value" in
+                \"*\"|\'*\') continue ;;  # уже в двойных или одинарных кавычках
+                *[[:space:]]*)
+                    _quoted=$(sed_escape_replacement "$_raw_value")
+                    sed_inplace "s|^${_key}=.*|${_key}=\"${_quoted}\"|" "$ENV_FILE"
+                    echo "  ✓ $_key взят в кавычки в .exocortex.env (issue #781, значение содержало пробел)"
+                    ;;
+            esac
+        done
 
         # === Migrate .exocortex.env from FMT to workspace (WP-273 Этап 2) ===
         # Если .exocortex.env живёт в FMT (legacy ≤0.28.x), копируем в workspace.
@@ -4018,9 +4204,14 @@ if changed:
     print(msg)
 " "$MCP_WORKSPACE" 2>/dev/null
 elif [ ! -f "$MCP_WORKSPACE" ] && [ -f "$MCP_TEMPLATE" ]; then
-    # No workspace .mcp.json — copy from template
-    cp "$MCP_TEMPLATE" "$MCP_WORKSPACE"
-    echo "  ✓ .mcp.json создан из шаблона (Gateway)"
+    # No workspace .mcp.json — copy from template.
+    # issue #786: голый cp оставлял {{HOME_DIR}} буквально — ext-railway не
+    # стартовал. Та же процедура подстановки, что уже применяется к CLAUDE.md.
+    if substitute_claude_placeholders "$MCP_TEMPLATE" "$MCP_WORKSPACE"; then
+        echo "  ✓ .mcp.json создан из шаблона (Gateway)"
+    else
+        echo "  ✗ не удалось создать $MCP_WORKSPACE из шаблона"
+    fi
 elif [ -f "$MCP_WORKSPACE" ] && ! py_available; then
     # No python3 — check if already migrated, otherwise warn
     if grep -q 'iwe-knowledge' "$MCP_WORKSPACE" 2>/dev/null; then
@@ -4029,6 +4220,21 @@ elif [ -f "$MCP_WORKSPACE" ] && ! py_available; then
         echo "  ⚠ .mcp.json: python3 не найден, автомиграция пропущена."
         echo "    Замените knowledge-mcp/digital-twin-mcp на iwe-knowledge вручную."
         echo "    Образец: $MCP_TEMPLATE"
+    fi
+fi
+
+# issue #786 (гэп, найденный ревью после первого фикса): три ветки выше чинят
+# только «файла ещё нет» или «сервер устарел». Автор issue сообщал о файле,
+# ПОБАЙТНО ИДЕНТИЧНОМ шаблону — python-миграция такой файл не трогает
+# (changed остаётся false, нет устаревших ключей), а без python3 ветка просто
+# предупреждает. {{HOME_DIR}} в уже существующем workspace-файле не лечился
+# ни одним путём. Проверяем и чиним отдельно, независимо от того, что
+# случилось выше.
+if [ -f "$MCP_WORKSPACE" ] && grep -qF '{{HOME_DIR}}' "$MCP_WORKSPACE" 2>/dev/null; then
+    if sed_inplace "s|{{HOME_DIR}}|$(sed_escape_replacement "${ENV_HOME_DIR:-$HOME}")|g" "$MCP_WORKSPACE"; then
+        echo "  ✓ .mcp.json: {{HOME_DIR}} подставлен в уже существующем файле (issue #786)"
+    else
+        echo "  ✗ .mcp.json: не удалось подставить {{HOME_DIR}} в уже существующий файл"
     fi
 fi
 
@@ -4067,6 +4273,13 @@ for f in "${NEW_FILES[@]}" "${UPDATED_FILES[@]}"; do
 done
 
 if $ROLES_CHANGED && command -v launchctl >/dev/null 2>&1; then
+    # issue #768: role installers register real launchd jobs under the
+    # current user's real $HOME — a foreign/unowned host-global state must
+    # not have those jobs reloaded pointing at this copy.
+    if $HOST_GLOBAL_OWNER_CONFLICT; then
+        echo ""
+        echo "  ○ Переустановка launchd-ролей пропущена: $HOST_GLOBAL_OWNER_CONFLICT_REASON"
+    else
     echo ""
     echo "Роли обновлены. Переустановка..."
     # WP-529 Ф94 (peer-session 2026-09-08-32): $HOME/.iwe-paths is a legacy
@@ -4089,6 +4302,7 @@ if $ROLES_CHANGED && command -v launchctl >/dev/null 2>&1; then
                 echo "  ○ $(basename "$role_dir"): переустановите вручную"
         fi
     done
+    fi
 fi
 
 # === Step 6d2: Regenerate hot-files.list (issue #294/#291) ===
