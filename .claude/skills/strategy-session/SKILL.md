@@ -30,7 +30,7 @@ gates_rationale: "операционный скилл; WP Gate применим 
 
 ### Шаг 0. Рабочая копия governance-репозитория (БЛОКИРУЮЩЕЕ, ДО расширений и любой записи)
 
-> Если в установке есть `session-guard.sh` (канон под freeze), правка идёт только из изолированной копии и публикуется через `ds-publish.sh` (правило «Канон под freeze» в `{{GOVERNANCE_REPO}}/CLAUDE.md`). Если session-guard в установке нет, заморозки нет: работай как раньше в найденной рабочей копии и сохраняй штатным способом. Это две явные ветки ниже, не молчаливый пропуск. ВСЕ пути записи строятся от `GOV_WT`, не от канона.
+> Если в установке есть `session-guard.sh` (канон под freeze), правка идёт только из изолированной копии и публикуется через `ds-publish.sh` (правило «Канон под freeze» в `{{GOVERNANCE_REPO}}/CLAUDE.md`). Если session-guard в установке нет, заморозка выключена (пустой `IWE_FROZEN_CANONICAL_PATH`) или у репозитория управления нет `origin` (установка без GitHub: `open --isolate` без `--base-sha` берёт основу командой `git fetch origin main`, а публиковать некуда), работай как раньше в найденной рабочей копии и сохраняй штатным способом. Это две явные ветки ниже, не молчаливый пропуск. ВСЕ пути записи строятся от `GOV_WT`, не от канона.
 
 ```bash
 CANON="{{WORKSPACE_DIR}}/{{GOVERNANCE_REPO}}"
@@ -54,14 +54,32 @@ if [ -n "$CAND" ]; then
 fi
 # кандидат годится, только если его общий git-каталог совпадает с каноном (тот же governance-репозиторий)
 if [ -n "$CAND_C" ] && [ "$CAND_COMMON" = "$CANON_COMMON" ]; then GOV_WT="$CAND_C"; else GOV_WT=""; fi
+# изоляция нужна, только когда есть origin (обычно open --isolate берёт основу через git fetch origin main;
+# офлайн можно указать проверенный локальный коммит через --base-sha) и заморозка не выключена
+# (пустой IWE_FROZEN_CANONICAL_PATH выключает её и в самом session-guard.sh): иначе работа как раньше
+GUARD_OFF=""
+if [ "$GUARD_MODE" = required ]; then
+  if [ "${IWE_FROZEN_CANONICAL_PATH+x}" = x ] && [ -z "$IWE_FROZEN_CANONICAL_PATH" ]; then
+    GUARD_OFF="заморозка выключена: IWE_FROZEN_CANONICAL_PATH пуст"
+  elif ! git -C "$CANON_C" remote get-url origin >/dev/null 2>&1; then
+    GUARD_OFF="у репозитория управления нет origin: изоляции нечего получать (git fetch origin main) и публиковать некуда"
+  fi
+  [ -z "$GUARD_OFF" ] || GUARD_MODE=absent
+fi
 if [ "$GUARD_MODE" = required ]; then
   if [ -z "$GOV_WT" ] || [ "$GOV_WT" = "$CANON_C" ]; then
-    echo "NOT ISOLATED: канон под freeze, запись запрещена. Открой копию: (cd -- \"$CANON_C\" && bash \"$GUARD\" open --isolate --wp <WP-N>), затем повтори этот шаг внутри копии: (cd -- \"<worktree_path>\" || exit 1; <блок шага 0>)" >&2; exit 2
+    echo "NOT ISOLATED: канон под freeze, запись запрещена. Открой копию: (cd -- \"$CANON_C\" && bash \"$GUARD\" open --isolate --wp <WP-N>), затем повтори этот шаг внутри копии: (cd -- \"<worktree_path>\" || exit 1; <блок шага 0>)" >&2
+    LOCAL_BASE_SHA=$(git -C "$CANON_C" rev-parse --verify 'HEAD^{commit}' 2>/dev/null || true)
+    if [ -n "$LOCAL_BASE_SHA" ]; then
+      echo "Если origin недоступен: проверь локальный коммит: git -C \"$CANON_C\" show -s --format='%H %s' \"$LOCAL_BASE_SHA\"" >&2
+      echo "Затем добавь к команде открытия --base-sha $LOCAL_BASE_SHA; с этим флагом сеть не нужна. Локальная ревизия может отставать от origin." >&2
+    fi
+    exit 2
   fi
   echo "GOV_WT=$GOV_WT mode=isolated"
 else
   [ -n "$GOV_WT" ] || GOV_WT="$CANON_C"
-  echo "GOV_WT=$GOV_WT mode=legacy (session-guard не найден: заморозки нет, работа как раньше)"
+  echo "GOV_WT=$GOV_WT mode=legacy (${GUARD_OFF:-session-guard не найден: заморозки нет}, работа как раньше)"
 fi
 ```
 
@@ -75,6 +93,7 @@ fi
   <блок шага 0 без изменений>
   )
   ```
+  Офлайн (нет сети, `git fetch origin main` не удаётся): проверь локальный коммит командой из шага 0 и используй готовую команду с `--base-sha`, которую напечатает `session-guard.sh`. Она создаёт копию от указанного коммита без обращения к `origin`. Пилот может отдельно решить выключить заморозку пустым `IWE_FROZEN_CANONICAL_PATH` и перейти в режим `legacy`.
   Не получилось -> сообщи пилоту и остановись (fail-closed), в канон не пиши. Код 1 -> ошибка резолвера или путей: покажи сообщение и остановись.
 - КАЖДЫЙ последующий блок записи начинается с явного задания и проверки `GOV_WT` и выполняется в подоболочке внутри копии (git — `git -C "$GOV_WT" …`, файлы — абсолютные пути от `$GOV_WT`):
   ```bash
@@ -100,7 +119,7 @@ fi
     else bash "$PUB" "$GOV_WT" normal --reason "strategy-session" --from-commit "$c" || exit $?; fi
   done
   ```
-  `mode=legacy` -> сохраняй штатным способом установки (коммит и push своими средствами); `ds-publish.sh` используй, только если он есть.
+  `mode=legacy` -> сохраняй штатным способом установки (коммит и push своими средствами; если у репозитория нет `origin`, достаточно коммита); `ds-publish.sh` используй, только если он есть.
 
 ### Шаг 0.1. Extensions (before)
 `GOV_WT="<записанный путь>" bash .claude/scripts/load-extensions.sh strategy-session before` -> Exit 0: Read каждый файл, выполнить; расширения работают с этим корнем `GOV_WT`. Exit 1: пропустить.
