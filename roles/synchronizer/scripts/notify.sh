@@ -65,47 +65,70 @@ if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
     exit 0
 fi
 
-# Send to Telegram
+# Send to Telegram through iwe-notify (WP-568 Ф12 С4, peer-session 2026-11-08-06):
+# the one place a template script calls the Bot API. Without a notification
+# gateway on the workstation iwe-notify makes the same single direct send as
+# before (HTML, buttons, TELEGRAM_PROXY/ALL_PROXY, "ok":true required) and logs
+# it; with a gateway the gateway decides the channel and that is final (text
+# only, no buttons), including pulse and --require-delivery. IWE_TG_BIN still
+# names a gateway explicitly.
+# iwe-notify-sources: strategist pulse synchronizer-notify
+# Lookup: the copy shipped with this template first (it matches this script's
+# flags), then the explicit override and the other known places.
+find_iwe_notify() {
+    local candidate
+    for candidate in "$SCRIPT_DIR/../../../scripts/iwe-notify" "${IWE_NOTIFY_BIN:-}" \
+        "${IWE_TEMPLATE:+$IWE_TEMPLATE/scripts/iwe-notify}" "${IWE_SCRIPTS:+$IWE_SCRIPTS/iwe-notify}" \
+        "${IWE_WORKSPACE:-$HOME/IWE}/scripts/iwe-notify"; do
+        if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+            printf '%s' "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# send_telegram <html text> [buttons json array]
+# Without --require-delivery: always 0, the outcome only in stdout (as before).
+# With it: 0 = delivered to the chat, 3 = no credentials, 4 = not delivered
+# (failed, kept for a digest, quarantined, or iwe-notify missing).
 send_telegram() {
     local text="$1"
     local buttons="${2:-[]}"
+    local source_id notify_bin outcome
+    local args=()
 
     text="${text:0:4000}"
-
-    local escaped_text
-    escaped_text=$(printf '%s' "$text" | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))')
-
-    local json_body
-    if [ "$buttons" = "[]" ]; then
-        json_body=$(printf '{"chat_id":"%s","text":%s,"parse_mode":"HTML","disable_web_page_preview":true}' \
-            "$TELEGRAM_CHAT_ID" "$escaped_text")
-    else
-        json_body=$(printf '{"chat_id":"%s","text":%s,"parse_mode":"HTML","disable_web_page_preview":true,"reply_markup":{"inline_keyboard":%s}}' \
-            "$TELEGRAM_CHAT_ID" "$escaped_text" "$buttons")
-    fi
-
-    local response
-    local curl_proxy_args=()
-    if [ -n "${TELEGRAM_PROXY:-}" ]; then
-        curl_proxy_args=(--proxy "$TELEGRAM_PROXY")
-    elif [ -n "${ALL_PROXY:-}" ]; then
-        curl_proxy_args=(--proxy "$ALL_PROXY")
-    fi
-
-    response=$(curl -s --connect-timeout 5 --max-time 10 "${curl_proxy_args[@]}" -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-        -H "Content-Type: application/json" \
-        -d "$json_body")
-
-    local ok
-    ok=$(echo "$response" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()).get("ok",""))' 2>/dev/null || echo "")
-
-    if [ "$ok" = "True" ]; then
-        echo "Telegram notification sent: $AGENT/$SCENARIO"
-    else
-        echo "Telegram send FAILED: $AGENT/$SCENARIO"
-        echo "Response: $response"
+    case "$AGENT" in
+        strategist|pulse) source_id="$AGENT" ;;
+        *) source_id="synchronizer-notify" ;;
+    esac
+    if ! notify_bin=$(find_iwe_notify); then
+        echo "Telegram send FAILED: $AGENT/$SCENARIO (iwe-notify not found; run update.sh)"
         [ "$REQUIRE_DELIVERY" -eq 1 ] && return 4
+        return 0
     fi
+    args=(--source "$source_id" --html)
+    [ "$buttons" = "[]" ] || args+=(--reply-markup "{\"inline_keyboard\":$buttons}")
+    outcome=$(IWE_NOTIFY_GATEWAY="${IWE_TG_BIN:-${IWE_NOTIFY_GATEWAY:-}}" \
+        "$notify_bin" "${args[@]}" -- "$text") || true
+    outcome="${outcome#iwe-notify: outcome=}"
+    # The outcome goes to stderr: callers match the stdout lines below whole
+    # (scheduler.sh greps "Telegram notification sent: <agent>/<scenario>" with -x).
+    echo "notify.sh: $AGENT/$SCENARIO outcome=${outcome:-unknown}" >&2
+    case "$outcome" in
+        sent|direct-sent)
+            echo "Telegram notification sent: $AGENT/$SCENARIO"
+            return 0 ;;
+        deferred|quarantined)
+            echo "Notification routed through the gate: $AGENT/$SCENARIO" ;;
+        not-sent)
+            echo "Telegram send FAILED: $AGENT/$SCENARIO (not configured)"
+            [ "$REQUIRE_DELIVERY" -eq 1 ] && return 3 ;;
+        *)
+            echo "Telegram send FAILED: $AGENT/$SCENARIO (${outcome:-unknown})" ;;
+    esac
+    [ "$REQUIRE_DELIVERY" -eq 1 ] && return 4
     return 0
 }
 
